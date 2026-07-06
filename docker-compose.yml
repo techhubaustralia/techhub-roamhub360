@@ -1,0 +1,91 @@
+# RoamHub360 — self-hosted stack for a cheap VPS / DigitalOcean droplet.
+# One box runs: Postgres + a one-shot migrator + the Next.js app + Caddy (auto-TLS).
+# Floor plans/images persist to a local volume (Azure Blob not required).
+#
+#   cp .env.example .env   # then fill it in
+#   docker compose up -d --build
+#
+# NOTE: until the Easy-Auth replacement lands (next step), the app has NO login off
+# Azure — every visitor resolves to the break-glass admin. Keep the demo private
+# (enable Caddy basic_auth in the Caddyfile) until auth is added.
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: roamhub
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: roamhub360
+    volumes:
+      - dbdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U roamhub -d roamhub360"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+    restart: unless-stopped
+
+  # Runs once at startup to create/update the schema, then exits.
+  migrate:
+    build:
+      context: .
+      target: migrator
+    environment:
+      DATABASE_URL: ${DATABASE_URL:?set DATABASE_URL in .env}
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
+
+  app:
+    build:
+      context: .
+      target: runner
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      APP_URL: ${APP_URL}
+      CHECKIN_SECRET: ${CHECKIN_SECRET:?required — the app refuses to boot without it}
+      JOBS_SECRET: ${JOBS_SECRET}
+      AUTH_SECRET: ${AUTH_SECRET:?required for login sessions}
+      AUTH_MICROSOFT_ENTRA_ID_ID: ${AUTH_MICROSOFT_ENTRA_ID_ID:-}
+      AUTH_MICROSOFT_ENTRA_ID_SECRET: ${AUTH_MICROSOFT_ENTRA_ID_SECRET:-}
+      AUTH_MICROSOFT_ENTRA_ID_ISSUER: ${AUTH_MICROSOFT_ENTRA_ID_ISSUER:-https://login.microsoftonline.com/common/v2.0}
+      AUTH_GOOGLE_ID: ${AUTH_GOOGLE_ID:-}
+      AUTH_GOOGLE_SECRET: ${AUTH_GOOGLE_SECRET:-}
+      BOOTSTRAP_ADMINS: ${BOOTSTRAP_ADMINS:-}
+      # Microsoft Graph (email + Outlook calendar). Leave blank to disable — it no-ops.
+      AZURE_TENANT_ID: ${AZURE_TENANT_ID:-}
+      GRAPH_CLIENT_ID: ${GRAPH_CLIENT_ID:-}
+      GRAPH_CLIENT_SECRET: ${GRAPH_CLIENT_SECRET:-}
+      MAIL_FROM: ${MAIL_FROM:-}
+      GRAPH_TIMEZONE: ${GRAPH_TIMEZONE:-AUS Eastern Standard Time}
+      ROOM_MAILBOXES: ${ROOM_MAILBOXES:-}
+    volumes:
+      - appdata:/app/data # plans, floor-plan images, buildings/roles index
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    expose:
+      - "3000"
+    restart: unless-stopped
+
+  caddy:
+    image: caddy:2-alpine
+    environment:
+      SITE_ADDRESS: ${SITE_ADDRESS:-:80}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddydata:/data
+      - caddyconfig:/config
+    depends_on:
+      - app
+    restart: unless-stopped
+
+volumes:
+  dbdata:
+  appdata:
+  caddydata:
+  caddyconfig:

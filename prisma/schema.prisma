@@ -1,0 +1,82 @@
+// Azure SQL Database — bookings, check-ins, locks, audit.
+// Buildings + floor-plan geometry live in code / Azure Blob, not SQL.
+
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "debian-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Booking {
+  id            String    @id @default(uuid())
+  userEmail     String
+  bookedByEmail String? // set when an admin books on behalf
+  buildingId    String
+  spaceKey      String
+  spaceLabel    String
+  kind          String // desk | office | room
+  durationType  String // hourly | half | full
+  start         String // ISO-local "YYYY-MM-DDTHH:mm"
+  end           String
+  status        String    @default("Booked") // Booked | Checked in | Cancelled | Declined
+  eventId       String? // Graph room-mailbox calendar event id (room bookings); null until/unless reserved
+  cancelledBy   String? // email of whoever cancelled; differs from owner => admin cancellation
+  cancelReason  String? // optional reason supplied at cancellation
+  createdAt     DateTime  @default(now())
+  checkIns      CheckIn[]
+
+  @@index([buildingId, spaceKey])
+  @@index([userEmail])
+}
+
+model CheckIn {
+  id           String   @id @default(uuid())
+  bookingId    String
+  booking      Booking  @relation(fields: [bookingId], references: [id])
+  date         String // ISO date for that day (multi-day desks check in daily)
+  checkedInAt  DateTime?
+  checkedOutAt DateTime?
+
+  @@unique([bookingId, date])
+}
+
+model Lock {
+  buildingId String
+  spaceKey   String
+  scope      String   @default("temporary") // temporary | permanent
+  lockedBy   String?
+  createdAt  DateTime @default(now())
+
+  @@id([buildingId, spaceKey])
+}
+
+model AuditLog {
+  id     String   @id @default(uuid())
+  at     DateTime @default(now())
+  actor  String
+  action String
+  detail String?
+}
+
+// App users. Source of truth for identity + role, whether they sign in with
+// Microsoft Entra (SSO) or a local email/password (for orgs without Microsoft).
+// passwordHash is null for SSO-only users. Roles/sites move here off the old
+// _roles.json + Entra-group mapping (which required Azure Easy Auth).
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  name         String?
+  passwordHash String? // bcrypt; null for SSO-only (Entra) users
+  role         String   @default("staff") // global-admin | site-admin | staff
+  sites        String[] @default([]) // building roots a site-admin may manage
+  multiBook    Boolean  @default(false) // "Office Manager": multiple desks/day
+  provider     String   @default("credentials") // credentials | entra
+  tenantId     String? // per-customer isolation (completed in the multi-tenant phase)
+  createdAt    DateTime @default(now())
+
+  @@index([tenantId])
+}

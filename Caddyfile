@@ -1,0 +1,16 @@
+# RoamHub360 reverse proxy. SITE_ADDRESS comes from .env:
+#   - a real hostname (e.g. demo.roamhub360.com) => Caddy auto-provisions Let's Encrypt TLS
+#   - ":80" for a plain local/IP test (no TLS)
+{$SITE_ADDRESS:-:80} {
+	encode zstd gzip
+	reverse_proxy app:3000
+
+	# --- Cheap demo gate (recommended until real auth lands) ---
+	# The app has no login off Azure yet, so protect the whole demo with one shared
+	# password. Generate the hash with:  docker run --rm caddy caddy hash-password --plaintext 'yourpassword'
+	# then uncomment and paste it below.
+	#
+	# basic_auth {
+	#   demo <PASTE_BCRYPT_HASH_HERE>
+	# }
+}
