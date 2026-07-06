@@ -11,7 +11,7 @@ There are two paths. **Path 1 (plain Docker Compose)** is the simplest and is wh
 
 ## 0. Prerequisites
 - A DigitalOcean account.
-- A domain you control (e.g. `roamhub360.com`) so we can point `demo.roamhub360.com` at the droplet.
+- A domain you control (e.g. `roamhub360.com`) so we can point `app.roamhub360.com` at the droplet.
 - OAuth apps (optional, for SSO) — see §6.
 
 ## 1. Create the droplet
@@ -21,7 +21,7 @@ There are two paths. **Path 1 (plain Docker Compose)** is the simplest and is wh
 - Add your SSH key. Enable the DO firewall: allow **22, 80, 443**.
 
 ## 2. DNS
-Point an **A record** `demo.roamhub360.com` → the droplet's public IP. (TLS is issued automatically once DNS resolves.)
+Point an **A record** `app.roamhub360.com` → the droplet's public IP. (TLS is issued automatically once DNS resolves.)
 
 ---
 
@@ -46,8 +46,8 @@ Edit `.env` and set at minimum:
 ```
 POSTGRES_PASSWORD=<strong>
 DATABASE_URL=postgresql://roamhub:<same strong password>@db:5432/roamhub360?schema=public
-SITE_ADDRESS=demo.roamhub360.com
-APP_URL=https://demo.roamhub360.com
+SITE_ADDRESS=app.roamhub360.com
+APP_URL=https://app.roamhub360.com
 AUTH_SECRET=<from openssl>
 CHECKIN_SECRET=<from openssl>
 JOBS_SECRET=<from openssl>
@@ -67,7 +67,7 @@ The app image has no shell tooling, so seed via the one-off **migrate** image (i
 ```bash
 docker compose run --rm migrate node scripts/create-admin.mjs you@yourdomain.com 'a-strong-password' 'Your Name'
 ```
-Now open `https://demo.roamhub360.com` → sign in with that email/password.
+Now open `https://app.roamhub360.com` → sign in with that email/password.
 
 ### 3.5 Updating later
 ```bash
@@ -89,7 +89,7 @@ Coolify provides its own reverse proxy + TLS, so use the compose **without** Cad
 2. **Add a Postgres database:** Resources → New → Database → PostgreSQL. Note its connection string → this becomes `DATABASE_URL`.
 3. **Add the app:** Resources → New → Application → your Git repo. Build pack = **Dockerfile**, target = `runner`, port **3000**.
 4. **Set env vars** (same as §3.2, but `DATABASE_URL` = the Coolify Postgres string; the DB host is the Coolify service name, not `db`).
-5. **Set the domain** `demo.roamhub360.com` in the app's settings — Coolify issues TLS.
+5. **Set the domain** `app.roamhub360.com` in the app's settings — Coolify issues TLS.
 6. **Deploy.** Then run migrations + seed once via a one-off container (Coolify → Commands, or SSH):
    ```bash
    # from the repo build image (has Prisma CLI + scripts):
@@ -105,7 +105,7 @@ Coolify provides its own reverse proxy + TLS, so use the compose **without** Cad
 Local email/password works with no setup. To enable SSO, register redirect URIs and set env vars, then redeploy.
 
 **Microsoft Entra** (Azure Portal → App registrations → New):
-- Redirect URI (Web): `https://demo.roamhub360.com/api/auth/callback/microsoft-entra-id`
+- Redirect URI (Web): `https://app.roamhub360.com/api/auth/callback/microsoft-entra-id`
 - Supported account types: *Accounts in any organizational directory* (multi-tenant).
 - Create a client secret. Set:
   ```
@@ -115,7 +115,7 @@ Local email/password works with no setup. To enable SSO, register redirect URIs 
   ```
 
 **Google** (Google Cloud Console → APIs & Services → Credentials → OAuth client ID, type Web):
-- Authorized redirect URI: `https://demo.roamhub360.com/api/auth/callback/google`
+- Authorized redirect URI: `https://app.roamhub360.com/api/auth/callback/google`
 - Set:
   ```
   AUTH_GOOGLE_ID=<client id>
@@ -131,7 +131,7 @@ Leave blank to disable — the app no-ops (bookings still work, just no email/ca
 ## 8. Scheduled jobs (check-in reminders, auto-cancel, etc.)
 Add a host cron that pings the tick endpoint every 30 min:
 ```bash
-*/30 * * * * curl -fsS -H "x-jobs-secret: <JOBS_SECRET>" https://demo.roamhub360.com/api/jobs/tick >/dev/null 2>&1
+*/30 * * * * curl -fsS -H "x-jobs-secret: <JOBS_SECRET>" https://app.roamhub360.com/api/jobs/tick >/dev/null 2>&1
 ```
 (In Coolify, use a Scheduled Task instead.)
 
@@ -171,12 +171,12 @@ co-host compose (`docker-compose.cohost.yml`): no Caddy, no 80/443 binding, its 
 volumes + project name (`roamhub360`). The app is published only on `127.0.0.1:3100`; your existing
 reverse proxy forwards a subdomain to it.
 
-**Suggested subdomain:** `roamhub360.techhubaustralia.com.au` (matches `helpdesk.techhubaustralia.com.au`).
-Add a DNS A record → the droplet's IP.
+**App URL:** `app.roamhub360.com` (RoamHub360's own domain; the helpdesk stays on `helpdesk.techhubaustralia.com.au`).
+Add a DNS A record `app.roamhub360.com` → the droplet's IP.
 
 ### Bring it up
 ```bash
-cd roamhub360 && cp .env.example .env    # set APP_URL=https://roamhub360.techhubaustralia.com.au
+cd roamhub360 && cp .env.example .env    # set APP_URL=https://app.roamhub360.com
 # (set APP_PORT in .env if 3100 is already taken by the other app)
 docker compose -f docker-compose.cohost.yml up -d --build
 docker compose -f docker-compose.cohost.yml run --rm migrate node scripts/create-admin.mjs you@techhubaustralia.com.au 'a-strong-password' 'Your Name'
@@ -186,13 +186,13 @@ docker compose -f docker-compose.cohost.yml run --rm migrate node scripts/create
 
 **Coolify** — skip the co-host compose. In Coolify add a new Application (Dockerfile, target
 `runner`, port 3000) + a PostgreSQL database, set the env, and set the domain
-`roamhub360.techhubaustralia.com.au`; Coolify's proxy issues TLS. Run migrate/seed via a one-off
+`app.roamhub360.com`; Coolify's proxy issues TLS. Run migrate/seed via a one-off
 (see §5 / Path 2).
 
 **Nginx** — add a server block, then issue a cert:
 ```nginx
 server {
-  server_name roamhub360.techhubaustralia.com.au;
+  server_name app.roamhub360.com;
   location / {
     proxy_pass http://127.0.0.1:3100;
     proxy_set_header Host $host;
@@ -202,14 +202,14 @@ server {
 }
 ```
 ```bash
-certbot --nginx -d roamhub360.techhubaustralia.com.au
+certbot --nginx -d app.roamhub360.com
 ```
 
 **Caddy** — add to the existing Caddyfile:
 ```
-roamhub360.techhubaustralia.com.au {
+app.roamhub360.com {
   reverse_proxy 127.0.0.1:3100
 }
 ```
 
-OAuth redirect URIs then use the subdomain, e.g. `https://roamhub360.techhubaustralia.com.au/api/auth/callback/google`.
+OAuth redirect URIs then use the subdomain, e.g. `https://app.roamhub360.com/api/auth/callback/google`.
