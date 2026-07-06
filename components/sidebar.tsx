@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { Plus, LogOut } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { NAV_MAIN, NAV_ADMIN, type NavItem, type Role } from "@/lib/nav";
+import { signOut } from "next-auth/react";
 import { RoamHubMark } from "@/components/roamhub-mark";
 import { brand } from "@/lib/brand";
 
@@ -91,14 +92,15 @@ export function Sidebar() {
           <b className="block truncate text-[13px]">{user.name}</b>
           <span className="block truncate text-[11.5px] text-txt-mute">{user.email}</span>
         </div>
-        <a
-          href="/.auth/logout?post_logout_redirect_uri=/"
+        <button
+          type="button"
+          onClick={() => signOut({ callbackUrl: "/signin" })}
           title="Sign out"
           aria-label="Sign out"
           className="grid size-8 shrink-0 place-items-center rounded-[9px] text-txt-mute transition-colors hover:bg-panel-2 hover:text-foreground"
         >
           <LogOut className="size-4" />
-        </a>
+        </button>
       </div>
     </aside>
   );

@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Menu, X, Plus, LogOut } from "lucide-react";
+import { signOut } from "next-auth/react";
 import { cn } from "@/lib/utils";
 import { NAV_MAIN, NAV_ADMIN, type Role } from "@/lib/nav";
 import { RoamHubMark } from "@/components/roamhub-mark";
@@ -78,9 +79,9 @@ export function MobileNav() {
                 </>
               )}
             </nav>
-            <a href="/.auth/logout?post_logout_redirect_uri=/" className="m-3 flex items-center gap-2 rounded-[10px] px-3 py-2.5 text-[13.5px] font-medium text-txt-dim hover:bg-panel-2">
+            <button type="button" onClick={() => signOut({ callbackUrl: "/signin" })} className="m-3 flex w-full items-center gap-2 rounded-[10px] px-3 py-2.5 text-[13.5px] font-medium text-txt-dim hover:bg-panel-2">
               <LogOut className="size-4" /> Sign out
-            </a>
+            </button>
           </aside>
         </div>
       )}
