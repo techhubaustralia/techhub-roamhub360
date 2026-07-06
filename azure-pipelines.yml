@@ -1,0 +1,60 @@
+# Azure DevOps pipeline: build image -> push to ACR -> deploy to Azure Container Apps.
+#
+# IMPORTANT: auto-trigger is DISABLED. The previous config triggered on every push
+# to main with placeholder resource names that did not match the real environment,
+# which raced with (and could override) the correct manual deploy. Resource names
+# below are now correct. To re-enable continuous deploy, first create the two
+# service connections named below in Azure DevOps (Project Settings -> Service
+# connections), then change `trigger: none` to the branch trigger.
+
+trigger: none
+# trigger:
+#   branches:
+#     include: [main]
+
+variables:
+  acrName: "crworkspacehubprodeastus" # ACR resource name (without .azurecr.io)
+  imageName: "workspace-hub"
+  resourceGroup: "RG-WorkSpace_Hub-Prod-Eastus"
+  containerApp: "ca-workspacehub-prod-eastus"
+  acrServiceConnection: "workspace-hub-acr" # Docker registry service connection (create in Azure DevOps)
+  azureServiceConnection: "workspace-hub-azure" # ARM service connection (create in Azure DevOps)
+  tag: "$(Build.BuildId)"
+
+pool:
+  vmImage: "ubuntu-latest"
+
+stages:
+  - stage: BuildPush
+    displayName: Build & push image
+    jobs:
+      - job: docker
+        steps:
+          - task: Docker@2
+            displayName: Build and push to ACR
+            inputs:
+              command: buildAndPush
+              repository: "$(imageName)"
+              dockerfile: "Dockerfile"
+              containerRegistry: "$(acrServiceConnection)"
+              tags: |
+                $(tag)
+                latest
+
+  - stage: Deploy
+    displayName: Deploy to Container Apps
+    dependsOn: BuildPush
+    jobs:
+      - job: deploy
+        steps:
+          - task: AzureCLI@2
+            displayName: Update Container App image
+            inputs:
+              azureSubscription: "$(azureServiceConnection)"
+              scriptType: bash
+              scriptLocation: inlineScript
+              inlineScript: |
+                az containerapp update \
+                  --name "$(containerApp)" \
+                  --resource-group "$(resourceGroup)" \
+                  --image "$(acrName).azurecr.io/$(imageName):$(tag)"

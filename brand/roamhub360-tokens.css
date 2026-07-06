@@ -1,0 +1,38 @@
+/* RoamHub360 — brand tokens (source of truth for the Phase 1 rebrand).
+ * A Tech Hub Australia product. Blue-forward, in the parent brand family.
+ * (Renamed from WorkHub360 — that name was already taken.)
+ * These map onto the app's existing shadcn tokens in app/globals.css during Phase 1;
+ * kept here as the canonical palette so branding is config-driven and later per-tenant.
+ *
+ * Fonts (shared with Tech Hub Australia): Sora (display), Plus Jakarta Sans (body),
+ * Space Grotesk (mono). Loaded via next/font in app/layout.tsx.
+ */
+:root {
+  /* Foundation (dark) */
+  --rh-space:      #060B18; /* app ground / canvas */
+  --rh-panel:      #0E1A30; /* cards / surfaces */
+  --rh-panel-2:    #13233F; /* raised surface */
+  --rh-panel-3:    #182C4C; /* elevated / desk tiles */
+  --rh-line:       #1E2E4C; /* borders / dividers */
+  --rh-line-2:     #27395C; /* stronger border */
+
+  /* Brand */
+  --rh-blue:       #2B7DD1; /* PRIMARY — CTAs, links, focus ring */
+  --rh-blue-bright:#3C93E8; /* hover / press */
+  --rh-cyan:       #29C5EE; /* accent — focus glow, gradient endpoint */
+  --rh-gradient:   linear-gradient(115deg, #2B7DD1 0%, #29C5EE 100%);
+
+  /* Text (on dark) */
+  --rh-ink:        #EDF3FC; /* primary text */
+  --rh-muted:      #93A5C7; /* secondary text */
+  --rh-dim:        #5E7099; /* tertiary / captions */
+
+  /* Semantic desk/booking status (NOT accents — real product states) */
+  --rh-available:  #2FBE86; /* free desk */
+  --rh-booked:     #F5821F; /* reserved (inherited Tech Hub amber) */
+  --rh-occupied:   #2B7DD1; /* checked in */
+  --rh-assigned:   #8AA0BC; /* permanent assignment */
+  --rh-destructive:#DC5B43;
+
+  --rh-radius: 0.875rem;
+}

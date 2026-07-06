@@ -1,0 +1,10 @@
+node_modules
+.next
+.git
+data
+npm-debug.log
+*.md
+.env*
+.claude
+dev.log
+deverr.log

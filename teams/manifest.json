@@ -1,0 +1,54 @@
+{
+  "$schema": "https://developer.microsoft.com/en-us/json-schemas/teams/v1.17/MicrosoftTeams.schema.json",
+  "manifestVersion": "1.17",
+  "version": "1.0.0",
+  "id": "REPLACE_WITH_ENTRA_APP_CLIENT_ID",
+  "developer": {
+    "name": "TechHub Australia",
+    "websiteUrl": "https://app.roamhub360.com",
+    "privacyUrl": "https://app.roamhub360.com/privacy",
+    "termsOfUseUrl": "https://app.roamhub360.com/terms"
+  },
+  "name": {
+    "short": "RoamHub360",
+    "full": "RoamHub360 by TechHub Australia"
+  },
+  "description": {
+    "short": "Book desks, offices, rooms and parking.",
+    "full": "RoamHub360 — smart desk & workspace booking: reserve desks, offices, meeting rooms and parking, check in and out, and manage your bookings. Same live data as the web app. A TechHub Australia product."
+  },
+  "icons": {
+    "color": "color.png",
+    "outline": "outline.png"
+  },
+  "accentColor": "#2B7DD1",
+  "staticTabs": [
+    {
+      "entityId": "home",
+      "name": "Home",
+      "contentUrl": "https://app.roamhub360.com/teams?target=%2F",
+      "websiteUrl": "https://app.roamhub360.com/",
+      "scopes": ["personal"]
+    },
+    {
+      "entityId": "book",
+      "name": "Book a space",
+      "contentUrl": "https://app.roamhub360.com/teams?target=%2Fbook",
+      "websiteUrl": "https://app.roamhub360.com/book",
+      "scopes": ["personal"]
+    },
+    {
+      "entityId": "mine",
+      "name": "My bookings",
+      "contentUrl": "https://app.roamhub360.com/teams?target=%2Fmine",
+      "websiteUrl": "https://app.roamhub360.com/mine",
+      "scopes": ["personal"]
+    }
+  ],
+  "permissions": ["identity", "messageTeamMembers"],
+  "validDomains": ["app.roamhub360.com"],
+  "webApplicationInfo": {
+    "id": "REPLACE_WITH_ENTRA_APP_CLIENT_ID",
+    "resource": "api://app.roamhub360.com/REPLACE_WITH_ENTRA_APP_CLIENT_ID"
+  }
+}
