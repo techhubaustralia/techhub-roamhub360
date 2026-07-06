@@ -2,15 +2,13 @@ import "server-only";
 import crypto from "crypto";
 
 // HMAC-signed tokens for login-free email check-in / check-out links.
-// Fail closed in production: refuse to boot with the insecure default, otherwise
-// check-in/out links would be forgeable (anyone could flip any booking's state).
+// Fail closed at RUNTIME — checked when a token is actually signed/verified, NOT at
+// module load: a top-level throw breaks `next build` (which runs with NODE_ENV=production
+// but no secret). Without CHECKIN_SECRET in production, check-in/out links would be forgeable.
 const RAW_SECRET = process.env.CHECKIN_SECRET;
-if (process.env.NODE_ENV === "production" && !RAW_SECRET) {
-  throw new Error(
-    "CHECKIN_SECRET is required in production — check-in/out links are HMAC-signed and would be forgeable without it.",
-  );
-}
 const SECRET = RAW_SECRET || "dev-insecure-secret-change-me";
+const SECRET_MISSING = () => process.env.NODE_ENV === "production" && !RAW_SECRET;
+const SECRET_ERR = "CHECKIN_SECRET is required in production — check-in/out links are HMAC-signed and would be forgeable without it.";
 
 export interface CheckToken {
   bookingId: string;
@@ -27,6 +25,7 @@ function expFor(date: string): number {
 }
 
 export function sign(payload: CheckToken): string {
+  if (SECRET_MISSING()) throw new Error(SECRET_ERR);
   const full: CheckToken = { ...payload, exp: payload.exp ?? expFor(payload.date) };
   const data = Buffer.from(JSON.stringify(full)).toString("base64url");
   const sig = crypto.createHmac("sha256", SECRET).update(data).digest("base64url");
@@ -34,6 +33,7 @@ export function sign(payload: CheckToken): string {
 }
 
 export function verify(tokenStr: string): CheckToken | null {
+  if (SECRET_MISSING()) return null;
   const [data, sig] = (tokenStr || "").split(".");
   if (!data || !sig) return null;
   const expected = crypto.createHmac("sha256", SECRET).update(data).digest("base64url");
