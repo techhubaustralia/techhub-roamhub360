@@ -1,0 +1,76 @@
+# RoamHub360 — CO-HOSTED variant. Run alongside another app (e.g. the Helpdesk) on the
+# SAME droplet, behind your EXISTING reverse proxy (nginx / Caddy / Traefik / Coolify).
+#
+# Differences vs docker-compose.yml: NO Caddy service and NO host 80/443 binding, so it
+# can't clash with whatever already owns those ports. The app is published only on
+# 127.0.0.1:${APP_PORT:-3100} — point a subdomain at that in your existing proxy.
+# Its own Postgres + named volumes + project name keep it fully isolated from the other app.
+#
+#   cp .env.example .env    # fill in (APP_URL = the demo subdomain; set APP_PORT if 3100 is taken)
+#   docker compose -f docker-compose.cohost.yml up -d --build
+#   docker compose -f docker-compose.cohost.yml run --rm migrate node scripts/create-admin.mjs you@x.com 'pw' 'Name'
+
+name: roamhub360
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: roamhub
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: roamhub360
+    volumes:
+      - roamhub_dbdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U roamhub -d roamhub360"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+    restart: unless-stopped
+
+  migrate:
+    build:
+      context: .
+      target: migrator
+    environment:
+      DATABASE_URL: ${DATABASE_URL:?set DATABASE_URL in .env}
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
+
+  app:
+    build:
+      context: .
+      target: runner
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      APP_URL: ${APP_URL}
+      CHECKIN_SECRET: ${CHECKIN_SECRET:?required — the app refuses to boot without it}
+      JOBS_SECRET: ${JOBS_SECRET}
+      AUTH_SECRET: ${AUTH_SECRET:?required for login sessions}
+      BOOTSTRAP_ADMINS: ${BOOTSTRAP_ADMINS:-}
+      AUTH_MICROSOFT_ENTRA_ID_ID: ${AUTH_MICROSOFT_ENTRA_ID_ID:-}
+      AUTH_MICROSOFT_ENTRA_ID_SECRET: ${AUTH_MICROSOFT_ENTRA_ID_SECRET:-}
+      AUTH_MICROSOFT_ENTRA_ID_ISSUER: ${AUTH_MICROSOFT_ENTRA_ID_ISSUER:-https://login.microsoftonline.com/common/v2.0}
+      AUTH_GOOGLE_ID: ${AUTH_GOOGLE_ID:-}
+      AUTH_GOOGLE_SECRET: ${AUTH_GOOGLE_SECRET:-}
+      AZURE_TENANT_ID: ${AZURE_TENANT_ID:-}
+      GRAPH_CLIENT_ID: ${GRAPH_CLIENT_ID:-}
+      GRAPH_CLIENT_SECRET: ${GRAPH_CLIENT_SECRET:-}
+      MAIL_FROM: ${MAIL_FROM:-}
+      GRAPH_TIMEZONE: ${GRAPH_TIMEZONE:-AUS Eastern Standard Time}
+      ROOM_MAILBOXES: ${ROOM_MAILBOXES:-}
+    volumes:
+      - roamhub_appdata:/app/data
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    ports:
+      # localhost only — your existing proxy forwards the subdomain here. Change 3100 if taken.
+      - "127.0.0.1:${APP_PORT:-3100}:3000"
+    restart: unless-stopped
+
+volumes:
+  roamhub_dbdata:
+  roamhub_appdata:

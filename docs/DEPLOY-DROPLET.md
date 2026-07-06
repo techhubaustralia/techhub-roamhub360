@@ -161,3 +161,55 @@ Also back up the `appdata` volume (floor plans / images).
 | Auth | Auth.js — local + Entra + Google | free |
 | Email / calendar | Microsoft Graph (unchanged) | free |
 | Cron | host crontab → `/api/jobs/tick` | free |
+
+---
+
+## 11. Co-hosting alongside another app (e.g. the BlueShift helpdesk)
+
+The demo can share the droplet that already runs another app — **without touching it**. Use the
+co-host compose (`docker-compose.cohost.yml`): no Caddy, no 80/443 binding, its own Postgres +
+volumes + project name (`roamhub360`). The app is published only on `127.0.0.1:3100`; your existing
+reverse proxy forwards a subdomain to it.
+
+**Suggested subdomain:** `roamhub360.techhubaustralia.com.au` (matches `helpdesk.techhubaustralia.com.au`).
+Add a DNS A record → the droplet's IP.
+
+### Bring it up
+```bash
+cd roamhub360 && cp .env.example .env    # set APP_URL=https://roamhub360.techhubaustralia.com.au
+# (set APP_PORT in .env if 3100 is already taken by the other app)
+docker compose -f docker-compose.cohost.yml up -d --build
+docker compose -f docker-compose.cohost.yml run --rm migrate node scripts/create-admin.mjs you@techhubaustralia.com.au 'a-strong-password' 'Your Name'
+```
+
+### Route the subdomain — using whichever proxy the helpdesk already runs
+
+**Coolify** — skip the co-host compose. In Coolify add a new Application (Dockerfile, target
+`runner`, port 3000) + a PostgreSQL database, set the env, and set the domain
+`roamhub360.techhubaustralia.com.au`; Coolify's proxy issues TLS. Run migrate/seed via a one-off
+(see §5 / Path 2).
+
+**Nginx** — add a server block, then issue a cert:
+```nginx
+server {
+  server_name roamhub360.techhubaustralia.com.au;
+  location / {
+    proxy_pass http://127.0.0.1:3100;
+    proxy_set_header Host $host;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+  }
+}
+```
+```bash
+certbot --nginx -d roamhub360.techhubaustralia.com.au
+```
+
+**Caddy** — add to the existing Caddyfile:
+```
+roamhub360.techhubaustralia.com.au {
+  reverse_proxy 127.0.0.1:3100
+}
+```
+
+OAuth redirect URIs then use the subdomain, e.g. `https://roamhub360.techhubaustralia.com.au/api/auth/callback/google`.
