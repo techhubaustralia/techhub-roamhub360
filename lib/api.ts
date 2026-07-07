@@ -202,6 +202,7 @@ export interface IntegrationStatus {
   configured: boolean;
   azureTenantId: string | null;
   graphClientId: string | null;
+  mailFrom: string | null;
   hasSecret: boolean;
   lastTestOk: boolean | null;
   lastTestAt: string | null;
@@ -215,7 +216,7 @@ export async function getIntegration(): Promise<{ status: IntegrationStatus; enc
     return null;
   }
 }
-export async function saveIntegrationApi(input: { azureTenantId?: string; graphClientId?: string; secret?: string }): Promise<{ ok: boolean; status?: IntegrationStatus; error?: string }> {
+export async function saveIntegrationApi(input: { azureTenantId?: string; graphClientId?: string; mailFrom?: string; secret?: string }): Promise<{ ok: boolean; status?: IntegrationStatus; error?: string }> {
   try {
     const r = await fetch(`/api/admin/integration`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(input) });
     const body = await r.json().catch(() => ({}));

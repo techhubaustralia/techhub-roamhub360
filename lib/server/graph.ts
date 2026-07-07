@@ -19,14 +19,15 @@ interface GraphCreds {
   tenant: string;
   clientId: string;
   secret: string;
+  mailFrom: string | null; // per-tenant sender mailbox (CP5); env default for the default tenant
 }
 
 async function credsFor(tenantId: string): Promise<GraphCreds | null> {
   if (tenantId === DEFAULT_TENANT) {
-    return ENV_TENANT && ENV_CLIENT_ID && ENV_CLIENT_SECRET ? { tenant: ENV_TENANT, clientId: ENV_CLIENT_ID, secret: ENV_CLIENT_SECRET } : null;
+    return ENV_TENANT && ENV_CLIENT_ID && ENV_CLIENT_SECRET ? { tenant: ENV_TENANT, clientId: ENV_CLIENT_ID, secret: ENV_CLIENT_SECRET, mailFrom: MAIL_FROM } : null;
   }
   const c = await getIntegrationCreds(tenantId);
-  return c ? { tenant: c.azureTenantId, clientId: c.graphClientId, secret: c.secret } : null;
+  return c ? { tenant: c.azureTenantId, clientId: c.graphClientId, secret: c.secret, mailFrom: c.mailFrom } : null;
 }
 
 // Legacy export: whether the DEFAULT/env Graph app is configured. Prefer graphConfiguredFor().
@@ -95,11 +96,11 @@ export async function graphPhotoDataUrl(userKey: string, tenantId?: string): Pro
 
 export async function sendMail(to: string, subject: string, html: string, tenantId?: string): Promise<boolean> {
   const t = tenantId ?? (await currentTenantId());
-  if (!(await credsFor(t))) return false;
-  // NOTE: MAIL_FROM is deployment-wide; a per-tenant sender mailbox is a CP1 follow-up. Calendar
-  // events (below) already run against each booking owner's own mailbox via the tenant's token.
+  const creds = await credsFor(t);
+  const from = creds?.mailFrom; // per-tenant sender (CP5); env MAIL_FROM for the default tenant
+  if (!creds || !from) return false; // no Graph, or no sender mailbox configured for this tenant
   await gfetch(
-    `/users/${encodeURIComponent(MAIL_FROM)}/sendMail`,
+    `/users/${encodeURIComponent(from)}/sendMail`,
     {
       method: "POST",
       body: JSON.stringify({

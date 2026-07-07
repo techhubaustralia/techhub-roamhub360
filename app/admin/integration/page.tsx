@@ -22,6 +22,7 @@ export default function IntegrationPage() {
   const [encOk, setEncOk] = useState(true);
   const [azureTenantId, setAzureTenantId] = useState("");
   const [graphClientId, setGraphClientId] = useState("");
+  const [mailFrom, setMailFrom] = useState("");
   const [secret, setSecret] = useState("");
   const [busy, setBusy] = useState<"" | "save" | "test">("");
   const [loading, setLoading] = useState(true);
@@ -33,6 +34,7 @@ export default function IntegrationPage() {
       setEncOk(r.encryptionAvailable);
       setAzureTenantId(r.status.azureTenantId ?? "");
       setGraphClientId(r.status.graphClientId ?? "");
+      setMailFrom(r.status.mailFrom ?? "");
     }
     setLoading(false);
   }
@@ -44,7 +46,7 @@ export default function IntegrationPage() {
     if (azureTenantId && !GUIDISH.test(azureTenantId)) return toast.error("Directory (tenant) ID doesn't look right");
     if (graphClientId && !GUIDISH.test(graphClientId)) return toast.error("Client ID doesn't look right");
     setBusy("save");
-    const res = await saveIntegrationApi({ azureTenantId, graphClientId, ...(secret ? { secret } : {}) });
+    const res = await saveIntegrationApi({ azureTenantId, graphClientId, mailFrom, ...(secret ? { secret } : {}) });
     setBusy("");
     if (res.ok) {
       setSecret("");
@@ -112,6 +114,11 @@ export default function IntegrationPage() {
             </span>
             <input type="password" value={secret} onChange={(e) => setSecret(e.target.value)} placeholder={S?.hasSecret ? "•••••••• (leave blank to keep)" : "Paste the secret value"} className="ed-input font-mono text-[13px]" autoComplete="new-password" />
             <span className="mt-1 block text-[11.5px] text-txt-mute">Stored encrypted. It&apos;s never shown again after saving.</span>
+          </label>
+          <label className="block">
+            <span className="mb-1 block text-[11px] font-semibold uppercase tracking-[0.05em] text-txt-mute">Notifications sender (mailbox)</span>
+            <input value={mailFrom} onChange={(e) => setMailFrom(e.target.value)} placeholder="bookings@yourcompany.com" className="ed-input text-[13px]" />
+            <span className="mt-1 block text-[11.5px] text-txt-mute">A mailbox in your tenant that RoamHub360 sends confirmations and reminders from (needs Mail.Send).</span>
           </label>
 
           <div className="flex gap-2">

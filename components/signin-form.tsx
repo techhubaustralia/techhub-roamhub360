@@ -5,7 +5,7 @@ import { signIn } from "next-auth/react";
 import { RoamHubMark } from "@/components/roamhub-mark";
 import { brand } from "@/lib/brand";
 
-export function SignInForm({ entraEnabled, googleEnabled }: { entraEnabled: boolean; googleEnabled: boolean }) {
+export function SignInForm({ entraEnabled, googleEnabled, bare = false }: { entraEnabled: boolean; googleEnabled: boolean; bare?: boolean }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -21,8 +21,7 @@ export function SignInForm({ entraEnabled, googleEnabled }: { entraEnabled: bool
     else window.location.assign("/");
   }
 
-  return (
-    <div className="fixed inset-0 z-[100] grid place-items-center overflow-auto bg-background p-6">
+  const inner = (
       <div className="w-full max-w-[380px]">
         <div className="mb-6 flex flex-col items-center text-center">
           <RoamHubMark className="size-12" />
@@ -84,8 +83,10 @@ export function SignInForm({ entraEnabled, googleEnabled }: { entraEnabled: bool
         </div>
         <p className="mt-4 text-center text-[11px] text-txt-mute">A {brand.company} product</p>
       </div>
-    </div>
   );
+
+  if (bare) return inner;
+  return <div className="fixed inset-0 z-[100] grid place-items-center overflow-auto bg-background p-6">{inner}</div>;
 }
 
 function MsLogo() {

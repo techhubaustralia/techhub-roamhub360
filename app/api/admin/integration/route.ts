@@ -25,6 +25,7 @@ export async function GET() {
 const Save = z.object({
   azureTenantId: z.string().trim().max(100).optional(),
   graphClientId: z.string().trim().max(100).optional(),
+  mailFrom: z.string().trim().max(200).optional(),
   secret: z.string().min(1).max(500).optional(), // omit to keep the existing secret
 });
 

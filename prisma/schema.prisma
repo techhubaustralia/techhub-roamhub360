@@ -107,6 +107,7 @@ model TenantIntegration {
   azureTenantId String? // the customer's Entra tenant (directory) id
   graphClientId String? // their app registration's client id
   secretEnc     String? // AES-256-GCM ciphertext of the client secret (iv.tag.ct); never exposed
+  mailFrom      String? // mailbox notifications are sent from, in the customer's tenant (CP5)
   lastTestOk    Boolean? // result of the last connection test
   lastTestAt    DateTime?
   lastTestError String?

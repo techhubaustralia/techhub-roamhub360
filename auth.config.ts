@@ -6,7 +6,7 @@ import type { NextAuthConfig } from "next-auth";
 
 // Paths reachable without a session. Everything else requires auth.
 // (checkin/checkout/jobs are self-secured by HMAC / JOBS_SECRET; /teams is the SSO bridge.)
-const PUBLIC = ["/signin", "/api/auth", "/api/checkin", "/api/checkout", "/api/jobs", "/teams", "/api/tenants/verify"];
+const PUBLIC = ["/signin", "/privacy", "/terms", "/api/auth", "/api/checkin", "/api/checkout", "/api/jobs", "/teams", "/api/tenants/verify"];
 
 function isPublic(pathname: string): boolean {
   return PUBLIC.some((p) => pathname === p || pathname.startsWith(p + "/"));
