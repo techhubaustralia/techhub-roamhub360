@@ -10,6 +10,7 @@ import {
   Contact,
   ScrollText,
   Boxes,
+  Settings,
   type LucideIcon,
 } from "lucide-react";
 
@@ -28,6 +29,7 @@ export const NAV_MAIN: NavItem[] = [
   { href: "/book", label: "Book a space", icon: LayoutGrid },
   { href: "/mine", label: "My bookings", icon: CalendarCheck },
   { href: "/team", label: "Who's in", icon: UserCheck },
+  { href: "/settings", label: "Settings", icon: Settings },
 ];
 
 // Admin items are role-scoped. Site Admins manage bookings + permanent desks only;

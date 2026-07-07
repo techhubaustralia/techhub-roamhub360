@@ -25,6 +25,38 @@ export interface UserRow {
   multiBook: boolean;
   provider: string;
   tenantId?: string | null;
+  hidePresence?: boolean;
+  notifyPresence?: boolean;
+}
+
+// Self-service preferences (Team Build-Up C privacy + D notifications).
+export interface UserPrefs {
+  hidePresence: boolean; // hidden from the "Who's in" board (others can't see me; I still see myself)
+  notifyPresence: boolean; // opted in to the daily "who's in" digest
+}
+const DEFAULT_PREFS: UserPrefs = { hidePresence: false, notifyPresence: false };
+
+export async function getUserPrefs(email: string): Promise<UserPrefs> {
+  if (!process.env.DATABASE_URL) return { ...DEFAULT_PREFS };
+  const p = await prisma();
+  const u = await p.user.findUnique({ where: { email: email.toLowerCase() }, select: { hidePresence: true, notifyPresence: true } });
+  return { hidePresence: Boolean(u?.hidePresence), notifyPresence: Boolean(u?.notifyPresence) };
+}
+
+export async function updateUserPrefs(email: string, patch: Partial<UserPrefs>): Promise<void> {
+  const p = await prisma();
+  const data: Record<string, unknown> = {};
+  if (patch.hidePresence !== undefined) data.hidePresence = patch.hidePresence;
+  if (patch.notifyPresence !== undefined) data.notifyPresence = patch.notifyPresence;
+  if (Object.keys(data).length) await p.user.update({ where: { email: email.toLowerCase() }, data });
+}
+
+/** Emails (lowercased) of users who have opted out of the presence board. Empty without a DB. */
+export async function getHiddenPresenceEmails(): Promise<Set<string>> {
+  if (!process.env.DATABASE_URL) return new Set();
+  const p = await prisma();
+  const rows = await p.user.findMany({ where: { hidePresence: true }, select: { email: true } });
+  return new Set(rows.map((r: { email: string }) => r.email.toLowerCase()));
 }
 
 export async function findUserByEmail(email: string): Promise<UserRow | null> {

@@ -114,6 +114,8 @@ model User {
   multiBook    Boolean  @default(false) // "Office Manager": multiple desks/day
   provider     String   @default("credentials") // credentials | entra
   tenantId     String? // per-customer isolation (completed in the multi-tenant phase)
+  hidePresence Boolean  @default(false) // Team Build-Up C: opt out of the "Who's in" board
+  notifyPresence Boolean @default(false) // Team Build-Up D: receive the daily "who's in" digest
   createdAt    DateTime @default(now())
 
   @@index([tenantId])

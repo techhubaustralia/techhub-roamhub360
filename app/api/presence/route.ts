@@ -3,6 +3,7 @@ import { listBookings } from "@/lib/server/db";
 import { overlaps, ACTIVE_STATUSES } from "@/lib/booking-rules";
 import { getUser, canAccessBuilding } from "@/lib/server/auth";
 import { getDirectoryMap } from "@/lib/server/directory";
+import { getHiddenPresenceEmails } from "@/lib/server/users";
 import { rateLimit, clientIp, tooMany } from "@/lib/server/rate-limit";
 
 // Team Build-Up A — "Who's in". Tenant-wide presence for a single day: who has an ACTIVE
@@ -36,9 +37,15 @@ export async function GET(req: Request) {
   const dayStart = `${date}T00:00`;
   const dayEnd = `${date}T23:59`;
 
-  const rows = (await listBookings({ from: lower, to: date })).filter(
-    (b) => ACTIVE_STATUSES.includes(b.status) && overlaps(b.start, b.end, dayStart, dayEnd),
-  );
+  // Privacy (Team Build-Up C): drop bookings for people who opted out of the board — but a user
+  // always sees their own entry. Enforced here, the single presence choke-point.
+  const meEmail = me.email.toLowerCase();
+  const hidden = await getHiddenPresenceEmails();
+  const rows = (await listBookings({ from: lower, to: date })).filter((b) => {
+    if (!ACTIVE_STATUSES.includes(b.status) || !overlaps(b.start, b.end, dayStart, dayEnd)) return false;
+    const email = b.userEmail.toLowerCase();
+    return email === meEmail || !hidden.has(email);
+  });
 
   // Enrich with the synced Entra directory (Team Build-Up B): real names, department, title,
   // photo. Empty when Graph/DB aren't configured — we then fall back to email-derived names.

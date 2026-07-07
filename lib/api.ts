@@ -144,6 +144,34 @@ export async function syncDirectoryApi(): Promise<{ ok: boolean; synced: number;
   }
 }
 
+// ---- Self-service preferences (Team Build-Up C privacy + D notifications) ----
+export interface UserPrefs {
+  hidePresence: boolean;
+  notifyPresence: boolean;
+}
+export async function getPrefs(): Promise<UserPrefs | null> {
+  try {
+    const r = await fetch(`/api/me/prefs`, { cache: "no-store" });
+    return r.ok ? ((await r.json()) as UserPrefs) : null;
+  } catch {
+    return null;
+  }
+}
+export async function updatePrefs(patch: Partial<UserPrefs>): Promise<{ ok: boolean; prefs?: UserPrefs; error?: string }> {
+  try {
+    const r = await fetch(`/api/me/prefs`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(patch),
+    });
+    const body = await r.json().catch(() => ({}));
+    if (r.ok) return { ok: true, prefs: body as UserPrefs };
+    return { ok: false, error: (body as { error?: string }).error ?? "Update failed" };
+  } catch {
+    return { ok: false, error: "Network error" };
+  }
+}
+
 /** Tell other components (e.g. the notifications bell) that bookings changed, so they re-fetch. */
 export function notifyBookingsChanged(): void {
   if (typeof window !== "undefined") window.dispatchEvent(new Event("bookings:changed"));
