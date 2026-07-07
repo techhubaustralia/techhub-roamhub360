@@ -11,8 +11,19 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// A customer organisation (tenant) — the isolation boundary for all data. Resolved
+// from the request subdomain (<slug>.roamhub360.com); app./www./localhost => "default".
+model Tenant {
+  id        String   @id @default(uuid())
+  slug      String   @unique
+  name      String
+  status    String   @default("active") // active | trial | suspended
+  createdAt DateTime @default(now())
+}
+
 model Booking {
   id            String    @id @default(uuid())
+  tenantId      String    @default("default")
   userEmail     String
   bookedByEmail String? // set when an admin books on behalf
   buildingId    String
@@ -31,10 +42,12 @@ model Booking {
 
   @@index([buildingId, spaceKey])
   @@index([userEmail])
+  @@index([tenantId])
 }
 
 model CheckIn {
   id           String   @id @default(uuid())
+  tenantId     String   @default("default")
   bookingId    String
   booking      Booking  @relation(fields: [bookingId], references: [id])
   date         String // ISO date for that day (multi-day desks check in daily)
@@ -45,6 +58,7 @@ model CheckIn {
 }
 
 model Lock {
+  tenantId   String   @default("default")
   buildingId String
   spaceKey   String
   scope      String   @default("temporary") // temporary | permanent
@@ -55,11 +69,14 @@ model Lock {
 }
 
 model AuditLog {
-  id     String   @id @default(uuid())
-  at     DateTime @default(now())
-  actor  String
-  action String
-  detail String?
+  id       String   @id @default(uuid())
+  tenantId String   @default("default")
+  at       DateTime @default(now())
+  actor    String
+  action   String
+  detail   String?
+
+  @@index([tenantId])
 }
 
 // App users. Source of truth for identity + role, whether they sign in with
