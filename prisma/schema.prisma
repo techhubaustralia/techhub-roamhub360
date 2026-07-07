@@ -88,13 +88,14 @@ model License {
   tier             String    @default("trial") // trial | standard | professional | enterprise
   maxSites         Int       @default(1)
   maxFloorsPerSite Int       @default(2)
-  status           String    @default("active") // active | suspended | cancelled
-  startsAt         DateTime?
-  expiresAt        DateTime?
-  graceDays        Int       @default(14)
-  notes            String?
-  updatedAt        DateTime  @updatedAt
-  createdAt        DateTime  @default(now())
+  status             String    @default("active") // active | suspended | cancelled
+  startsAt           DateTime?
+  expiresAt          DateTime?
+  graceDays          Int       @default(14)
+  notes              String?
+  notifiedThresholds Int[]     @default([]) // expiry-notice day-thresholds already emailed (CP4)
+  updatedAt          DateTime  @updatedAt
+  createdAt          DateTime  @default(now())
 }
 
 // Per-customer Microsoft integration (Commercial SaaS CP1). Each tenant configures THEIR OWN

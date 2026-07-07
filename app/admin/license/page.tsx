@@ -79,7 +79,10 @@ export default function LicensePage() {
             <Stat label="Floors per site" value={`${s.maxFloorsPerSite}`} sub="Maximum" />
             <Stat label="Renews" value={s.daysLeft != null ? `${s.daysLeft} d` : "—"} sub={fmtDate(s.expiresAt)} />
           </div>
-          <p className="mt-5 text-[12px] text-txt-mute">Need more sites, floors or a longer term? Contact TechHub Australia — changes take effect immediately.</p>
+          <p className="mt-5 text-[12px] text-txt-mute">
+            Need more sites, floors or a longer term? Contact TechHub Australia — changes take effect immediately.
+            {s.billing && !s.billing.configured && <span className="ml-1">Billing is managed directly by TechHub Australia.</span>}
+          </p>
         </>
       )}
     </div>

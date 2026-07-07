@@ -144,6 +144,10 @@ Add a host cron that pings the tick endpoint every 30 min:
 All emails need Microsoft Graph (§7); without it they no-op. You can trigger one task for every
 site manually, e.g. `curl -H "x-jobs-secret: …" https://app.roamhub360.com/api/jobs/digest`.
 
+Each `tick` also runs **licence-expiry checks** (CP4): customer workspaces are warned at 90/60/30/
+14/7/1/0 days before expiry (emailed to their admins + `OPS_EMAIL`), each band sent once. Run it on
+demand with `curl -H "x-jobs-secret: …" https://app.roamhub360.com/api/jobs/license-check`.
+
 ## 9. Private demo gate (before real auth is in front of prospects)
 To password-protect the whole site (plain-compose path), uncomment `basic_auth` in `Caddyfile`:
 ```bash

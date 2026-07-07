@@ -76,6 +76,24 @@ export function reminderEmail(b: Booking) {
   };
 }
 
+/** Licence expiry notice (Commercial SaaS CP4). `daysLeft` <= 0 means already expired. */
+export function licenseExpiryEmail(workspaceName: string, daysLeft: number, expiresOn: string, tier: string) {
+  const expired = daysLeft <= 0;
+  const headline = expired ? "Your RoamHub360 licence has expired" : `Your RoamHub360 licence expires in ${daysLeft} day${daysLeft === 1 ? "" : "s"}`;
+  const lead = expired
+    ? `The <b>${esc(tier)}</b> licence for <b>${esc(workspaceName)}</b> expired on ${esc(expiresOn)}. The workspace is now read-only — existing bookings stay visible, but new ones are blocked until you renew.`
+    : `The <b>${esc(tier)}</b> licence for <b>${esc(workspaceName)}</b> expires on <b>${esc(expiresOn)}</b>. Renew before then to avoid any interruption for your team.`;
+  return {
+    subject: expired ? `Action needed — ${workspaceName} licence expired` : `${workspaceName} licence expires in ${daysLeft} day${daysLeft === 1 ? "" : "s"}`,
+    html: shell(
+      headline,
+      `<p>${lead}</p>
+       <p style="margin-top:16px">${btn(`${APP_URL}/admin/license`, "View plan & licence", expired ? C.booked : C.primary)}</p>
+       <p style="color:#7491a0;font-size:12px;margin-top:16px">To renew or change your plan, reply to this email or contact TechHub Australia.</p>`,
+    ),
+  };
+}
+
 /** Daily "who's in" digest (Team Build-Up D): who from your workspace is booked at your site today. */
 export function presenceDigestEmail(
   recipientName: string,

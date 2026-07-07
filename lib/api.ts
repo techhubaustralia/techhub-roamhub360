@@ -186,6 +186,7 @@ export interface LicenseSummary {
   readOnly: boolean;
   daysLeft: number | null;
   sitesUsed: number;
+  billing?: { provider: string; configured: boolean };
 }
 export async function getLicense(): Promise<LicenseSummary | null> {
   try {

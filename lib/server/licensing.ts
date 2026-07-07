@@ -82,7 +82,8 @@ export async function licenseSummary(tenantId: string, sitesUsed: number): Promi
   return { ...(await licenseState(tenantId)), sitesUsed };
 }
 
-/** Upsert a licence — used by the TechHub Partner portal (CP3). */
+/** Upsert a licence — used by the TechHub Partner portal (CP3). Changing the expiry re-arms the
+ *  expiry-notification bands (CP4) so a renewed licence will warn again next cycle. */
 export async function saveLicense(
   tenantId: string,
   patch: { tier?: LicenseTier; maxSites?: number; maxFloorsPerSite?: number; status?: string; expiresAt?: string | null; graceDays?: number; notes?: string },
@@ -93,8 +94,29 @@ export async function saveLicense(
   if (patch.maxSites !== undefined) data.maxSites = patch.maxSites;
   if (patch.maxFloorsPerSite !== undefined) data.maxFloorsPerSite = patch.maxFloorsPerSite;
   if (patch.status !== undefined) data.status = patch.status;
-  if (patch.expiresAt !== undefined) data.expiresAt = patch.expiresAt ? new Date(patch.expiresAt) : null;
+  if (patch.expiresAt !== undefined) {
+    data.expiresAt = patch.expiresAt ? new Date(patch.expiresAt) : null;
+    data.notifiedThresholds = []; // expiry moved → re-arm expiry notices
+  }
   if (patch.graceDays !== undefined) data.graceDays = patch.graceDays;
   if (patch.notes !== undefined) data.notes = patch.notes;
   await p.license.upsert({ where: { tenantId }, create: { tenantId, ...data }, update: data });
+}
+
+/** Which expiry-notice bands have already been emailed for a tenant (CP4). */
+export async function getNotifiedThresholds(tenantId: string): Promise<number[]> {
+  if (!useSql) return [];
+  const p = await prisma();
+  const row = await p.license.findUnique({ where: { tenantId }, select: { notifiedThresholds: true } });
+  return (row?.notifiedThresholds as number[]) ?? [];
+}
+
+/** Record expiry-notice bands as sent (idempotent). Creates the row if the tenant had no licence. */
+export async function markNotifiedThresholds(tenantId: string, thresholds: number[]): Promise<void> {
+  const p = await prisma();
+  await p.license.upsert({
+    where: { tenantId },
+    create: { tenantId, notifiedThresholds: thresholds },
+    update: { notifiedThresholds: thresholds },
+  });
 }

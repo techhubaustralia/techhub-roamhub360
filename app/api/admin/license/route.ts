@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getUser } from "@/lib/server/auth";
 import { currentTenantId } from "@/lib/server/tenant";
 import { licenseSummary } from "@/lib/server/licensing";
+import { billingStatus } from "@/lib/server/billing";
 import { listCustomBuildings } from "@/lib/server/store";
 
 // Customer-facing licence view (Commercial SaaS CP2, read-only). Shows the plan, usage vs limits,
@@ -13,5 +14,5 @@ export async function GET() {
   }
   const tenantId = await currentTenantId();
   const sitesUsed = (await listCustomBuildings()).length;
-  return NextResponse.json(await licenseSummary(tenantId, sitesUsed));
+  return NextResponse.json({ ...(await licenseSummary(tenantId, sitesUsed)), billing: billingStatus() });
 }

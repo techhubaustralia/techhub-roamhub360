@@ -149,3 +149,11 @@ export async function globalAdminCount(): Promise<number> {
   const p = await prisma();
   return p.user.count({ where: { role: "global-admin" } });
 }
+
+/** Admin email addresses for a tenant (by slug = the stamped tenantId). For CP4 notifications. */
+export async function listTenantAdminEmails(tenantId: string): Promise<string[]> {
+  if (!process.env.DATABASE_URL) return [];
+  const p = await prisma();
+  const rows = await p.user.findMany({ where: { tenantId, role: "global-admin" }, select: { email: true } });
+  return rows.map((r: { email: string }) => r.email);
+}

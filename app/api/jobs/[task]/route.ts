@@ -7,6 +7,7 @@ import { getHiddenPresenceEmails, getPresenceDigestEmails } from "@/lib/server/u
 import { getDirectoryMap } from "@/lib/server/directory";
 import { ACTIVE_STATUSES } from "@/lib/booking-rules";
 import { visibleColleagues } from "@/lib/presence-digest";
+import { runLicenseChecks } from "@/lib/server/license-notify";
 
 // Cron model: a single `tick` task runs every 30 min (UTC). For each LIVE building it computes
 // its LOCAL time (from the building's saved timezone) and runs whatever is due, so every site
@@ -148,7 +149,14 @@ export async function GET(req: Request, { params }: { params: Promise<{ task: st
         if (TARGET[t] === hhmm) results[`${o.id}:${t}`] = await runTask(t, o.id, date, localNow, all, o.name);
       }
     }
+    // Tenant-level (not per-building): licence-expiry notices. Idempotent — dedupes on the bands
+    // already sent, so running every tick only ever emails when a new band is crossed (CP4).
+    results["_license"] = (await runLicenseChecks()).notified;
     return NextResponse.json({ task: "tick", results });
+  }
+
+  if (task === "license-check") {
+    return NextResponse.json({ task, ...(await runLicenseChecks()) });
   }
 
   if (!(task in TARGET)) return NextResponse.json({ error: "unknown task" }, { status: 400 });
