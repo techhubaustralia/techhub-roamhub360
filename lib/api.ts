@@ -78,6 +78,35 @@ export async function getBookings(user?: string): Promise<Booking[]> {
   }
 }
 
+// ---- Team presence ("Who's in", Team Build-Up A) ----
+export interface PresenceEntry {
+  buildingId: string;
+  spaceKey: string;
+  spaceLabel: string;
+  kind: string;
+  start: string;
+  end: string;
+  checkedIn: boolean;
+  name: string;
+  isMe: boolean;
+  userEmail?: string; // admins only
+}
+export interface Presence {
+  date: string;
+  entries: PresenceEntry[];
+  mySites: string[];
+}
+/** Who from your workspace has an active booking on the given day (grouped/rendered client-side). */
+export async function getPresence(date: string): Promise<Presence> {
+  try {
+    const r = await fetch(`/api/presence?date=${date}`, { cache: "no-store" });
+    if (!r.ok) return { date, entries: [], mySites: [] };
+    return (await r.json()) as Presence;
+  } catch {
+    return { date, entries: [], mySites: [] };
+  }
+}
+
 /** Tell other components (e.g. the notifications bell) that bookings changed, so they re-fetch. */
 export function notifyBookingsChanged(): void {
   if (typeof window !== "undefined") window.dispatchEvent(new Event("bookings:changed"));

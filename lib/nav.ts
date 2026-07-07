@@ -2,6 +2,7 @@ import {
   Home,
   LayoutGrid,
   CalendarCheck,
+  UserCheck,
   BarChart3,
   Building2,
   Star,
@@ -25,6 +26,7 @@ export const NAV_MAIN: NavItem[] = [
   { href: "/", label: "Home", icon: Home },
   { href: "/book", label: "Book a space", icon: LayoutGrid },
   { href: "/mine", label: "My bookings", icon: CalendarCheck },
+  { href: "/team", label: "Who's in", icon: UserCheck },
 ];
 
 // Admin items are role-scoped. Site Admins manage bookings + permanent desks only;
