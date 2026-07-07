@@ -43,6 +43,20 @@
       "contentUrl": "https://app.roamhub360.com/teams?target=%2Fmine",
       "websiteUrl": "https://app.roamhub360.com/mine",
       "scopes": ["personal"]
+    },
+    {
+      "entityId": "whosin",
+      "name": "Who's in",
+      "contentUrl": "https://app.roamhub360.com/teams?target=%2Fteam",
+      "websiteUrl": "https://app.roamhub360.com/team",
+      "scopes": ["personal"]
+    }
+  ],
+  "configurableTabs": [
+    {
+      "configurationUrl": "https://app.roamhub360.com/teams/config",
+      "canUpdateConfiguration": true,
+      "scopes": ["team", "groupChat"]
     }
   ],
   "permissions": ["identity", "messageTeamMembers"],

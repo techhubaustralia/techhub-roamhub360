@@ -286,6 +286,12 @@ The app auto-derives the accepted token audience from `APP_URL` (`api://<host>/<
 `roamhub360-teams.zip`, then Teams → Apps → *Manage your apps* → *Upload an app* (or admin-publish
 org-wide). First-time Teams users are provisioned as **Staff**, same as web SSO.
 
+**Tabs (Team Build-Up E):** the manifest ships personal tabs (Home, Book, My bookings, **Who's in**)
+and a **configurable channel tab** — in any Teams channel, *+ Add a tab → RoamHub360* pins the
+**Who's in** presence board so the whole team sees who's booked/checked in (config page:
+`/teams/config`; the tab renders `/teams?target=/team` through the SSO bridge). No extra setup
+beyond the SSO app above.
+
 ---
 
 ## 14. Directory sync — real names, photos & departments (Team Build-Up B)
