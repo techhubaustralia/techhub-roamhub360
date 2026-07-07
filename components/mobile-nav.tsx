@@ -16,15 +16,18 @@ export function MobileNav() {
   const [open, setOpen] = useState(false);
   const [role, setRole] = useState<Role | undefined>(undefined);
   const [platformAdmin, setPlatformAdmin] = useState(false);
+  const [disabledFeatures, setDisabledFeatures] = useState<string[]>([]);
   const pathname = usePathname();
   const isActive = (href: string) => (href === "/" ? pathname === "/" : pathname.startsWith(href));
 
   useEffect(() => {
-    fetch("/api/me").then((r) => (r.ok ? r.json() : null)).then((u) => { if (u) { setRole(u.role); setPlatformAdmin(!!u.platformAdmin); } }).catch(() => {});
+    fetch("/api/me").then((r) => (r.ok ? r.json() : null)).then((u) => { if (u) { setRole(u.role); setPlatformAdmin(!!u.platformAdmin); setDisabledFeatures(u.disabledFeatures ?? []); } }).catch(() => {});
   }, []);
   useEffect(() => { setOpen(false); }, [pathname]); // close on navigation
 
-  const adminItems = NAV_ADMIN.filter((i) =>
+  const flagOk = (i: { flag?: string }) => !i.flag || !disabledFeatures.includes(i.flag);
+  const mainItems = NAV_MAIN.filter(flagOk);
+  const adminItems = NAV_ADMIN.filter(flagOk).filter((i) =>
     i.platform ? platformAdmin : !i.roles || (role ? i.roles.includes(role) : false),
   );
 
@@ -71,7 +74,7 @@ export function MobileNav() {
             </Link>
             <nav className="flex-1 overflow-auto px-3 py-1">
               <div className="flex flex-col gap-0.5">
-                {NAV_MAIN.map((i) => <Item key={i.href} href={i.href} label={i.label} Icon={i.icon} />)}
+                {mainItems.map((i) => <Item key={i.href} href={i.href} label={i.label} Icon={i.icon} />)}
               </div>
               {adminItems.length > 0 && (
                 <>

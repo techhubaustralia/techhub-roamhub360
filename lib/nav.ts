@@ -24,13 +24,14 @@ export interface NavItem {
   icon: LucideIcon;
   roles?: Role[]; // who may see this item; omitted = everyone
   platform?: boolean; // platform operators only (TechHub Australia), not per-tenant admins
+  flag?: string; // hidden when this feature key is in the tenant's disabled list (CP3 flags)
 }
 
 export const NAV_MAIN: NavItem[] = [
   { href: "/", label: "Home", icon: Home },
   { href: "/book", label: "Book a space", icon: LayoutGrid },
   { href: "/mine", label: "My bookings", icon: CalendarCheck },
-  { href: "/team", label: "Who's in", icon: UserCheck },
+  { href: "/team", label: "Who's in", icon: UserCheck, flag: "presence" },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
 
@@ -41,7 +42,7 @@ export const NAV_ADMIN: NavItem[] = [
   { href: "/buildings", label: "Buildings", icon: Building2, roles: ["global-admin"] },
   { href: "/assign", label: "Permanent desks", icon: Star, roles: ["global-admin", "site-admin"] },
   { href: "/admin/users", label: "Users & roles", icon: Users, roles: ["global-admin"] },
-  { href: "/admin/directory", label: "Directory", icon: Contact, roles: ["global-admin"] },
+  { href: "/admin/directory", label: "Directory", icon: Contact, roles: ["global-admin"], flag: "directory" },
   { href: "/admin/integration", label: "Microsoft 365", icon: Plug, roles: ["global-admin"] },
   { href: "/admin/license", label: "Plan & licence", icon: BadgeCheck, roles: ["global-admin"] },
   { href: "/admin/audit", label: "Activity log", icon: ScrollText, roles: ["global-admin"] },

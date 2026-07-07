@@ -36,7 +36,7 @@ export function Sidebar() {
   const pathname = usePathname();
   const isActive = (href: string) => (href === "/" ? pathname === "/" : pathname.startsWith(href));
 
-  const [user, setUser] = useState<{ name: string; email: string; role?: Role; platformAdmin?: boolean }>({ name: "You", email: "" });
+  const [user, setUser] = useState<{ name: string; email: string; role?: Role; platformAdmin?: boolean; disabledFeatures?: string[] }>({ name: "You", email: "" });
   useEffect(() => {
     fetch("/api/me")
       .then((r) => (r.ok ? r.json() : null))
@@ -44,8 +44,11 @@ export function Sidebar() {
       .catch(() => {});
   }, []);
 
+  // Hide items whose feature the operator disabled for this tenant (CP3 flags).
+  const flagOk = (i: NavItem) => !i.flag || !(user.disabledFeatures ?? []).includes(i.flag);
+  const mainItems = NAV_MAIN.filter(flagOk);
   // Show an admin item only if the user's role is allowed (role unknown → none).
-  const adminItems = NAV_ADMIN.filter((i) =>
+  const adminItems = NAV_ADMIN.filter(flagOk).filter((i) =>
     i.platform ? !!user.platformAdmin : !i.roles || (user.role ? i.roles.includes(user.role) : false),
   );
 
@@ -68,7 +71,7 @@ export function Sidebar() {
 
       <nav className="flex-1 overflow-auto px-3 py-1.5">
         <div className="flex flex-col gap-0.5">
-          {NAV_MAIN.map((item) => (
+          {mainItems.map((item) => (
             <NavLink key={item.href} item={item} active={isActive(item.href)} />
           ))}
         </div>

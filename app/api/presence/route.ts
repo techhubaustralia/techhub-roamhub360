@@ -28,6 +28,8 @@ export async function GET(req: Request) {
   if (!DATE_RE.test(date)) return NextResponse.json({ error: "Invalid date." }, { status: 400 });
 
   const me = await getUser();
+  // Feature flag (CP3): the operator can disable presence for a tenant — return an empty board.
+  if ((me.disabledFeatures ?? []).includes("presence")) return NextResponse.json({ date, entries: [], mySites: me.sites ?? [] });
   const admin = me.role === "global-admin" || me.role === "site-admin";
 
   // A booking overlaps `date` if its span crosses that day — not only if it STARTS on it

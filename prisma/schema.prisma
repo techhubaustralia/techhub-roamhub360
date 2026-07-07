@@ -18,6 +18,7 @@ model Tenant {
   slug      String   @unique
   name      String
   status    String   @default("active") // active | trial | suspended
+  features  String[] @default([]) // DISABLED feature keys (CP3 feature flags), e.g. "presence"
   createdAt DateTime @default(now())
 }
 

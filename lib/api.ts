@@ -135,6 +135,45 @@ export async function getPresenceInsights(site?: string): Promise<PresenceInsigh
   }
 }
 
+// ---- Partner control-plane (Commercial SaaS CP3, platform operators) ----
+export interface TenantDetail {
+  tenant: { id: string; slug: string; name: string; status: string; features?: string[] };
+  license: LicenseSummary;
+  stats: { users: number; bookings: number; directory: number };
+  workspaceUrl: string;
+}
+export interface TenantPatch {
+  status?: "active" | "suspended";
+  features?: string[];
+  license?: { tier?: string; maxSites?: number; maxFloorsPerSite?: number; status?: string; expiresAt?: string | null; graceDays?: number };
+}
+export async function getTenantDetail(slug: string): Promise<TenantDetail | null> {
+  try {
+    const r = await fetch(`/api/admin/tenants/${slug}`, { cache: "no-store" });
+    return r.ok ? ((await r.json()) as TenantDetail) : null;
+  } catch {
+    return null;
+  }
+}
+export async function patchTenant(slug: string, patch: TenantPatch): Promise<{ ok: boolean; detail?: TenantDetail; error?: string }> {
+  try {
+    const r = await fetch(`/api/admin/tenants/${slug}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(patch) });
+    const body = await r.json().catch(() => ({}));
+    return r.ok ? { ok: true, detail: body as TenantDetail } : { ok: false, error: (body as { error?: string }).error ?? "Update failed" };
+  } catch {
+    return { ok: false, error: "Network error" };
+  }
+}
+export async function impersonateTenant(slug: string): Promise<{ ok: boolean; url?: string; error?: string }> {
+  try {
+    const r = await fetch(`/api/admin/tenants/${slug}`, { method: "POST" });
+    const body = await r.json().catch(() => ({}));
+    return r.ok ? { ok: true, url: (body as { url: string }).url } : { ok: false, error: (body as { error?: string }).error ?? "Failed" };
+  } catch {
+    return { ok: false, error: "Network error" };
+  }
+}
+
 // ---- Licensing (Commercial SaaS CP2, admin) ----
 export interface LicenseSummary {
   tier: string;
