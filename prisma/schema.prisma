@@ -79,6 +79,27 @@ model AuditLog {
   @@index([tenantId])
 }
 
+// A cached snapshot of the customer's Microsoft Entra directory (Team Build-Up B).
+// Populated by syncDirectory() from Graph /users; joined to bookings by email to show
+// real names, titles, departments, managers and photos in "Who's in". Per-tenant.
+model DirectoryUser {
+  id             String   @id @default(uuid())
+  tenantId       String   @default("default")
+  email          String // mail or userPrincipalName, lowercased — join key to Booking.userEmail
+  displayName    String?
+  givenName      String?
+  surname        String?
+  jobTitle       String?
+  department     String?
+  officeLocation String?
+  managerEmail   String?
+  photo          String? // 48px thumbnail as a data: URL, or null when the user has no photo
+  syncedAt       DateTime @default(now())
+
+  @@unique([tenantId, email])
+  @@index([tenantId])
+}
+
 // App users. Source of truth for identity + role, whether they sign in with
 // Microsoft Entra (SSO) or a local email/password (for orgs without Microsoft).
 // passwordHash is null for SSO-only users. Roles/sites move here off the old

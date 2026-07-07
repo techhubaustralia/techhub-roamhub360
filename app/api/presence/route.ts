@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { listBookings } from "@/lib/server/db";
 import { overlaps, ACTIVE_STATUSES } from "@/lib/booking-rules";
 import { getUser, canAccessBuilding } from "@/lib/server/auth";
+import { getDirectoryMap } from "@/lib/server/directory";
 import { rateLimit, clientIp, tooMany } from "@/lib/server/rate-limit";
 
 // Team Build-Up A — "Who's in". Tenant-wide presence for a single day: who has an ACTIVE
@@ -39,19 +40,29 @@ export async function GET(req: Request) {
     (b) => ACTIVE_STATUSES.includes(b.status) && overlaps(b.start, b.end, dayStart, dayEnd),
   );
 
+  // Enrich with the synced Entra directory (Team Build-Up B): real names, department, title,
+  // photo. Empty when Graph/DB aren't configured — we then fall back to email-derived names.
+  const dir = await getDirectoryMap(rows.map((b) => b.userEmail));
+
   const entries = rows
-    .map((b) => ({
-      buildingId: b.buildingId,
-      spaceKey: b.spaceKey,
-      spaceLabel: b.spaceLabel,
-      kind: b.kind,
-      start: b.start,
-      end: b.end,
-      checkedIn: b.status === "Checked in",
-      name: displayName(b.userEmail),
-      isMe: b.userEmail.toLowerCase() === me.email.toLowerCase(),
-      ...(admin && canAccessBuilding(me, b.buildingId) ? { userEmail: b.userEmail } : {}),
-    }))
+    .map((b) => {
+      const d = dir[b.userEmail.toLowerCase()];
+      return {
+        buildingId: b.buildingId,
+        spaceKey: b.spaceKey,
+        spaceLabel: b.spaceLabel,
+        kind: b.kind,
+        start: b.start,
+        end: b.end,
+        checkedIn: b.status === "Checked in",
+        name: d?.displayName || displayName(b.userEmail),
+        department: d?.department,
+        jobTitle: d?.jobTitle,
+        photo: d?.photo,
+        isMe: b.userEmail.toLowerCase() === me.email.toLowerCase(),
+        ...(admin && canAccessBuilding(me, b.buildingId) ? { userEmail: b.userEmail } : {}),
+      };
+    })
     // Checked-in first, then by start time, then name — a stable, sensible reading order.
     .sort((a, b) => Number(b.checkedIn) - Number(a.checkedIn) || a.start.localeCompare(b.start) || a.name.localeCompare(b.name));
 

@@ -88,6 +88,9 @@ export interface PresenceEntry {
   end: string;
   checkedIn: boolean;
   name: string;
+  department?: string; // from the Entra directory (Team Build-Up B), when synced
+  jobTitle?: string;
+  photo?: string; // data: URL thumbnail
   isMe: boolean;
   userEmail?: string; // admins only
 }
@@ -104,6 +107,40 @@ export async function getPresence(date: string): Promise<Presence> {
     return (await r.json()) as Presence;
   } catch {
     return { date, entries: [], mySites: [] };
+  }
+}
+
+// ---- Microsoft Entra directory (Team Build-Up B, admin) ----
+export interface DirectoryEntry {
+  email: string;
+  displayName?: string;
+  jobTitle?: string;
+  department?: string;
+  officeLocation?: string;
+  managerEmail?: string;
+  photo?: string;
+}
+export interface DirectoryStatus {
+  configured: boolean;
+  hasDb: boolean;
+  count: number;
+  lastSync: string | null;
+}
+export async function getDirectory(): Promise<{ status: DirectoryStatus; entries: DirectoryEntry[] }> {
+  try {
+    const r = await fetch(`/api/directory`, { cache: "no-store" });
+    if (!r.ok) return { status: { configured: false, hasDb: false, count: 0, lastSync: null }, entries: [] };
+    return (await r.json()) as { status: DirectoryStatus; entries: DirectoryEntry[] };
+  } catch {
+    return { status: { configured: false, hasDb: false, count: 0, lastSync: null }, entries: [] };
+  }
+}
+export async function syncDirectoryApi(): Promise<{ ok: boolean; synced: number; photos: number; error?: string }> {
+  try {
+    const r = await fetch(`/api/directory`, { method: "POST" });
+    return (await r.json()) as { ok: boolean; synced: number; photos: number; error?: string };
+  } catch {
+    return { ok: false, synced: 0, photos: 0, error: "Network error" };
   }
 }
 

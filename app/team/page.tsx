@@ -14,6 +14,7 @@ const KIND: Record<string, { label: string; icon: LucideIcon }> = {
   room: { label: "Meeting room", icon: Users },
   parking: { label: "Parking", icon: Car },
 };
+const NO_DEPT = "No department";
 
 // Local calendar date (YYYY-MM-DD), and DST-safe day arithmetic on the date components.
 function todayLocal(): string {
@@ -32,6 +33,18 @@ const timeRange = (start: string, end: string) => {
   const sameDay = start.slice(0, 10) === end.slice(0, 10);
   return sameDay ? `${start.slice(11)}–${end.slice(11)}` : `${start.slice(5, 10)} → ${end.slice(5, 10)}`;
 };
+const initials = (name: string) =>
+  name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((w) => w[0]?.toUpperCase())
+    .join("") || "?";
+
+function Avatar({ name, photo }: { name: string; photo?: string }) {
+  if (photo) return <img src={photo} alt="" className="size-9 shrink-0 rounded-full object-cover" />;
+  return <span className="grid size-9 shrink-0 place-items-center rounded-full bg-primary/12 text-[12px] font-bold text-primary">{initials(name)}</span>;
+}
 
 export default function TeamPage() {
   const [date, setDate] = useState(todayLocal());
@@ -39,6 +52,7 @@ export default function TeamPage() {
   const [mySites, setMySites] = useState<string[]>([]);
   const [names, setNames] = useState<Record<string, string>>({});
   const [site, setSite] = useState<string>("all");
+  const [groupBy, setGroupBy] = useState<"site" | "dept">("site");
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -73,15 +87,31 @@ export default function TeamPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [entries, mySites, names]);
 
+  const hasDepartments = useMemo(() => entries.some((e) => e.department), [entries]);
   const shown = useMemo(() => (site === "all" ? entries : entries.filter((e) => rootId(e.buildingId) === site)), [entries, site]);
+
+  // Group by the chosen axis: physical site, or Entra department (once the directory is synced).
   const grouped = useMemo(() => {
+    const byDept = groupBy === "dept" && hasDepartments;
     const g = new Map<string, PresenceEntry[]>();
     for (const e of shown) {
-      const k = rootId(e.buildingId);
+      const k = byDept ? e.department || NO_DEPT : rootId(e.buildingId);
       (g.get(k) ?? g.set(k, []).get(k)!).push(e);
     }
-    return [...g.entries()].sort((a, b) => buildings.indexOf(a[0]) - buildings.indexOf(b[0]));
-  }, [shown, buildings]);
+    const sections = [...g.entries()].map(([key, people]) => ({
+      key,
+      label: byDept ? key : bName(key),
+      isMySite: !byDept && mySites.includes(key),
+      people,
+    }));
+    sections.sort((a, b) =>
+      byDept
+        ? (a.key === NO_DEPT ? 1 : 0) - (b.key === NO_DEPT ? 1 : 0) || a.label.localeCompare(b.label)
+        : buildings.indexOf(a.key) - buildings.indexOf(b.key),
+    );
+    return sections;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shown, groupBy, hasDepartments, buildings, mySites, names]);
 
   const total = shown.length;
   const checkedIn = shown.filter((e) => e.checkedIn).length;
@@ -115,10 +145,10 @@ export default function TeamPage() {
         </span>
       </div>
 
-      {/* Site filter */}
-      {buildings.length > 1 && (
-        <div className="mb-4 flex flex-wrap gap-2">
-          {["all", ...buildings].map((id) => {
+      {/* Filters */}
+      <div className="mb-4 flex flex-wrap items-center gap-2">
+        {buildings.length > 1 &&
+          ["all", ...buildings].map((id) => {
             const active = site === id;
             const label = id === "all" ? "All sites" : bName(id);
             return (
@@ -132,8 +162,16 @@ export default function TeamPage() {
               </button>
             );
           })}
-        </div>
-      )}
+        {hasDepartments && (
+          <div className="ml-auto flex overflow-hidden rounded-full border bg-card text-[12.5px] font-semibold">
+            {(["site", "dept"] as const).map((g) => (
+              <button key={g} onClick={() => setGroupBy(g)} className={`px-3 py-1.5 ${groupBy === g ? "bg-primary text-primary-foreground" : "hover:bg-panel-2"}`}>
+                By {g === "site" ? "site" : "department"}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
 
       {loading ? (
         <div className="rounded-[14px] border bg-card px-3 py-14 text-center text-txt-mute">Loading…</div>
@@ -143,26 +181,27 @@ export default function TeamPage() {
         </div>
       ) : (
         <div className="flex flex-col gap-5">
-          {grouped.map(([bid, people]) => (
-            <section key={bid} className="overflow-hidden rounded-[14px] border bg-card shadow-sm">
+          {grouped.map((sec) => (
+            <section key={sec.key} className="overflow-hidden rounded-[14px] border bg-card shadow-sm">
               <header className="flex items-center justify-between gap-3 border-b bg-panel-2/60 px-4 py-3">
                 <h2 className="font-heading text-[15px] font-bold">
-                  {bName(bid)}
-                  {mySites.includes(bid) && <span className="ml-2 rounded-full bg-primary/12 px-2 py-0.5 text-[11px] font-bold text-primary">Your site</span>}
+                  {sec.label}
+                  {sec.isMySite && <span className="ml-2 rounded-full bg-primary/12 px-2 py-0.5 text-[11px] font-bold text-primary">Your site</span>}
                 </h2>
-                <span className="text-[12px] text-txt-mute">{people.filter((p) => p.checkedIn).length} in · {people.length} booked</span>
+                <span className="text-[12px] text-txt-mute">{sec.people.filter((p) => p.checkedIn).length} in · {sec.people.length} booked</span>
               </header>
               <ul className="divide-y">
-                {people.map((p, i) => {
+                {sec.people.map((p, i) => {
                   const k = KIND[p.kind] ?? KIND.desk;
-                  const Icon = k.icon;
+                  const meta = [p.jobTitle, groupBy === "site" ? p.department : null].filter(Boolean).join(" · ");
                   return (
                     <li key={`${p.spaceKey}-${p.start}-${i}`} className={`flex items-center gap-3 px-4 py-3 ${p.isMe ? "bg-primary/5" : ""}`}>
-                      <span className="grid size-9 shrink-0 place-items-center rounded-full bg-panel-2 text-txt-dim"><Icon className="size-[18px]" /></span>
+                      <Avatar name={p.name} photo={p.photo} />
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2">
                           <span className="truncate font-semibold">{p.name}</span>
                           {p.isMe && <span className="rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-bold text-primary-foreground">You</span>}
+                          {meta && <span className="truncate text-[12px] text-txt-mute">· {meta}</span>}
                         </div>
                         <div className="truncate text-[12.5px] text-txt-mute">{p.spaceLabel} · {k.label} · {timeRange(p.start, p.end)}</div>
                       </div>

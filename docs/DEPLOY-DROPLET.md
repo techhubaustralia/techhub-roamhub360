@@ -281,3 +281,24 @@ The app auto-derives the accepted token audience from `APP_URL` (`api://<host>/<
 **Package + sideload:** zip `manifest.json` + `color.png` + `outline.png` (192×192 / 32×32) into
 `roamhub360-teams.zip`, then Teams → Apps → *Manage your apps* → *Upload an app* (or admin-publish
 org-wide). First-time Teams users are provisioned as **Staff**, same as web SSO.
+
+---
+
+## 14. Directory sync — real names, photos & departments (Team Build-Up B)
+
+"Who's in" (and future team features) can show real profiles from the customer's Microsoft Entra
+directory instead of names guessed from email addresses. It reuses the Graph app from §7.
+
+1. On that Entra app, add the **application** permission **`User.Read.All`** (Microsoft Graph) →
+   **Grant admin consent**. (Email/calendar use `Mail.Send` + `Calendars.ReadWrite`; this is
+   additive.)
+2. Ensure `AZURE_TENANT_ID`, `GRAPH_CLIENT_ID`, `GRAPH_CLIENT_SECRET` are set (same as §7).
+3. Sign in as a **Global Admin** → **Directory** (sidebar) → **Sync from Microsoft 365**.
+
+The sync pages `/users` (name, title, department, office, manager) and fetches 48px photos,
+caching them per-tenant in `DirectoryUser`. Re-run it whenever the directory changes (or wire the
+`POST /api/directory` endpoint to a scheduled task later). With Graph unset, the page shows a
+"not configured" note and the app keeps using email-derived names — nothing breaks.
+
+> Per-**customer** Graph credentials (so each tenant syncs *their own* directory) arrive with the
+> Customer Admin Portal in the commercial phase; today the sync uses the deployment's single Graph app.

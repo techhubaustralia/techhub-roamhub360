@@ -7,6 +7,7 @@ import {
   Building2,
   Star,
   Users,
+  Contact,
   ScrollText,
   Boxes,
   type LucideIcon,
@@ -36,6 +37,7 @@ export const NAV_ADMIN: NavItem[] = [
   { href: "/buildings", label: "Buildings", icon: Building2, roles: ["global-admin"] },
   { href: "/assign", label: "Permanent desks", icon: Star, roles: ["global-admin", "site-admin"] },
   { href: "/admin/users", label: "Users & roles", icon: Users, roles: ["global-admin"] },
+  { href: "/admin/directory", label: "Directory", icon: Contact, roles: ["global-admin"] },
   { href: "/admin/audit", label: "Activity log", icon: ScrollText, roles: ["global-admin"] },
   { href: "/admin/tenants", label: "Tenants", icon: Boxes, platform: true },
 ];

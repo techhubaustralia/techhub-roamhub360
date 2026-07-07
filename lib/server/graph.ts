@@ -40,6 +40,30 @@ async function gfetch(path: string, init: RequestInit) {
   return text ? JSON.parse(text) : null;
 }
 
+/** Generic authenticated GET returning parsed JSON. Used by the directory sync (Team Build-Up B).
+ *  `path` is relative to the Graph v1.0 base (e.g. "/users?$select=..."). */
+export async function graphJson(path: string): Promise<unknown> {
+  return gfetch(path, { method: "GET" });
+}
+
+/** A user's 48×48 profile photo as a `data:` URL, or null when they have none (404 is common).
+ *  `userKey` is the user's id, mail or userPrincipalName. */
+export async function graphPhotoDataUrl(userKey: string): Promise<string | null> {
+  if (!graphConfigured) return null;
+  try {
+    const t = await token();
+    const r = await fetch(`https://graph.microsoft.com/v1.0/users/${encodeURIComponent(userKey)}/photos/48x48/$value`, {
+      headers: { Authorization: `Bearer ${t}` },
+    });
+    if (!r.ok) return null; // 404 = no photo set (very common); other errors → skip the photo
+    const ct = r.headers.get("content-type") || "image/jpeg";
+    const b64 = Buffer.from(await r.arrayBuffer()).toString("base64");
+    return `data:${ct};base64,${b64}`;
+  } catch {
+    return null;
+  }
+}
+
 export async function sendMail(to: string, subject: string, html: string): Promise<boolean> {
   if (!graphConfigured) return false;
   await gfetch(`/users/${encodeURIComponent(MAIL_FROM)}/sendMail`, {
