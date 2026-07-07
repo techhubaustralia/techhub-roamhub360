@@ -110,6 +110,31 @@ export async function getPresence(date: string): Promise<Presence> {
   }
 }
 
+// ---- Presence analytics (Team Build-Up F) ----
+export interface WeekdayStat {
+  weekday: number;
+  label: string;
+  presenceDays: number;
+  occurrences: number;
+  avg: number;
+}
+export interface PresenceInsights {
+  weeks: number;
+  from: string;
+  to: string;
+  weekdays: WeekdayStat[];
+  recommendation: { busiest: number[]; quietest: number | null; message: string };
+}
+export async function getPresenceInsights(site?: string): Promise<PresenceInsights | null> {
+  try {
+    const qs = site && site !== "all" ? `?site=${encodeURIComponent(site)}` : "";
+    const r = await fetch(`/api/presence/insights${qs}`, { cache: "no-store" });
+    return r.ok ? ((await r.json()) as PresenceInsights) : null;
+  } catch {
+    return null;
+  }
+}
+
 // ---- Microsoft Entra directory (Team Build-Up B, admin) ----
 export interface DirectoryEntry {
   email: string;

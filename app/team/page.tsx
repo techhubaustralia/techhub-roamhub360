@@ -2,8 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { ChevronLeft, ChevronRight, LayoutGrid, DoorClosed, Users, Car, UserCheck, type LucideIcon } from "lucide-react";
-import { getPresence, type PresenceEntry } from "@/lib/api";
+import { ChevronLeft, ChevronRight, LayoutGrid, DoorClosed, Users, Car, UserCheck, Lightbulb, type LucideIcon } from "lucide-react";
+import { getPresence, getPresenceInsights, type PresenceEntry, type PresenceInsights } from "@/lib/api";
 import { getBuildingsMeta } from "@/lib/plan-store";
 import { PageHeader } from "@/components/page-header";
 import { StatusPill } from "@/components/status-pill";
@@ -53,11 +53,21 @@ export default function TeamPage() {
   const [names, setNames] = useState<Record<string, string>>({});
   const [site, setSite] = useState<string>("all");
   const [groupBy, setGroupBy] = useState<"site" | "dept">("site");
+  const [insights, setInsights] = useState<PresenceInsights | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     getBuildingsMeta().then((m) => setNames(Object.fromEntries(m.custom.map((c) => [c.id, c.name]))));
   }, []);
+
+  // Team patterns recompute when the site filter changes (analytics are site-scoped).
+  useEffect(() => {
+    let live = true;
+    getPresenceInsights(site).then((i) => live && setInsights(i));
+    return () => {
+      live = false;
+    };
+  }, [site]);
 
   useEffect(() => {
     let live = true;
@@ -172,6 +182,34 @@ export default function TeamPage() {
           </div>
         )}
       </div>
+
+      {/* Team patterns (Team Build-Up F) — only shown once there's a discernible pattern. */}
+      {insights && insights.recommendation.busiest.length > 0 && (
+        <div className="mb-4 rounded-[14px] border bg-card p-4 shadow-sm">
+          <div className="flex items-start gap-2.5">
+            <span className="mt-0.5 grid size-8 shrink-0 place-items-center rounded-full bg-primary/12 text-primary"><Lightbulb className="size-[18px]" /></span>
+            <div className="min-w-0 flex-1">
+              <div className="text-[13.5px] font-semibold">{insights.recommendation.message}</div>
+              <div className="mt-3 grid grid-cols-5 gap-2">
+                {insights.weekdays.filter((w) => w.weekday >= 1 && w.weekday <= 5).map((w) => {
+                  const max = Math.max(1, ...insights.weekdays.filter((x) => x.weekday >= 1 && x.weekday <= 5).map((x) => x.avg));
+                  const pct = Math.round((w.avg / max) * 100);
+                  const hot = insights.recommendation.busiest.includes(w.weekday);
+                  return (
+                    <div key={w.weekday} className="flex flex-col items-center gap-1">
+                      <div className="flex h-16 w-full items-end justify-center">
+                        <div className={`w-6 rounded-t ${hot ? "bg-primary" : "bg-primary/30"}`} style={{ height: `${Math.max(pct, 4)}%` }} title={`${w.avg.toFixed(1)} avg`} />
+                      </div>
+                      <span className={`text-[11px] ${hot ? "font-bold text-primary" : "text-txt-mute"}`}>{w.label.slice(0, 3)}</span>
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="mt-2 text-[11px] text-txt-mute">Average people in per weekday · last {insights.weeks} weeks{site !== "all" ? ` · ${bName(site)}` : ""}</div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {loading ? (
         <div className="rounded-[14px] border bg-card px-3 py-14 text-center text-txt-mute">Loading…</div>
