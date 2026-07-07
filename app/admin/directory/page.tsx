@@ -73,8 +73,8 @@ export default function DirectoryPage() {
 
       {!loading && !status?.configured && (
         <div className="mb-4 rounded-[12px] border border-amber/40 bg-amber/10 px-4 py-3 text-[13px]">
-          Microsoft Graph isn&apos;t configured yet. Set <code>AZURE_TENANT_ID</code>, <code>GRAPH_CLIENT_ID</code> and <code>GRAPH_CLIENT_SECRET</code> and grant the
-          app the <b>User.Read.All</b> permission, then sync. Until then, RoamHub360 uses names derived from email addresses.
+          Microsoft isn&apos;t connected for this workspace yet. Set it up under <a href="/admin/integration" className="font-semibold text-primary">Microsoft&nbsp;365</a> —
+          add your Entra app and grant <b>User.Read.All</b>, then sync. Until then, RoamHub360 uses names derived from email addresses.
         </div>
       )}
       {!loading && status?.configured && !status?.hasDb && (

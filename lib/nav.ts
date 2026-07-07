@@ -8,6 +8,7 @@ import {
   Star,
   Users,
   Contact,
+  Plug,
   ScrollText,
   Boxes,
   Settings,
@@ -40,6 +41,7 @@ export const NAV_ADMIN: NavItem[] = [
   { href: "/assign", label: "Permanent desks", icon: Star, roles: ["global-admin", "site-admin"] },
   { href: "/admin/users", label: "Users & roles", icon: Users, roles: ["global-admin"] },
   { href: "/admin/directory", label: "Directory", icon: Contact, roles: ["global-admin"] },
+  { href: "/admin/integration", label: "Microsoft 365", icon: Plug, roles: ["global-admin"] },
   { href: "/admin/audit", label: "Activity log", icon: ScrollText, roles: ["global-admin"] },
   { href: "/admin/tenants", label: "Tenants", icon: Boxes, platform: true },
 ];

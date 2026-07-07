@@ -79,6 +79,22 @@ model AuditLog {
   @@index([tenantId])
 }
 
+// Per-customer Microsoft integration (Commercial SaaS CP1). Each tenant configures THEIR OWN
+// Entra app (Azure tenant + client id + secret) so directory/mail/calendar run against the
+// customer's Microsoft 365. The client secret is encrypted at rest (AES-256-GCM, lib/crypto)
+// and NEVER returned to the browser. One row per tenant.
+model TenantIntegration {
+  tenantId      String   @id
+  azureTenantId String? // the customer's Entra tenant (directory) id
+  graphClientId String? // their app registration's client id
+  secretEnc     String? // AES-256-GCM ciphertext of the client secret (iv.tag.ct); never exposed
+  lastTestOk    Boolean? // result of the last connection test
+  lastTestAt    DateTime?
+  lastTestError String?
+  updatedAt     DateTime @updatedAt
+  createdAt     DateTime @default(now())
+}
+
 // A cached snapshot of the customer's Microsoft Entra directory (Team Build-Up B).
 // Populated by syncDirectory() from Graph /users; joined to bookings by email to show
 // real names, titles, departments, managers and photos in "Who's in". Per-tenant.

@@ -135,6 +135,43 @@ export async function getPresenceInsights(site?: string): Promise<PresenceInsigh
   }
 }
 
+// ---- Customer Microsoft integration (Commercial SaaS CP1, admin) ----
+export interface IntegrationStatus {
+  configured: boolean;
+  azureTenantId: string | null;
+  graphClientId: string | null;
+  hasSecret: boolean;
+  lastTestOk: boolean | null;
+  lastTestAt: string | null;
+  lastTestError: string | null;
+}
+export async function getIntegration(): Promise<{ status: IntegrationStatus; encryptionAvailable: boolean } | null> {
+  try {
+    const r = await fetch(`/api/admin/integration`, { cache: "no-store" });
+    return r.ok ? ((await r.json()) as { status: IntegrationStatus; encryptionAvailable: boolean }) : null;
+  } catch {
+    return null;
+  }
+}
+export async function saveIntegrationApi(input: { azureTenantId?: string; graphClientId?: string; secret?: string }): Promise<{ ok: boolean; status?: IntegrationStatus; error?: string }> {
+  try {
+    const r = await fetch(`/api/admin/integration`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(input) });
+    const body = await r.json().catch(() => ({}));
+    return r.ok ? { ok: true, status: (body as { status: IntegrationStatus }).status } : { ok: false, error: (body as { error?: string }).error ?? "Save failed" };
+  } catch {
+    return { ok: false, error: "Network error" };
+  }
+}
+export async function testIntegrationApi(): Promise<{ ok: boolean; result?: { ok: boolean; sampleName?: string; error?: string }; status?: IntegrationStatus; error?: string }> {
+  try {
+    const r = await fetch(`/api/admin/integration`, { method: "POST" });
+    const body = await r.json().catch(() => ({}));
+    return r.ok ? { ok: true, ...(body as object) } : { ok: false, error: (body as { error?: string }).error ?? "Test failed" };
+  } catch {
+    return { ok: false, error: "Network error" };
+  }
+}
+
 // ---- Microsoft Entra directory (Team Build-Up B, admin) ----
 export interface DirectoryEntry {
   email: string;

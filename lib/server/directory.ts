@@ -1,6 +1,6 @@
 import "server-only";
 import { currentTenantId } from "./tenant";
-import { graphConfigured, graphJson, graphPhotoDataUrl } from "./graph";
+import { graphConfiguredFor, graphJson, graphPhotoDataUrl } from "./graph";
 
 // Team Build-Up B — Microsoft Entra directory sync. Pulls real profiles (name, title,
 // department, manager, photo) from Graph /users into a per-tenant DirectoryUser cache, so
@@ -56,9 +56,11 @@ const SELECT = "id,displayName,givenName,surname,mail,userPrincipalName,jobTitle
  *  Photos are fetched per-user (best-effort) unless opts.photos === false. */
 export async function syncDirectory(opts?: { photos?: boolean }): Promise<SyncResult> {
   if (!useSql) return { ok: false, synced: 0, photos: 0, error: "Directory sync requires a database (DATABASE_URL)." };
-  if (!graphConfigured) return { ok: false, synced: 0, photos: 0, error: "Microsoft Graph is not configured (set AZURE_TENANT_ID + GRAPH_CLIENT_ID + GRAPH_CLIENT_SECRET, and grant User.Read.All)." };
-
   const tenantId = await currentTenantId();
+  if (!(await graphConfiguredFor(tenantId))) {
+    return { ok: false, synced: 0, photos: 0, error: "Microsoft is not connected for this workspace. Configure it under Settings → Microsoft integration and grant User.Read.All." };
+  }
+
   const p = await prisma();
   const wantPhotos = opts?.photos !== false;
   let synced = 0;
@@ -67,7 +69,7 @@ export async function syncDirectory(opts?: { photos?: boolean }): Promise<SyncRe
   try {
     let path: string | null = `/users?$select=${SELECT}&$expand=manager($select=mail,userPrincipalName)&$top=200`;
     while (path) {
-      const page = (await graphJson(path)) as { value?: any[]; ["@odata.nextLink"]?: string };
+      const page = (await graphJson(path, tenantId)) as { value?: any[]; ["@odata.nextLink"]?: string };
       for (const u of page.value ?? []) {
         if (u.accountEnabled === false) continue; // skip disabled accounts
         const email = graphUserEmail(u);
@@ -75,7 +77,7 @@ export async function syncDirectory(opts?: { photos?: boolean }): Promise<SyncRe
         const managerEmail = graphUserEmail(u.manager);
         let photo: string | null = null;
         if (wantPhotos) {
-          photo = await graphPhotoDataUrl(u.id || email);
+          photo = await graphPhotoDataUrl(u.id || email, tenantId);
           if (photo) photos++;
         }
         const data = {
@@ -152,12 +154,13 @@ export interface DirectoryStatus {
   lastSync: string | null;
 }
 export async function directoryStatus(): Promise<DirectoryStatus> {
-  if (!useSql) return { configured: graphConfigured, hasDb: false, count: 0, lastSync: null };
   const tenantId = await currentTenantId();
+  const configured = await graphConfiguredFor(tenantId);
+  if (!useSql) return { configured, hasDb: false, count: 0, lastSync: null };
   const p = await prisma();
   const count = await p.directoryUser.count({ where: { tenantId } });
   const latest = count
     ? await p.directoryUser.findFirst({ where: { tenantId }, orderBy: { syncedAt: "desc" }, select: { syncedAt: true } })
     : null;
-  return { configured: graphConfigured, hasDb: true, count, lastSync: latest ? (latest.syncedAt as Date).toISOString() : null };
+  return { configured, hasDb: true, count, lastSync: latest ? (latest.syncedAt as Date).toISOString() : null };
 }

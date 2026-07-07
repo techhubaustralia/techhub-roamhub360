@@ -41,7 +41,12 @@ cp .env.example .env
 openssl rand -base64 32   # AUTH_SECRET
 openssl rand -hex 32      # CHECKIN_SECRET
 openssl rand -hex 32      # JOBS_SECRET
+openssl rand -base64 32   # CREDENTIAL_KEY (encrypts each customer's Microsoft secret at rest)
 ```
+> **CREDENTIAL_KEY** must stay stable — rotating it makes every customer's saved Microsoft secret
+> unreadable (they'd have to re-enter it under **Microsoft 365** in their workspace). Back it up
+> with your other secrets. Customers self-configure their own Entra app in-app (encrypted per
+> tenant); the deployment-wide `GRAPH_*` vars only power the default/demo workspace.
 Edit `.env` and set at minimum:
 ```
 POSTGRES_PASSWORD=<strong>
