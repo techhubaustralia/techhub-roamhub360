@@ -1,18 +1,20 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { signIn } from "next-auth/react";
 
 // Teams SSO bridge. When a tab loads inside Microsoft Teams, this page silently obtains an
-// Entra token via the Teams JS SDK (getAuthToken) and exchanges it for a Container Apps
-// Easy Auth session, then forwards to the requested page — so the user never sees a login.
+// Entra token via the Teams JS SDK (getAuthToken) and exchanges it for an Auth.js session
+// (the `teams-sso` credentials provider verifies the token server-side), then forwards to the
+// requested page — so the user never sees a login.
 //
 // PREREQUISITES (infra — cannot be set or validated from the repo):
-//  1. Easy Auth on the Container App must let THIS route load without a redirect
-//     (unauthenticatedClientAction = Return401/AllowAnonymous), or the server redirects
-//     before this script can run.
-//  2. Entra app 29c0b446-4e76-4a61-a5ff-c265e5f75ab2: expose api scope access_as_user,
-//     pre-authorise the Teams client IDs, admin-consent, and Easy Auth must trust its audience.
-// UNTESTED locally (no Teams runtime / Easy Auth here) — validate in a Teams sideload.
+//  1. The Entra app (AUTH_MICROSOFT_ENTRA_ID_ID) must expose an API scope (access_as_user) with
+//     Application ID URI `api://app.roamhub360.com/<client-id>` and pre-authorise the Teams
+//     desktop/web/mobile client IDs, then admin-consent.
+//  2. teams/manifest.json webApplicationInfo.resource must match that Application ID URI, so the
+//     token audience lines up with what verifyTeamsSsoToken() accepts.
+// UNTESTED locally (no Teams runtime / Entra app here) — validate in a Teams sideload.
 
 function loadScript(src: string): Promise<void> {
   return new Promise((resolve, reject) => {
@@ -43,13 +45,10 @@ export default function TeamsAuthBridge() {
         if (!teams) throw new Error("Teams SDK unavailable");
         await teams.app.initialize();
         const token = await teams.authentication.getAuthToken();
-        // Exchange the Teams SSO token for an Easy Auth session cookie on this origin.
-        const r = await fetch("/.auth/login/aad", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ access_token: token }),
-        });
-        if (!r.ok) throw new Error(`Easy Auth exchange failed (${r.status})`);
+        // Exchange the Teams SSO token for an Auth.js session on this origin. redirect:false so we
+        // control the forward and can surface a clean error inside the Teams tab.
+        const res = await signIn("teams-sso", { token, redirect: false });
+        if (!res || res.error || !res.ok) throw new Error(res?.error || "session exchange failed");
         if (!cancelled) location.replace(safeTarget);
       } catch (e) {
         if (!cancelled) {

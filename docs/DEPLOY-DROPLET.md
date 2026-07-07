@@ -252,3 +252,32 @@ Creating a workspace `acme` on the Tenants page then makes `https://acme.roamhub
 automatically (Caddy fetches the cert on first visit, after `/api/tenants/verify` confirms the
 workspace exists). Members of one workspace can't see another's — the membership guard + tenant
 data scoping enforce it server-side.
+
+---
+
+## 13. Microsoft Teams tab (SSO, no separate login)
+
+The app ships a Teams personal-tab manifest (`teams/manifest.json`). Inside Teams, `/teams`
+obtains the user's Entra token via teams-js and exchanges it for an Auth.js session through the
+`teams-sso` credentials provider — **no password, no redirect**. This replaces the old Azure
+Easy Auth bridge that only worked while the app ran on Azure.
+
+**Requires** the Entra SSO app from §6 (i.e. `AUTH_MICROSOFT_ENTRA_ID_ID` set). Then, one-time,
+on that same Entra app registration:
+
+1. **Expose an API** → *Application ID URI* = `api://app.roamhub360.com/<client-id>`
+   (Azure suggests `api://<client-id>`; change the host to your APP_URL host so it matches the
+   manifest). Add a scope `access_as_user` (admins + users can consent).
+2. **Pre-authorise the Teams client IDs** for that scope (Add a client application):
+   - `1fec8e78-bce4-4aaf-ab1b-5451cc387264` (Teams desktop/mobile)
+   - `5e3ce6c0-2b1f-4285-8d4b-75ee78787346` (Teams web)
+3. **API permissions** → add delegated `openid`, `profile`, `email` → **Grant admin consent**.
+4. In `teams/manifest.json` replace `REPLACE_WITH_ENTRA_APP_CLIENT_ID` (three places) with the
+   client id. `webApplicationInfo.resource` must equal the Application ID URI from step 1.
+
+The app auto-derives the accepted token audience from `APP_URL` (`api://<host>/<client-id>`); set
+`TEAMS_SSO_AUDIENCE` only if your Application ID URI differs from that pattern.
+
+**Package + sideload:** zip `manifest.json` + `color.png` + `outline.png` (192×192 / 32×32) into
+`roamhub360-teams.zip`, then Teams → Apps → *Manage your apps* → *Upload an app* (or admin-publish
+org-wide). First-time Teams users are provisioned as **Staff**, same as web SSO.

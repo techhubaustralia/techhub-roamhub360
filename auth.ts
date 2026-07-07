@@ -6,6 +6,7 @@ import Credentials from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import { authConfig } from "@/auth.config";
 import { findUserByEmail, upsertSsoUser } from "@/lib/server/users";
+import { verifyTeamsSsoToken } from "@/lib/server/teams-token";
 
 // Full auth (Node runtime). Local email/password is always available; Microsoft
 // Entra SSO is enabled only when configured — so organisations without Microsoft
@@ -34,6 +35,27 @@ if (process.env.AUTH_MICROSOFT_ENTRA_ID_ID) {
       clientSecret: process.env.AUTH_MICROSOFT_ENTRA_ID_SECRET,
       // Multi-tenant: accept any Microsoft org. Set to a tenant id to restrict.
       issuer: process.env.AUTH_MICROSOFT_ENTRA_ID_ISSUER ?? "https://login.microsoftonline.com/common/v2.0",
+    }),
+  );
+
+  // Teams SSO: a user inside a Teams tab hands us the token from teams-js getAuthToken();
+  // /teams exchanges it here for a normal Auth.js session. No browser redirect, no password.
+  // Provisioning + role attachment happen in the signIn/jwt callbacks (same path as Entra SSO).
+  providers.push(
+    Credentials({
+      id: "teams-sso",
+      name: "Microsoft Teams",
+      credentials: { token: {} },
+      async authorize(creds) {
+        const profile = await verifyTeamsSsoToken(String(creds?.token ?? ""));
+        if (!profile?.email) return null;
+        const existing = await findUserByEmail(profile.email).catch(() => null);
+        return {
+          id: existing?.id ?? profile.email,
+          email: profile.email,
+          name: profile.name ?? existing?.name ?? profile.email,
+        };
+      },
     }),
   );
 }
