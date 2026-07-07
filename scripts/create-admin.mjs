@@ -15,11 +15,13 @@ if (password.length < 8) {
 }
 
 const prisma = new PrismaClient();
+// Ensure the built-in default tenant exists and put the admin in it.
+await prisma.tenant.upsert({ where: { slug: "default" }, create: { slug: "default", name: "Default workspace" }, update: {} });
 const passwordHash = await bcrypt.hash(password, 10);
 const u = await prisma.user.upsert({
   where: { email: email.toLowerCase() },
-  create: { email: email.toLowerCase(), name: nameParts.join(" ") || null, passwordHash, role: "global-admin", provider: "credentials" },
-  update: { passwordHash, role: "global-admin" },
+  create: { email: email.toLowerCase(), name: nameParts.join(" ") || null, passwordHash, role: "global-admin", provider: "credentials", tenantId: "default" },
+  update: { passwordHash, role: "global-admin", tenantId: "default" },
 });
-console.log(`✓ Admin ready: ${u.email} (global-admin)`);
+console.log(`✓ Admin ready: ${u.email} (global-admin, tenant: default)`);
 await prisma.$disconnect();

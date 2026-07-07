@@ -1,7 +1,7 @@
 import "server-only";
 import { auth as getSession } from "@/auth";
 import { canAccessBuilding } from "../authz";
-import { currentTenantId } from "./tenant";
+import { currentTenantId, DEFAULT_TENANT } from "./tenant";
 
 export { canAccessBuilding };
 export type Role = "global-admin" | "site-admin" | "staff";
@@ -20,6 +20,8 @@ export interface AppUser {
   setupMode?: boolean;
   authenticated?: boolean;
   tenantId?: string; // the request's tenant (from subdomain); DEFAULT_TENANT for the app host
+  homeTenant?: string; // the tenant the user belongs to (User.tenantId)
+  platformAdmin?: boolean; // may manage tenants + access any tenant (BOOTSTRAP_ADMINS / dev)
 }
 
 // Break-glass: these emails are always Global Admin regardless of their stored role.
@@ -41,6 +43,12 @@ export async function getUser(): Promise<AppUser> {
   if (su?.email) {
     const email = su.email.toLowerCase();
     const bootstrap = BOOTSTRAP_ADMINS.includes(email);
+    const homeTenant = (su as { homeTenant?: string }).homeTenant ?? DEFAULT_TENANT;
+    // Membership guard: a user may only access their own tenant's workspace; platform
+    // operators (BOOTSTRAP_ADMINS) may access any tenant. Legacy null home => default.
+    if (homeTenant !== tenantId && !bootstrap) {
+      return { name: "", email, role: "staff", groups: [], roleSource: "anonymous", entraConfigured, setupMode: true, authenticated: false, tenantId };
+    }
     const role: Role = bootstrap ? "global-admin" : ((su.role as Role) || "staff");
     return {
       name: su.name || email.split("@")[0],
@@ -53,6 +61,8 @@ export async function getUser(): Promise<AppUser> {
       entraConfigured,
       authenticated: true,
       tenantId,
+      homeTenant,
+      platformAdmin: bootstrap,
     };
   }
 
@@ -68,6 +78,8 @@ export async function getUser(): Promise<AppUser> {
       entraConfigured,
       authenticated: false,
       tenantId,
+      homeTenant: tenantId,
+      platformAdmin: true,
     };
   }
 

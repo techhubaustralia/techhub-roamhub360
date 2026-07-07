@@ -69,6 +69,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.sites = u?.sites ?? [];
         token.multiBook = u?.multiBook ?? false;
         token.uid = u?.id;
+        token.homeTenant = u?.tenantId ?? undefined;
       }
       return token;
     },
@@ -77,6 +78,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         session.user.role = token.role as string | undefined;
         session.user.sites = (token.sites as string[] | undefined) ?? [];
         session.user.multiBook = Boolean(token.multiBook);
+        session.user.homeTenant = token.homeTenant as string | undefined;
       }
       return session;
     },

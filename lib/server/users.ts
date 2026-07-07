@@ -1,4 +1,5 @@
 import "server-only";
+import { currentTenantId } from "./tenant";
 
 // App user store (Postgres via Prisma). Source of truth for identity + role for
 // both local (email/password) and Entra (SSO) users. Requires DATABASE_URL.
@@ -37,7 +38,7 @@ export async function upsertSsoUser(email: string, name?: string, provider = "ss
   const e = email.toLowerCase();
   await p.user.upsert({
     where: { email: e },
-    create: { email: e, name: name ?? null, provider, role: "staff" },
+    create: { email: e, name: name ?? null, provider, role: "staff", tenantId: await currentTenantId() },
     update: name ? { name } : {},
   });
 }
@@ -62,6 +63,7 @@ export async function createUser(input: {
       sites: input.sites ?? [],
       multiBook: input.multiBook ?? false,
       provider: "credentials",
+      tenantId: await currentTenantId(),
     },
   });
   return { id: u.id, email: u.email, name: u.name, role: u.role, sites: u.sites, multiBook: u.multiBook, provider: u.provider };
