@@ -3,10 +3,16 @@ import { promises as fs } from "fs";
 import path from "path";
 import { BlobServiceClient, type ContainerClient } from "@azure/storage-blob";
 import type { FloorPlan } from "@/lib/types";
+import { currentTenantId, DEFAULT_TENANT } from "./tenant";
 
-// Plans + custom-building index persistence.
-// Prod: Azure Blob Storage (AZURE_STORAGE_CONNECTION_STRING). Dev: local JSON files.
-// Relational data (bookings/locks) lives in Azure SQL — see prisma/schema.prisma.
+// Floor plans + custom-building index + images.
+// Prod: Azure Blob (AZURE_STORAGE_CONNECTION_STRING). Droplet/dev: local JSON files.
+// Relational data (bookings/locks/audit) lives in Postgres — see lib/server/db.ts.
+//
+// MULTI-TENANCY: every object is namespaced by tenant — blobs as `<tenant>/<name>`,
+// files under `data/<tenant>/…`. Writes always go to the tenant path. Reads for the
+// DEFAULT tenant fall back to the legacy unprefixed path, so pre-tenancy data stays
+// readable and migrates lazily on the next save (no data-move step needed).
 
 export interface FloorRoom {
   id: string; // `${buildingId}__${slug}` (or the buildingId itself for legacy single-floor)
@@ -51,10 +57,8 @@ async function putBlobJson(name: string, data: unknown): Promise<void> {
   });
 }
 
-// ---------- File backend (dev fallback) ----------
+// ---------- File backend ----------
 const DATA_DIR = path.join(process.cwd(), "data");
-const planFile = (id: string) => path.join(DATA_DIR, `plan-${id}.json`);
-const BUILDINGS_FILE = path.join(DATA_DIR, "buildings.json");
 async function readFileJson<T>(file: string): Promise<T | null> {
   try {
     return JSON.parse(await fs.readFile(file, "utf8")) as T;
@@ -63,37 +67,59 @@ async function readFileJson<T>(file: string): Promise<T | null> {
   }
 }
 async function writeFileJson(file: string, data: unknown): Promise<void> {
-  await fs.mkdir(DATA_DIR, { recursive: true });
+  await fs.mkdir(path.dirname(file), { recursive: true });
   await fs.writeFile(file, JSON.stringify(data, null, 2), "utf8");
 }
 
-// ---------- Public API (backend-agnostic) ----------
+// ---------- tenant-aware read (with default-tenant legacy fallback) ----------
+async function readJsonT<T>(t: string, blobName: string, fileRel: string): Promise<T | null> {
+  if (useBlob) {
+    const v = await blobJson<T>(`${t}/${blobName}`);
+    return v !== null ? v : t === DEFAULT_TENANT ? blobJson<T>(blobName) : null;
+  }
+  const v = await readFileJson<T>(path.join(DATA_DIR, t, fileRel));
+  return v !== null ? v : t === DEFAULT_TENANT ? readFileJson<T>(path.join(DATA_DIR, fileRel)) : null;
+}
+
+async function writeBuildings(t: string, list: CustomBuilding[]): Promise<void> {
+  if (useBlob) await putBlobJson(`${t}/_buildings.json`, list);
+  else await writeFileJson(path.join(DATA_DIR, t, "buildings.json"), list);
+}
+async function writeHidden(t: string, list: string[]): Promise<void> {
+  if (useBlob) await putBlobJson(`${t}/_hidden.json`, list);
+  else await writeFileJson(path.join(DATA_DIR, t, "_hidden.json"), list);
+}
+
+// ---------- Public API (tenant + backend agnostic) ----------
 export async function getStoredPlan(id: string): Promise<FloorPlan | null> {
-  return useBlob ? blobJson<FloorPlan>(`${id}.json`) : readFileJson<FloorPlan>(planFile(id));
+  const t = await currentTenantId();
+  return readJsonT<FloorPlan>(t, `${id}.json`, `plan-${id}.json`);
 }
 export async function putPlan(plan: FloorPlan): Promise<void> {
-  if (useBlob) await putBlobJson(`${plan.id}.json`, plan);
-  else await writeFileJson(planFile(plan.id), plan);
+  const t = await currentTenantId();
+  if (useBlob) await putBlobJson(`${t}/${plan.id}.json`, plan);
+  else await writeFileJson(path.join(DATA_DIR, t, `plan-${plan.id}.json`), plan);
 }
 export async function deletePlan(id: string): Promise<void> {
+  const t = await currentTenantId();
   if (useBlob) {
     const c = await container();
-    await c.getBlockBlobClient(`${id}.json`).deleteIfExists();
+    await c.getBlockBlobClient(`${t}/${id}.json`).deleteIfExists();
+    if (t === DEFAULT_TENANT) await c.getBlockBlobClient(`${id}.json`).deleteIfExists();
   } else {
-    await fs.rm(planFile(id), { force: true });
+    await fs.rm(path.join(DATA_DIR, t, `plan-${id}.json`), { force: true });
+    if (t === DEFAULT_TENANT) await fs.rm(path.join(DATA_DIR, `plan-${id}.json`), { force: true });
   }
 }
 export async function listCustomBuildings(): Promise<CustomBuilding[]> {
-  const data = useBlob
-    ? await blobJson<CustomBuilding[]>("_buildings.json")
-    : await readFileJson<CustomBuilding[]>(BUILDINGS_FILE);
-  return data ?? [];
+  const t = await currentTenantId();
+  return (await readJsonT<CustomBuilding[]>(t, "_buildings.json", "buildings.json")) ?? [];
 }
 export async function addCustomBuilding(b: CustomBuilding): Promise<void> {
+  const t = await currentTenantId();
   const list = (await listCustomBuildings()).filter((x) => x.id !== b.id);
   list.push(b);
-  if (useBlob) await putBlobJson("_buildings.json", list);
-  else await writeFileJson(BUILDINGS_FILE, list);
+  await writeBuildings(t, list);
 }
 
 /** Floors/rooms for a building. Legacy buildings (no floors stored) resolve to a
@@ -106,78 +132,105 @@ export async function listFloors(buildingId: string): Promise<FloorRoom[]> {
 }
 
 export async function setFloors(buildingId: string, floors: FloorRoom[]): Promise<void> {
+  const t = await currentTenantId();
   const list = await listCustomBuildings();
   const i = list.findIndex((b) => b.id === buildingId);
   if (i < 0) return;
   const norm = floors.length && !floors.some((f) => f.isDefault) ? floors.map((f, j) => ({ ...f, isDefault: j === 0 })) : floors;
   list[i] = { ...list[i], floors: norm };
-  if (useBlob) await putBlobJson("_buildings.json", list);
-  else await writeFileJson(BUILDINGS_FILE, list);
+  await writeBuildings(t, list);
 }
 
-/** Keep a custom building's name/region/country in step with its saved plan,
- *  so the location picker groups it under the right region (not "Custom sites"). */
+/** Keep a custom building's name/region/country in step with its saved plan. */
 export async function syncCustomBuildingMeta(plan: { id: string; name?: string; region?: string; country?: string }): Promise<void> {
+  const t = await currentTenantId();
   const list = await listCustomBuildings();
   const i = list.findIndex((b) => b.id === plan.id);
   if (i < 0) return; // built-in; region/country come from static data
   list[i] = { ...list[i], name: plan.name || list[i].name, region: plan.region, country: plan.country };
-  if (useBlob) await putBlobJson("_buildings.json", list);
-  else await writeFileJson(BUILDINGS_FILE, list);
+  await writeBuildings(t, list);
 }
 
 // ---------- floor-plan background images (binary) ----------
-const imgName = (id: string) => `img-${id}`;
-const imgFile = (id: string) => path.join(DATA_DIR, `img-${id}.bin`);
-const imgTypeFile = (id: string) => path.join(DATA_DIR, `img-${id}.type`);
-
 export async function putPlanImage(id: string, buf: Buffer, contentType: string): Promise<void> {
+  const t = await currentTenantId();
   if (useBlob) {
     const c = await container();
-    await c.getBlockBlobClient(imgName(id)).uploadData(buf, { blobHTTPHeaders: { blobContentType: contentType } });
+    await c.getBlockBlobClient(`${t}/img-${id}`).uploadData(buf, { blobHTTPHeaders: { blobContentType: contentType } });
   } else {
-    await fs.mkdir(DATA_DIR, { recursive: true });
-    await fs.writeFile(imgFile(id), buf);
-    await fs.writeFile(imgTypeFile(id), contentType, "utf8");
+    const dir = path.join(DATA_DIR, t);
+    await fs.mkdir(dir, { recursive: true });
+    await fs.writeFile(path.join(dir, `img-${id}.bin`), buf);
+    await fs.writeFile(path.join(dir, `img-${id}.type`), contentType, "utf8");
   }
 }
 
 export async function deletePlanImage(id: string): Promise<void> {
+  const t = await currentTenantId();
   if (useBlob) {
     const c = await container();
-    await c.getBlockBlobClient(imgName(id)).deleteIfExists();
+    await c.getBlockBlobClient(`${t}/img-${id}`).deleteIfExists();
+    if (t === DEFAULT_TENANT) await c.getBlockBlobClient(`img-${id}`).deleteIfExists();
   } else {
-    await fs.rm(imgFile(id), { force: true });
-    await fs.rm(imgTypeFile(id), { force: true });
+    await fs.rm(path.join(DATA_DIR, t, `img-${id}.bin`), { force: true });
+    await fs.rm(path.join(DATA_DIR, t, `img-${id}.type`), { force: true });
+    if (t === DEFAULT_TENANT) {
+      await fs.rm(path.join(DATA_DIR, `img-${id}.bin`), { force: true });
+      await fs.rm(path.join(DATA_DIR, `img-${id}.type`), { force: true });
+    }
   }
 }
 
-// ---------- building removal (custom = remove, built-in = hide) ----------
-const HIDDEN_FILE = path.join(DATA_DIR, "_hidden.json");
+export async function getPlanImage(id: string): Promise<{ buffer: Buffer; contentType: string } | null> {
+  const t = await currentTenantId();
+  if (useBlob) {
+    const c = await container();
+    for (const name of [`${t}/img-${id}`, ...(t === DEFAULT_TENANT ? [`img-${id}`] : [])]) {
+      const b = c.getBlockBlobClient(name);
+      if (await b.exists()) {
+        const buffer = await b.downloadToBuffer();
+        const props = await b.getProperties();
+        return { buffer, contentType: props.contentType || "application/octet-stream" };
+      }
+    }
+    return null;
+  }
+  const dirs = [path.join(DATA_DIR, t), ...(t === DEFAULT_TENANT ? [DATA_DIR] : [])];
+  for (const dir of dirs) {
+    try {
+      const buffer = await fs.readFile(path.join(dir, `img-${id}.bin`));
+      const contentType = await fs.readFile(path.join(dir, `img-${id}.type`), "utf8").catch(() => "application/octet-stream");
+      return { buffer, contentType };
+    } catch {
+      // try next location
+    }
+  }
+  return null;
+}
 
+// ---------- building removal (custom = remove, built-in = hide) ----------
 export async function removeCustomBuilding(id: string): Promise<void> {
+  const t = await currentTenantId();
   const list = (await listCustomBuildings()).filter((x) => x.id !== id);
-  if (useBlob) await putBlobJson("_buildings.json", list);
-  else await writeFileJson(BUILDINGS_FILE, list);
+  await writeBuildings(t, list);
 }
 
 export async function listHiddenBuildings(): Promise<string[]> {
-  const d = useBlob ? await blobJson<string[]>("_hidden.json") : await readFileJson<string[]>(HIDDEN_FILE);
-  return d ?? [];
+  const t = await currentTenantId();
+  return (await readJsonT<string[]>(t, "_hidden.json", "_hidden.json")) ?? [];
 }
 
 export async function unhideBuilding(id: string): Promise<void> {
-  const l = (await listHiddenBuildings()).filter((x) => x !== id);
-  if (useBlob) await putBlobJson("_hidden.json", l);
-  else await writeFileJson(HIDDEN_FILE, l);
+  const t = await currentTenantId();
+  await writeHidden(t, (await listHiddenBuildings()).filter((x) => x !== id));
 }
 
 export async function hideBuilding(id: string): Promise<void> {
+  const t = await currentTenantId();
   const l = await listHiddenBuildings();
   if (!l.includes(id)) {
     l.push(id);
-    if (useBlob) await putBlobJson("_hidden.json", l);
-    else await writeFileJson(HIDDEN_FILE, l);
+    await writeHidden(t, l);
   }
 }
 
@@ -191,21 +244,3 @@ export async function deleteBuilding(id: string): Promise<void> {
 }
 
 // Role assignments moved to the User table (Postgres) — see lib/server/users.ts.
-
-export async function getPlanImage(id: string): Promise<{ buffer: Buffer; contentType: string } | null> {
-  if (useBlob) {
-    const c = await container();
-    const b = c.getBlockBlobClient(imgName(id));
-    if (!(await b.exists())) return null;
-    const buffer = await b.downloadToBuffer();
-    const props = await b.getProperties();
-    return { buffer, contentType: props.contentType || "application/octet-stream" };
-  }
-  try {
-    const buffer = await fs.readFile(imgFile(id));
-    const contentType = await fs.readFile(imgTypeFile(id), "utf8").catch(() => "application/octet-stream");
-    return { buffer, contentType };
-  } catch {
-    return null;
-  }
-}
