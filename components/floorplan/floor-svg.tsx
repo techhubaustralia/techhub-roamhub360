@@ -54,7 +54,7 @@ function deskPath(x: number, y: number, s = 1): string {
 
 // Pure desk visual (glyph + number/label/lock). Shared by the booking view and
 // the editor canvas so both render desks identically.
-export function DeskShape({ el, status, selected }: { el: Extract<SpaceEl, { t: "desk" }>; status: SpaceStatus; selected: boolean }) {
+export function DeskShape({ el, status, selected, showLabel = true }: { el: Extract<SpaceEl, { t: "desk" }>; status: SpaceStatus; selected: boolean; showLabel?: boolean }) {
   const locked = status === "locked";
   const fill = fillFor(status);
   const stroke = strokeFor(status, selected);
@@ -117,7 +117,7 @@ export function DeskShape({ el, status, selected }: { el: Extract<SpaceEl, { t: 
       <g transform={el.rot ? `rotate(${el.rot} ${el.x} ${el.y})` : undefined}>{glyph}</g>
       {locked ? (
         <Lock x={el.x} y={el.y} scale={0.7} />
-      ) : inside ? (
+      ) : !showLabel ? null : inside ? (
         <text x={el.x} y={el.y} textAnchor="middle" dominantBaseline="central" fontSize={11} fontWeight={700} fill="#fff">
           {num}
         </text>
@@ -160,7 +160,7 @@ function Desk({
       onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onPick(); } }}
       className={`fp-anim fp-hot${!selected ? " hover:brightness-110" : ""}`}
     >
-      <DeskShape el={el} status={status} selected={selected} />
+      <DeskShape el={el} status={status} selected={selected} showLabel={false} />
     </g>
   );
 }
