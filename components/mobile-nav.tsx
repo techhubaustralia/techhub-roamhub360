@@ -15,15 +15,18 @@ import { brand } from "@/lib/brand";
 export function MobileNav() {
   const [open, setOpen] = useState(false);
   const [role, setRole] = useState<Role | undefined>(undefined);
+  const [platformAdmin, setPlatformAdmin] = useState(false);
   const pathname = usePathname();
   const isActive = (href: string) => (href === "/" ? pathname === "/" : pathname.startsWith(href));
 
   useEffect(() => {
-    fetch("/api/me").then((r) => (r.ok ? r.json() : null)).then((u) => u && setRole(u.role)).catch(() => {});
+    fetch("/api/me").then((r) => (r.ok ? r.json() : null)).then((u) => { if (u) { setRole(u.role); setPlatformAdmin(!!u.platformAdmin); } }).catch(() => {});
   }, []);
   useEffect(() => { setOpen(false); }, [pathname]); // close on navigation
 
-  const adminItems = NAV_ADMIN.filter((i) => !i.roles || (role ? i.roles.includes(role) : false));
+  const adminItems = NAV_ADMIN.filter((i) =>
+    i.platform ? platformAdmin : !i.roles || (role ? i.roles.includes(role) : false),
+  );
 
   const Item = ({ href, label, Icon }: { href: string; label: string; Icon: React.ComponentType<{ className?: string }> }) => (
     <Link

@@ -36,7 +36,7 @@ export function Sidebar() {
   const pathname = usePathname();
   const isActive = (href: string) => (href === "/" ? pathname === "/" : pathname.startsWith(href));
 
-  const [user, setUser] = useState<{ name: string; email: string; role?: Role }>({ name: "You", email: "" });
+  const [user, setUser] = useState<{ name: string; email: string; role?: Role; platformAdmin?: boolean }>({ name: "You", email: "" });
   useEffect(() => {
     fetch("/api/me")
       .then((r) => (r.ok ? r.json() : null))
@@ -45,7 +45,9 @@ export function Sidebar() {
   }, []);
 
   // Show an admin item only if the user's role is allowed (role unknown → none).
-  const adminItems = NAV_ADMIN.filter((i) => !i.roles || (user.role ? i.roles.includes(user.role) : false));
+  const adminItems = NAV_ADMIN.filter((i) =>
+    i.platform ? !!user.platformAdmin : !i.roles || (user.role ? i.roles.includes(user.role) : false),
+  );
 
   return (
     <aside className="hidden w-[244px] flex-col border-r bg-sidebar md:flex">

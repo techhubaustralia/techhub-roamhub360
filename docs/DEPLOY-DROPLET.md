@@ -213,3 +213,42 @@ app.roamhub360.com {
 ```
 
 OAuth redirect URIs then use the subdomain, e.g. `https://app.roamhub360.com/api/auth/callback/google`.
+
+---
+
+## 12. Multi-tenant subdomains (`<customer>.roamhub360.com`)
+
+Once you onboard customers on the **Tenants** page, each gets an isolated workspace at
+`<slug>.roamhub360.com`. Two one-time infra steps:
+
+1. **Wildcard DNS** — add an A record `*.roamhub360.com` → the droplet IP (`170.64.215.131`).
+   (Cloudflare: DNS-only / grey cloud.)
+
+2. **Caddy wildcard + on-demand TLS** — the app already routes by subdomain; Caddy just needs to
+   serve any `<slug>.roamhub360.com`. Standard (native) Caddy does this with **on-demand TLS**,
+   gated by the app's verify endpoint so only real workspaces ever get a certificate.
+
+   Add a **global block at the very TOP** of `/etc/caddy/Caddyfile`:
+   ```
+   {
+       on_demand_tls {
+           ask http://127.0.0.1:3100/api/tenants/verify
+       }
+   }
+   ```
+   and a **wildcard site block** (leave the explicit `app.roamhub360.com` and helpdesk blocks as
+   they are — a more specific host always wins):
+   ```
+   *.roamhub360.com {
+       tls {
+           on_demand
+       }
+       reverse_proxy 127.0.0.1:3100
+   }
+   ```
+   Then `systemctl reload caddy`.
+
+Creating a workspace `acme` on the Tenants page then makes `https://acme.roamhub360.com` live
+automatically (Caddy fetches the cert on first visit, after `/api/tenants/verify` confirms the
+workspace exists). Members of one workspace can't see another's — the membership guard + tenant
+data scoping enforce it server-side.

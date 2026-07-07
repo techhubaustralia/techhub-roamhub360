@@ -7,6 +7,7 @@ import {
   Star,
   Users,
   ScrollText,
+  Boxes,
   type LucideIcon,
 } from "lucide-react";
 
@@ -17,6 +18,7 @@ export interface NavItem {
   label: string;
   icon: LucideIcon;
   roles?: Role[]; // who may see this item; omitted = everyone
+  platform?: boolean; // platform operators only (TechHub Australia), not per-tenant admins
 }
 
 export const NAV_MAIN: NavItem[] = [
@@ -33,4 +35,5 @@ export const NAV_ADMIN: NavItem[] = [
   { href: "/assign", label: "Permanent desks", icon: Star, roles: ["global-admin", "site-admin"] },
   { href: "/admin/users", label: "Users & roles", icon: Users, roles: ["global-admin"] },
   { href: "/admin/audit", label: "Activity log", icon: ScrollText, roles: ["global-admin"] },
+  { href: "/admin/tenants", label: "Tenants", icon: Boxes, platform: true },
 ];
