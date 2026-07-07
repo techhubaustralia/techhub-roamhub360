@@ -128,12 +128,16 @@ First-time SSO users are auto-created as **Staff**; promote them in **Users & ro
 Set `AZURE_TENANT_ID`, `GRAPH_CLIENT_ID`, `GRAPH_CLIENT_SECRET`, `MAIL_FROM` (see `.env.example`).
 Leave blank to disable — the app no-ops (bookings still work, just no email/calendar).
 
-## 8. Scheduled jobs (check-in reminders, auto-cancel, etc.)
+## 8. Scheduled jobs (check-in reminders, auto-cancel, the "who's in" digest, etc.)
 Add a host cron that pings the tick endpoint every 30 min:
 ```bash
 */30 * * * * curl -fsS -H "x-jobs-secret: <JOBS_SECRET>" https://app.roamhub360.com/api/jobs/tick >/dev/null 2>&1
 ```
-(In Coolify, use a Scheduled Task instead.)
+(In Coolify, use a Scheduled Task instead.) Each site fires its tasks at its own local time:
+`digest` 07:30 (Team Build-Up D — the daily "who's in" email, opt-in per user under **Settings**),
+`checkin` 08:00, `auto-release` 09:30, `checkout` 17:00, `auto-checkout` 17:30, `reminder` 18:00.
+All emails need Microsoft Graph (§7); without it they no-op. You can trigger one task for every
+site manually, e.g. `curl -H "x-jobs-secret: …" https://app.roamhub360.com/api/jobs/digest`.
 
 ## 9. Private demo gate (before real auth is in front of prospects)
 To password-protect the whole site (plain-compose path), uncomment `basic_auth` in `Caddyfile`:

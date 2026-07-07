@@ -59,6 +59,14 @@ export async function getHiddenPresenceEmails(): Promise<Set<string>> {
   return new Set(rows.map((r: { email: string }) => r.email.toLowerCase()));
 }
 
+/** Emails (lowercased) of users who opted in to the daily "who's in" digest. Empty without a DB. */
+export async function getPresenceDigestEmails(): Promise<Set<string>> {
+  if (!process.env.DATABASE_URL) return new Set();
+  const p = await prisma();
+  const rows = await p.user.findMany({ where: { notifyPresence: true }, select: { email: true } });
+  return new Set(rows.map((r: { email: string }) => r.email.toLowerCase()));
+}
+
 export async function findUserByEmail(email: string): Promise<UserRow | null> {
   const p = await prisma();
   return (await p.user.findUnique({ where: { email: email.toLowerCase() } })) ?? null;

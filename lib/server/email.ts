@@ -76,6 +76,32 @@ export function reminderEmail(b: Booking) {
   };
 }
 
+/** Daily "who's in" digest (Team Build-Up D): who from your workspace is booked at your site today. */
+export function presenceDigestEmail(
+  recipientName: string,
+  siteName: string,
+  date: string,
+  colleagues: { name: string; spaceLabel: string; checkedIn: boolean }[],
+) {
+  const pretty = new Date(date + "T00:00:00Z").toLocaleDateString("en-AU", { weekday: "long", day: "numeric", month: "long", timeZone: "UTC" });
+  const first = esc(recipientName.split(/\s+/)[0] || recipientName);
+  const list = colleagues.length
+    ? `<ul style="padding-left:18px;line-height:1.85;margin:10px 0 0">${colleagues
+        .map((c) => `<li><b>${esc(c.name)}</b> · ${esc(c.spaceLabel)}${c.checkedIn ? ` <span style="color:${C.available};font-weight:600">✓ in</span>` : ""}</li>`)
+        .join("")}</ul>`
+    : `<p style="color:#7491a0">No one else is booked at ${esc(siteName)} yet today.</p>`;
+  return {
+    subject: `Who's in at ${siteName} today — ${colleagues.length} ${colleagues.length === 1 ? "colleague" : "colleagues"}`,
+    html: shell(
+      "Who's in today",
+      `<p>Morning ${first}, here's who's booked at <b>${esc(siteName)}</b> for ${esc(pretty)}:</p>
+       ${list}
+       <p style="margin-top:18px">${btn(`${APP_URL}/team`, "Open Who's in")}</p>
+       <p style="color:#7491a0;font-size:12px;margin-top:14px">You're getting this because you turned on the daily digest. Manage it under <a href="${APP_URL}/settings" style="color:${C.primary}">Settings</a>.</p>`,
+    ),
+  };
+}
+
 export function checkInEmail(b: Booking, day: string) {
   const url = `${APP_URL}/api/checkin?token=${sign({ bookingId: b.id, action: "checkin", date: day })}`;
   return {
