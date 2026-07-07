@@ -150,6 +150,13 @@ export async function globalAdminCount(): Promise<number> {
   return p.user.count({ where: { role: "global-admin" } });
 }
 
+/** Number of users in a tenant (0 without a DB). For the onboarding checklist (G1). */
+export async function countTenantUsers(tenantId: string): Promise<number> {
+  if (!process.env.DATABASE_URL) return 0;
+  const p = await prisma();
+  return p.user.count({ where: { tenantId } });
+}
+
 /** Admin email addresses for a tenant (by slug = the stamped tenantId). For CP4 notifications. */
 export async function listTenantAdminEmails(tenantId: string): Promise<string[]> {
   if (!process.env.DATABASE_URL) return [];
