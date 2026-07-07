@@ -11,6 +11,7 @@ import {
   Plug,
   ScrollText,
   Boxes,
+  BadgeCheck,
   Settings,
   type LucideIcon,
 } from "lucide-react";
@@ -42,6 +43,7 @@ export const NAV_ADMIN: NavItem[] = [
   { href: "/admin/users", label: "Users & roles", icon: Users, roles: ["global-admin"] },
   { href: "/admin/directory", label: "Directory", icon: Contact, roles: ["global-admin"] },
   { href: "/admin/integration", label: "Microsoft 365", icon: Plug, roles: ["global-admin"] },
+  { href: "/admin/license", label: "Plan & licence", icon: BadgeCheck, roles: ["global-admin"] },
   { href: "/admin/audit", label: "Activity log", icon: ScrollText, roles: ["global-admin"] },
   { href: "/admin/tenants", label: "Tenants", icon: Boxes, platform: true },
 ];

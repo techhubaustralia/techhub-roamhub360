@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { listBookings, createBooking, setBookingEventId, listLocks, ConflictError, audit } from "@/lib/server/db";
 import { validateBooking, overlaps, nowInTz, ACTIVE_STATUSES, type Kind } from "@/lib/booking-rules";
 import { getUser, canAccessBuilding } from "@/lib/server/auth";
+import { assertCanWrite } from "@/lib/server/licensing";
 import { rateLimit, clientIp, tooMany } from "@/lib/server/rate-limit";
 import { sendMail, createBookingEvent, roomMailboxFor } from "@/lib/server/graph";
 import { confirmationEmail } from "@/lib/server/email";
@@ -87,6 +88,10 @@ export async function POST(req: Request) {
   const b = parsed.data;
   const kind = b.kind as Kind;
   const user = await getUser();
+
+  // Licence gate (CP2): an expired/suspended workspace is read-only — no new bookings.
+  const lic = await assertCanWrite();
+  if (!lic.ok) return NextResponse.json({ error: lic.error }, { status: 402 });
   // Per-user throttle (in addition to the per-IP guard above).
   const userRl = rateLimit(`book:user:${user.email}`, 20, 60_000);
   if (!userRl.ok) return tooMany(userRl.retryAfter);

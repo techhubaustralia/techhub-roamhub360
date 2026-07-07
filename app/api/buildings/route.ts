@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { listCustomBuildings, addCustomBuilding, listHiddenBuildings, getStoredPlan, type CustomBuilding } from "@/lib/server/store";
 import { getUser } from "@/lib/server/auth";
+import { checkAddSite } from "@/lib/server/licensing";
 
 export async function GET() {
   const [custom, hidden] = await Promise.all([listCustomBuildings(), listHiddenBuildings()]);
@@ -35,9 +36,16 @@ export async function POST(req: Request) {
   // Backstop against cross-site overwrite: never let a create clobber a DIFFERENT
   // existing building that happens to share this id. Same-name re-POST (a retry of
   // the same building) is allowed and is an idempotent no-op.
-  const existing = (await listCustomBuildings()).find((b) => b.id === body.id);
+  const buildings = await listCustomBuildings();
+  const existing = buildings.find((b) => b.id === body.id);
   if (existing && existing.name !== body.name) {
     return NextResponse.json({ error: "A different building already uses this id. Please retry — a new id will be assigned." }, { status: 409 });
+  }
+  // Licence enforcement (CP2): a genuinely NEW site counts against the tenant's site allowance.
+  // A same-building retry (existing) is idempotent and exempt.
+  if (!existing) {
+    const lic = await checkAddSite(buildings.length);
+    if (!lic.ok) return NextResponse.json({ error: lic.error }, { status: 402 });
   }
   await addCustomBuilding({ id: body.id, name: body.name, region: body.region, country: body.country });
   return NextResponse.json({ ok: true });

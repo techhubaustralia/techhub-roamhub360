@@ -79,6 +79,23 @@ model AuditLog {
   @@index([tenantId])
 }
 
+// Per-tenant licence (Commercial SaaS CP2). Sites are the billing unit ($2000/site/yr); the
+// tier caps floors-per-site (≤5). Issued/edited by the TechHub Partner portal (CP3). Absence of
+// a row = an implicit trial; the DEFAULT/demo tenant is always treated as unlimited/active.
+model License {
+  tenantId         String    @id
+  tier             String    @default("trial") // trial | standard | professional | enterprise
+  maxSites         Int       @default(1)
+  maxFloorsPerSite Int       @default(2)
+  status           String    @default("active") // active | suspended | cancelled
+  startsAt         DateTime?
+  expiresAt        DateTime?
+  graceDays        Int       @default(14)
+  notes            String?
+  updatedAt        DateTime  @updatedAt
+  createdAt        DateTime  @default(now())
+}
+
 // Per-customer Microsoft integration (Commercial SaaS CP1). Each tenant configures THEIR OWN
 // Entra app (Azure tenant + client id + secret) so directory/mail/calendar run against the
 // customer's Microsoft 365. The client secret is encrypted at rest (AES-256-GCM, lib/crypto)

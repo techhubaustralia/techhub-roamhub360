@@ -135,6 +135,28 @@ export async function getPresenceInsights(site?: string): Promise<PresenceInsigh
   }
 }
 
+// ---- Licensing (Commercial SaaS CP2, admin) ----
+export interface LicenseSummary {
+  tier: string;
+  maxSites: number;
+  maxFloorsPerSite: number;
+  status: string;
+  expiresAt: string | null;
+  graceDays: number;
+  effective: "active" | "grace" | "expired" | "suspended";
+  readOnly: boolean;
+  daysLeft: number | null;
+  sitesUsed: number;
+}
+export async function getLicense(): Promise<LicenseSummary | null> {
+  try {
+    const r = await fetch(`/api/admin/license`, { cache: "no-store" });
+    return r.ok ? ((await r.json()) as LicenseSummary) : null;
+  } catch {
+    return null;
+  }
+}
+
 // ---- Customer Microsoft integration (Commercial SaaS CP1, admin) ----
 export interface IntegrationStatus {
   configured: boolean;
