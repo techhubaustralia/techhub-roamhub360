@@ -218,7 +218,7 @@ function Parking({ el, status, selected, dim, onPick }: { el: Extract<SpaceEl, {
 
 // Pure office/room visual (rect + label + furniture), no rotation/interactivity.
 // Shared by the booking view and the editor canvas. Consumers apply rotation.
-export function RoomShape({ el: raw, status, selected }: { el: Extract<SpaceEl, { t: "office" | "room" }>; status: SpaceStatus; selected: boolean }) {
+export function RoomShape({ el: raw, status, selected, showLabel = true }: { el: Extract<SpaceEl, { t: "office" | "room" }>; status: SpaceStatus; selected: boolean; showLabel?: boolean }) {
   // Defensive: never let a room/office vanish because of missing/invalid coords.
   const fin = (v: unknown, d: number) => (typeof v === "number" && Number.isFinite(v) ? v : d);
   const el = {
@@ -303,11 +303,12 @@ export function RoomShape({ el: raw, status, selected }: { el: Extract<SpaceEl, 
         strokeWidth={selected ? 2.5 : 1.4}
         strokeOpacity={selected ? 1 : 0.45}
       />
-      {ls.map((ln, i) => (
-        <text key={i} x={cx} y={el.y + 16 + i * 12} textAnchor="middle" fontSize={isRoom ? 10.5 : 11} fontWeight={700} fill="var(--txt-dim)">
-          {ln}
-        </text>
-      ))}
+      {showLabel &&
+        ls.map((ln, i) => (
+          <text key={i} x={cx} y={el.y + 16 + i * 12} textAnchor="middle" fontSize={isRoom ? 10.5 : 11} fontWeight={700} fill="var(--txt-dim)">
+            {ln}
+          </text>
+        ))}
       {furniture}
     </>
   );
@@ -319,12 +320,16 @@ function RoomBox({
   selected,
   dim,
   onPick,
+  onHover,
+  onLeave,
 }: {
   el: Extract<SpaceEl, { t: "office" | "room" }>;
   status: SpaceStatus;
   selected: boolean;
   dim?: boolean;
   onPick: () => void;
+  onHover?: (e: React.MouseEvent) => void;
+  onLeave?: () => void;
 }) {
   const cx = el.x + el.w / 2;
   // Rotation goes on an inner group: the outer .fp-anim group sets
@@ -336,6 +341,8 @@ function RoomBox({
       style={{ cursor: "pointer" }}
       opacity={dim ? 0.18 : 1}
       onClick={onPick}
+      onMouseEnter={onHover}
+      onMouseLeave={onLeave}
       role="button"
       tabIndex={0}
       aria-label={aria}
@@ -343,7 +350,7 @@ function RoomBox({
       className="fp-anim fp-hot"
     >
       <g transform={el.rot ? `rotate(${el.rot} ${cx} ${el.y + el.h / 2})` : undefined}>
-        <RoomShape el={el} status={status} selected={selected} />
+        <RoomShape el={el} status={status} selected={selected} showLabel={false} />
       </g>
     </g>
   );
@@ -466,7 +473,18 @@ export function FloorSvg({
         if (el.t === "parking")
           return <Parking key={i} el={el} status={stOf(el)} selected={spaceKey(el) === selectedKey} dim={dim} onPick={() => onPick(el)} />;
         if (el.t === "office" || el.t === "room")
-          return <RoomBox key={i} el={el} status={stOf(el)} selected={spaceKey(el) === selectedKey} dim={dim} onPick={() => onPick(el)} />;
+          return (
+            <RoomBox
+              key={i}
+              el={el}
+              status={stOf(el)}
+              selected={spaceKey(el) === selectedKey}
+              dim={dim}
+              onPick={() => onPick(el)}
+              onHover={(e) => onHoverSpace?.(el, e.clientX, e.clientY)}
+              onLeave={() => onHoverSpace?.(null, 0, 0)}
+            />
+          );
         return null;
       })}
     </svg>

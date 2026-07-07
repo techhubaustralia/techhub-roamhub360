@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
-import { Search, Plus, Minus, Lock, Unlock, ShieldCheck, Upload, Trash2, Monitor } from "lucide-react";
+import { Search, Plus, Minus, Lock, Unlock, ShieldCheck, Upload, Trash2, Monitor, DoorClosed, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLocation } from "@/components/location-context";
 import { usePlan, getFloors, type FloorRoom } from "@/lib/plan-store";
@@ -654,6 +654,11 @@ function DeskHoverCard({ el, x, y, status, occupant }: { el: SpaceEl; x: number;
   const left = x + 16 + W > vw ? Math.max(8, x - W - 16) : x + 16;
   const top = Math.min(y + 16, vh - 150);
   const s = HOVER_STATUS[status] ?? HOVER_STATUS.free;
+  const kind = el.t;
+  const Icon = kind === "room" ? Users : kind === "office" ? DoorClosed : Monitor;
+  const seats = kind === "room" ? (el as Extract<SpaceEl, { t: "room" }>).seats : undefined;
+  const typeLabel = kind === "room" ? `Meeting room${seats ? ` · ${seats} people` : ""}` : kind === "office" ? "Private office" : "Hot desk";
+  const span = kind === "desk" ? " · up to 14 days" : kind === "office" ? " · 1 day" : "";
   return (
     <div
       className="pointer-events-none fixed z-50 animate-fade-in"
@@ -663,19 +668,19 @@ function DeskHoverCard({ el, x, y, status, occupant }: { el: SpaceEl; x: number;
       <div className="rounded-[12px] border bg-card p-3 shadow-xl">
         <div className="flex items-center gap-2.5">
           <span className="grid size-8 shrink-0 place-items-center rounded-[9px] bg-primary/10 text-primary">
-            <Monitor className="size-4" />
+            <Icon className="size-4" />
           </span>
           <b className="flex-1 truncate text-[13.5px]">{spaceLabel(el)}</b>
           <span className={`rounded-full px-2 py-0.5 text-[10.5px] font-semibold ${s.cls}`}>{s.label}</span>
         </div>
         <div className="mt-2 border-t pt-2 text-[11.5px] text-txt-mute">
-          <div>Hot desk</div>
+          <div>{typeLabel}</div>
           {status === "booked" && occupant ? (
             <div className="mt-0.5">Booked by {occupant}</div>
           ) : status === "locked" ? (
             <div className="mt-0.5">Reserved / disabled by an administrator</div>
           ) : (
-            <div className="mt-0.5">Office hours 08:00–17:30 · up to 14 days</div>
+            <div className="mt-0.5">Office hours 08:00–17:30{span}</div>
           )}
         </div>
       </div>
