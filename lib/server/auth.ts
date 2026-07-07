@@ -1,6 +1,7 @@
 import "server-only";
 import { auth as getSession } from "@/auth";
 import { canAccessBuilding } from "../authz";
+import { currentTenantId } from "./tenant";
 
 export { canAccessBuilding };
 export type Role = "global-admin" | "site-admin" | "staff";
@@ -18,6 +19,7 @@ export interface AppUser {
   entraConfigured?: boolean;
   setupMode?: boolean;
   authenticated?: boolean;
+  tenantId?: string; // the request's tenant (from subdomain); DEFAULT_TENANT for the app host
 }
 
 // Break-glass: these emails are always Global Admin regardless of their stored role.
@@ -34,6 +36,7 @@ const entraConfigured = Boolean(process.env.AUTH_MICROSOFT_ENTRA_ID_ID);
 export async function getUser(): Promise<AppUser> {
   const session = await getSession();
   const su = session?.user;
+  const tenantId = await currentTenantId();
 
   if (su?.email) {
     const email = su.email.toLowerCase();
@@ -49,6 +52,7 @@ export async function getUser(): Promise<AppUser> {
       roleSource: bootstrap ? "bootstrap-env" : "session",
       entraConfigured,
       authenticated: true,
+      tenantId,
     };
   }
 
@@ -63,9 +67,10 @@ export async function getUser(): Promise<AppUser> {
       roleSource: "dev",
       entraConfigured,
       authenticated: false,
+      tenantId,
     };
   }
 
   // Production, no session: fail closed (middleware redirects to /signin before this).
-  return { name: "", email: "", role: "staff", groups: [], roleSource: "anonymous", entraConfigured, setupMode: true, authenticated: false };
+  return { name: "", email: "", role: "staff", groups: [], roleSource: "anonymous", entraConfigured, setupMode: true, authenticated: false, tenantId };
 }

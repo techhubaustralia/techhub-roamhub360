@@ -65,7 +65,7 @@ model Lock {
   lockedBy   String?
   createdAt  DateTime @default(now())
 
-  @@id([buildingId, spaceKey])
+  @@id([tenantId, buildingId, spaceKey])
 }
 
 model AuditLog {
