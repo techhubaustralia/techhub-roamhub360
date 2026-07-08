@@ -69,6 +69,13 @@ export default function TeamPage() {
     };
   }, [site]);
 
+  // Real-time: refresh the board when anyone in the workspace books/cancels/checks in (SSE).
+  useEffect(() => {
+    const onChange = () => getPresence(date).then((p) => { setEntries(p.entries); setMySites(p.mySites); });
+    window.addEventListener("bookings:changed", onChange);
+    return () => window.removeEventListener("bookings:changed", onChange);
+  }, [date]);
+
   useEffect(() => {
     let live = true;
     setLoading(true);

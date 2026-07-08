@@ -3,6 +3,8 @@ import { listBookings, createBooking, setBookingEventId, listLocks, ConflictErro
 import { validateBooking, overlaps, nowInTz, ACTIVE_STATUSES, type Kind } from "@/lib/booking-rules";
 import { getUser, canAccessBuilding } from "@/lib/server/auth";
 import { assertCanWrite } from "@/lib/server/licensing";
+import { currentTenantId } from "@/lib/server/tenant";
+import { publishLive } from "@/lib/server/live-bus";
 import { rateLimit, clientIp, tooMany } from "@/lib/server/rate-limit";
 import { sendMail, createBookingEvent, roomMailboxFor } from "@/lib/server/graph";
 import { confirmationEmail, emailBrand } from "@/lib/server/email";
@@ -273,6 +275,7 @@ export async function POST(req: Request) {
     } catch (e) {
       console.error("notify failed", e);
     }
+    publishLive(await currentTenantId(), "bookings"); // real-time: notify other clients live
     return NextResponse.json(rec, { status: 201 });
   } catch (e) {
     if (e instanceof ConflictError) return NextResponse.json({ error: "That space is already booked for the selected time." }, { status: 409 });

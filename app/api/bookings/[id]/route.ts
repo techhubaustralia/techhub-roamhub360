@@ -8,6 +8,8 @@ import { getStoredPlan } from "@/lib/server/store";
 import { getFloorPlan } from "@/lib/floorplans";
 import { officeWinTz } from "@/lib/data";
 import { spaceKey as keyOf } from "@/lib/types";
+import { currentTenantId } from "@/lib/server/tenant";
+import { publishLive } from "@/lib/server/live-bus";
 
 const ALLOWED = new Set(["Booked", "Checked in", "Checked out", "Cancelled", "Declined"]);
 // Legal status transitions. Cancelled/Declined/Checked out are TERMINAL — a cancelled booking
@@ -93,6 +95,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       } catch (e) {
         console.error("edit notify failed", e);
       }
+      publishLive(await currentTenantId(), "bookings");
       return NextResponse.json({ ok: true, booking: rec });
     } catch (e) {
       if (e instanceof ConflictError) return NextResponse.json({ error: "That time overlaps an existing booking for this space." }, { status: 409 });
@@ -147,5 +150,6 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       console.error("cancel notify failed", e);
     }
   }
+  publishLive(await currentTenantId(), "bookings");
   return NextResponse.json({ ok: true, cancelledBy: isCancel ? me.email : undefined, adminCancel: isAdminCancel });
 }

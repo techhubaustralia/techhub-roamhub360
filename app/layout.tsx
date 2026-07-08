@@ -9,6 +9,7 @@ import { Sidebar } from "@/components/sidebar";
 import { Topbar } from "@/components/topbar";
 import { LocationProvider } from "@/components/location-context";
 import { AssistantWidget } from "@/components/assistant-widget";
+import { LiveProvider } from "@/components/live-provider";
 import { currentTenantId } from "@/lib/server/tenant";
 import { getTenantBranding } from "@/lib/server/tenants";
 
@@ -56,6 +57,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
               </div>
             </div>
             <AssistantWidget />
+            <LiveProvider />
             <Toaster position="bottom-right" />
           </TooltipProvider>
           </LocationProvider>
