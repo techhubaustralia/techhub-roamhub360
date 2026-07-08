@@ -8,6 +8,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { Sidebar } from "@/components/sidebar";
 import { Topbar } from "@/components/topbar";
 import { LocationProvider } from "@/components/location-context";
+import { AssistantWidget } from "@/components/assistant-widget";
 import { currentTenantId } from "@/lib/server/tenant";
 import { getTenantBranding } from "@/lib/server/tenants";
 
@@ -54,6 +55,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
                 <main id="main" className="flex-1 overflow-auto px-6 py-6">{children}</main>
               </div>
             </div>
+            <AssistantWidget />
             <Toaster position="bottom-right" />
           </TooltipProvider>
           </LocationProvider>

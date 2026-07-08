@@ -13,6 +13,7 @@
     "test:e2e": "playwright test"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.110.0",
     "@azure/storage-blob": "^12.32.0",
     "@base-ui/react": "^1.5.0",
     "@prisma/client": "^6.19.3",

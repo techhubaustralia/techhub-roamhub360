@@ -1,0 +1,40 @@
+import { NextResponse } from "next/server";
+import { getUser } from "@/lib/server/auth";
+import { runAssistant, assistantConfigured } from "@/lib/server/assistant";
+import { rateLimit, clientIp, tooMany } from "@/lib/server/rate-limit";
+import { z } from "zod";
+
+// AI concierge endpoint. Signed-in only; the operator can disable it per tenant via the "assistant"
+// feature flag. Rate-limited hard (each call fans out to Claude + tools). Returns the reply plus an
+// optional booking proposal the client confirms through the validated booking route.
+const Body = z.object({
+  messages: z
+    .array(z.object({ role: z.enum(["user", "assistant"]), content: z.string().max(4000) }))
+    .min(1)
+    .max(30),
+});
+
+export async function GET() {
+  return NextResponse.json({ configured: assistantConfigured });
+}
+
+export async function POST(req: Request) {
+  const me = await getUser();
+  if (!me.email) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
+  if ((me.disabledFeatures ?? []).includes("assistant")) return NextResponse.json({ error: "The assistant is disabled for this workspace." }, { status: 403 });
+  if (!assistantConfigured) return NextResponse.json({ error: "The assistant isn't configured yet." }, { status: 503 });
+
+  const rl = rateLimit(`assistant:${me.email || clientIp(req)}`, 20, 60_000);
+  if (!rl.ok) return tooMany(rl.retryAfter);
+
+  const parsed = Body.safeParse(await req.json().catch(() => null));
+  if (!parsed.success) return NextResponse.json({ error: "Invalid request." }, { status: 400 });
+
+  try {
+    const { reply, proposal } = await runAssistant(parsed.data.messages, me);
+    return NextResponse.json({ reply, proposal });
+  } catch (e) {
+    console.error("assistant error", e);
+    return NextResponse.json({ error: "The assistant hit an error. Please try again." }, { status: 502 });
+  }
+}

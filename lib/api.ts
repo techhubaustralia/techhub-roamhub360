@@ -270,6 +270,36 @@ export async function syncDirectoryApi(): Promise<{ ok: boolean; synced: number;
   }
 }
 
+// ---- AI booking concierge (Next level) ----
+export interface BookingProposal {
+  buildingId: string;
+  spaceKey: string;
+  spaceLabel: string;
+  kind: string;
+  date: string;
+  durationType: "full" | "half" | "hourly";
+  startTime?: string;
+  endTime?: string;
+}
+export async function assistantConfigured(): Promise<boolean> {
+  try {
+    const r = await fetch(`/api/assistant`, { cache: "no-store" });
+    return r.ok ? Boolean((await r.json()).configured) : false;
+  } catch {
+    return false;
+  }
+}
+export async function askAssistant(messages: { role: "user" | "assistant"; content: string }[]): Promise<{ reply: string; proposal?: BookingProposal; error?: string }> {
+  try {
+    const r = await fetch(`/api/assistant`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ messages }) });
+    const body = await r.json().catch(() => ({}));
+    if (r.ok) return { reply: (body as { reply: string }).reply, proposal: (body as { proposal?: BookingProposal }).proposal };
+    return { reply: "", error: (body as { error?: string }).error ?? "The assistant is unavailable." };
+  } catch {
+    return { reply: "", error: "Network error." };
+  }
+}
+
 // ---- Self-service preferences (Team Build-Up C privacy + D notifications) ----
 export interface UserPrefs {
   hidePresence: boolean;
