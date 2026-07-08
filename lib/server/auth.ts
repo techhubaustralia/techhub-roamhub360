@@ -2,7 +2,7 @@ import "server-only";
 import { auth as getSession } from "@/auth";
 import { canAccessBuilding } from "../authz";
 import { currentTenantId, DEFAULT_TENANT } from "./tenant";
-import { tenantDisabledFeatures } from "./tenants";
+import { getTenantContext, type TenantBrand } from "./tenants";
 
 export { canAccessBuilding };
 export type Role = "global-admin" | "site-admin" | "staff";
@@ -24,6 +24,7 @@ export interface AppUser {
   homeTenant?: string; // the tenant the user belongs to (User.tenantId)
   platformAdmin?: boolean; // may manage tenants + access any tenant (BOOTSTRAP_ADMINS / dev)
   disabledFeatures?: string[]; // per-tenant feature flags turned OFF by the operator (CP3)
+  branding?: TenantBrand; // per-tenant white-label overrides (G3)
 }
 
 // Break-glass: these emails are always Global Admin regardless of their stored role.
@@ -52,6 +53,7 @@ export async function getUser(): Promise<AppUser> {
       return { name: "", email, role: "staff", groups: [], roleSource: "anonymous", entraConfigured, setupMode: true, authenticated: false, tenantId };
     }
     const role: Role = bootstrap ? "global-admin" : ((su.role as Role) || "staff");
+    const ctx = await getTenantContext(tenantId); // features + branding in one lookup ([] for default)
     return {
       name: su.name || email.split("@")[0],
       email,
@@ -65,7 +67,8 @@ export async function getUser(): Promise<AppUser> {
       tenantId,
       homeTenant,
       platformAdmin: bootstrap,
-      disabledFeatures: await tenantDisabledFeatures(tenantId), // [] for the default tenant (no query)
+      disabledFeatures: ctx.features,
+      branding: ctx.brand,
     };
   }
 

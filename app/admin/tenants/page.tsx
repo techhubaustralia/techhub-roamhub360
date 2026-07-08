@@ -162,6 +162,10 @@ function ManagePanel({ slug, onClose, onChanged }: { slug: string; onClose: () =
   const [maxFloors, setMaxFloors] = useState(2);
   const [expiry, setExpiry] = useState("");
   const [graceDays, setGraceDays] = useState(14);
+  // branding form
+  const [brandName, setBrandName] = useState("");
+  const [brandAccent, setBrandAccent] = useState("#2B7DD1");
+  const [brandLogo, setBrandLogo] = useState<string | null>(null);
 
   useEffect(() => {
     getTenantDetail(slug).then((x) => {
@@ -172,6 +176,9 @@ function ManagePanel({ slug, onClose, onChanged }: { slug: string; onClose: () =
         setMaxFloors(x.license.maxFloorsPerSite);
         setExpiry(x.license.expiresAt ? x.license.expiresAt.slice(0, 10) : "");
         setGraceDays(x.license.graceDays);
+        setBrandName(x.tenant.brandName ?? "");
+        setBrandAccent(x.tenant.brandAccent ?? "#2B7DD1");
+        setBrandLogo(x.tenant.brandLogo ?? null);
       }
     });
   }, [slug]);
@@ -189,6 +196,15 @@ function ManagePanel({ slug, onClose, onChanged }: { slug: string; onClose: () =
 
   const saveLicence = () =>
     apply({ license: { tier, maxSites: Number(maxSites), maxFloorsPerSite: Number(maxFloors), graceDays: Number(graceDays), expiresAt: expiry ? `${expiry}T00:00:00.000Z` : null } }, "Licence updated");
+
+  const saveBranding = () => apply({ branding: { name: brandName || null, accent: brandAccent, logo: brandLogo } }, "Branding updated");
+  function onLogoFile(file: File | undefined) {
+    if (!file) return;
+    if (file.size > 200_000) return toast.error("Logo too large", { description: "Use an image under 200 KB." });
+    const reader = new FileReader();
+    reader.onload = () => setBrandLogo(String(reader.result));
+    reader.readAsDataURL(file);
+  }
 
   const suspended = d?.tenant.status === "suspended";
   const disabled = d?.tenant.features ?? [];
@@ -263,6 +279,30 @@ function ManagePanel({ slug, onClose, onChanged }: { slug: string; onClose: () =
                   <input type="checkbox" checked={!disabled.includes(f.key)} disabled={busy} onChange={() => toggleFeature(f.key)} className="size-4 accent-[var(--primary)]" />
                 </label>
               ))}
+            </div>
+
+            {/* White-label branding */}
+            <div className="mb-4 rounded-[12px] border p-3">
+              <span className="mb-2 block text-[12px] font-semibold uppercase tracking-[0.05em] text-txt-mute">White-label branding</span>
+              <div className="grid grid-cols-2 gap-2.5">
+                <label className="col-span-2 block"><span className="mb-1 block text-[11px] text-txt-mute">Product name</span>
+                  <input value={brandName} onChange={(e) => setBrandName(e.target.value)} placeholder="RoamHub360" className="w-full rounded-[9px] border bg-panel-2 px-2 py-1.5 text-[13px]" />
+                </label>
+                <label className="block"><span className="mb-1 block text-[11px] text-txt-mute">Accent colour</span>
+                  <div className="flex items-center gap-2">
+                    <input type="color" value={brandAccent} onChange={(e) => setBrandAccent(e.target.value)} className="h-8 w-10 rounded border bg-panel-2" />
+                    <input value={brandAccent} onChange={(e) => setBrandAccent(e.target.value)} className="w-full rounded-[9px] border bg-panel-2 px-2 py-1.5 font-mono text-[12px]" />
+                  </div>
+                </label>
+                <label className="block"><span className="mb-1 block text-[11px] text-txt-mute">Logo</span>
+                  <div className="flex items-center gap-2">
+                    {brandLogo && <img src={brandLogo} alt="" className="size-8 rounded object-contain" />}
+                    <input type="file" accept="image/*" onChange={(e) => onLogoFile(e.target.files?.[0])} className="text-[11px]" />
+                    {brandLogo && <button onClick={() => setBrandLogo(null)} className="text-[11px] text-destructive">clear</button>}
+                  </div>
+                </label>
+              </div>
+              <button onClick={saveBranding} disabled={busy} className="mt-3 rounded-[9px] bg-primary px-3 py-2 text-[12.5px] font-semibold text-primary-foreground hover:bg-orange-soft disabled:opacity-50">Save branding</button>
             </div>
 
             {/* Suspend */}

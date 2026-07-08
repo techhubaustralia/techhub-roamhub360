@@ -17,11 +17,12 @@ export function MobileNav() {
   const [role, setRole] = useState<Role | undefined>(undefined);
   const [platformAdmin, setPlatformAdmin] = useState(false);
   const [disabledFeatures, setDisabledFeatures] = useState<string[]>([]);
+  const [branding, setBranding] = useState<{ name?: string | null; logo?: string | null }>({});
   const pathname = usePathname();
   const isActive = (href: string) => (href === "/" ? pathname === "/" : pathname.startsWith(href));
 
   useEffect(() => {
-    fetch("/api/me").then((r) => (r.ok ? r.json() : null)).then((u) => { if (u) { setRole(u.role); setPlatformAdmin(!!u.platformAdmin); setDisabledFeatures(u.disabledFeatures ?? []); } }).catch(() => {});
+    fetch("/api/me").then((r) => (r.ok ? r.json() : null)).then((u) => { if (u) { setRole(u.role); setPlatformAdmin(!!u.platformAdmin); setDisabledFeatures(u.disabledFeatures ?? []); setBranding(u.branding ?? {}); } }).catch(() => {});
   }, []);
   useEffect(() => { setOpen(false); }, [pathname]); // close on navigation
 
@@ -59,9 +60,9 @@ export function MobileNav() {
           <aside className="absolute left-0 top-0 flex h-full w-[270px] flex-col bg-sidebar shadow-2xl">
             <div className="flex items-center justify-between px-4 py-4">
               <div className="flex items-center gap-2.5">
-                <RoamHubMark className="size-7" />
+                {branding.logo ? <img src={branding.logo} alt="" className="size-7 shrink-0 rounded-[7px] object-contain" /> : <RoamHubMark className="size-7" />}
                 <div className="leading-none">
-                  <div className="font-heading text-[14px] font-bold">{brand.productName}</div>
+                  <div className="font-heading text-[14px] font-bold">{branding.name || brand.productName}</div>
                   <div className="mt-0.5 text-[10px] font-medium uppercase tracking-[0.14em] text-txt-mute">by {brand.company}</div>
                 </div>
               </div>

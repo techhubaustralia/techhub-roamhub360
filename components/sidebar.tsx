@@ -36,7 +36,7 @@ export function Sidebar() {
   const pathname = usePathname();
   const isActive = (href: string) => (href === "/" ? pathname === "/" : pathname.startsWith(href));
 
-  const [user, setUser] = useState<{ name: string; email: string; role?: Role; platformAdmin?: boolean; disabledFeatures?: string[] }>({ name: "You", email: "" });
+  const [user, setUser] = useState<{ name: string; email: string; role?: Role; platformAdmin?: boolean; disabledFeatures?: string[]; branding?: { name?: string | null; logo?: string | null } }>({ name: "You", email: "" });
   useEffect(() => {
     fetch("/api/me")
       .then((r) => (r.ok ? r.json() : null))
@@ -55,9 +55,13 @@ export function Sidebar() {
   return (
     <aside className="hidden w-[244px] flex-col border-r bg-sidebar md:flex">
       <div className="flex items-center gap-2.5 px-[18px] py-[18px]">
-        <RoamHubMark className="size-[30px] shrink-0" />
+        {user.branding?.logo ? (
+          <img src={user.branding.logo} alt="" className="size-[30px] shrink-0 rounded-[8px] object-contain" />
+        ) : (
+          <RoamHubMark className="size-[30px] shrink-0" />
+        )}
         <div className="leading-none">
-          <div className="font-heading text-[15px] font-bold tracking-[0.02em] text-foreground">{brand.productName}</div>
+          <div className="font-heading text-[15px] font-bold tracking-[0.02em] text-foreground">{user.branding?.name || brand.productName}</div>
           <div className="mt-0.5 text-[11px] font-medium uppercase tracking-[0.14em] text-txt-mute">by {brand.company}</div>
         </div>
       </div>

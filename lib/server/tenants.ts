@@ -20,6 +20,9 @@ export interface TenantRow {
   name: string;
   status: string;
   features?: string[];
+  brandName?: string | null;
+  brandAccent?: string | null;
+  brandLogo?: string | null;
   createdAt?: Date;
 }
 
@@ -77,14 +80,44 @@ export async function setTenantFeatures(id: string, features: string[]): Promise
 
 /** Disabled-feature keys for a tenant (empty for the default tenant / no DB, so nothing is gated). */
 export async function tenantDisabledFeatures(tenantId: string): Promise<string[]> {
-  if (!process.env.DATABASE_URL || tenantId === DEFAULT_TENANT) return [];
+  return (await getTenantContext(tenantId)).features;
+}
+
+export interface TenantBrand {
+  name: string | null;
+  accent: string | null;
+  logo: string | null;
+}
+const NO_BRAND: TenantBrand = { name: null, accent: null, logo: null };
+
+/** Feature flags + white-label branding for a tenant in ONE lookup (used by getUser). Empty for
+ *  the default tenant / no DB so the demo is never re-queried and stays on the stock brand. */
+export async function getTenantContext(tenantId: string): Promise<{ features: string[]; brand: TenantBrand }> {
+  if (!process.env.DATABASE_URL || tenantId === DEFAULT_TENANT) return { features: [], brand: { ...NO_BRAND } };
   try {
     const p = await prisma();
-    const row = await p.tenant.findUnique({ where: { slug: tenantId }, select: { features: true } });
-    return (row?.features as string[]) ?? [];
+    const row = await p.tenant.findUnique({ where: { slug: tenantId }, select: { features: true, brandName: true, brandAccent: true, brandLogo: true } });
+    return {
+      features: (row?.features as string[]) ?? [],
+      brand: { name: row?.brandName ?? null, accent: row?.brandAccent ?? null, logo: row?.brandLogo ?? null },
+    };
   } catch {
-    return [];
+    return { features: [], brand: { ...NO_BRAND } };
   }
+}
+
+/** Just the branding — used by the root layout to inject the accent colour before paint. */
+export async function getTenantBranding(tenantId: string): Promise<TenantBrand> {
+  return (await getTenantContext(tenantId)).brand;
+}
+
+export async function setTenantBranding(id: string, brand: { name?: string | null; accent?: string | null; logo?: string | null }): Promise<void> {
+  const p = await prisma();
+  const data: Record<string, unknown> = {};
+  if (brand.name !== undefined) data.brandName = brand.name || null;
+  if (brand.accent !== undefined) data.brandAccent = brand.accent || null;
+  if (brand.logo !== undefined) data.brandLogo = brand.logo || null;
+  if (Object.keys(data).length) await p.tenant.update({ where: { id }, data });
 }
 
 /** Lightweight monitoring counts for a tenant (by slug = the tenantId stamped on rows). */

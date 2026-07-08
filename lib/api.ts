@@ -137,7 +137,7 @@ export async function getPresenceInsights(site?: string): Promise<PresenceInsigh
 
 // ---- Partner control-plane (Commercial SaaS CP3, platform operators) ----
 export interface TenantDetail {
-  tenant: { id: string; slug: string; name: string; status: string; features?: string[] };
+  tenant: { id: string; slug: string; name: string; status: string; features?: string[]; brandName?: string | null; brandAccent?: string | null; brandLogo?: string | null };
   license: LicenseSummary;
   stats: { users: number; bookings: number; directory: number };
   workspaceUrl: string;
@@ -146,6 +146,7 @@ export interface TenantPatch {
   status?: "active" | "suspended";
   features?: string[];
   license?: { tier?: string; maxSites?: number; maxFloorsPerSite?: number; status?: string; expiresAt?: string | null; graceDays?: number };
+  branding?: { name?: string | null; accent?: string | null; logo?: string | null };
 }
 export async function getTenantDetail(slug: string): Promise<TenantDetail | null> {
   try {

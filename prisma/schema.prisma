@@ -16,10 +16,13 @@ datasource db {
 model Tenant {
   id        String   @id @default(uuid())
   slug      String   @unique
-  name      String
-  status    String   @default("active") // active | trial | suspended
-  features  String[] @default([]) // DISABLED feature keys (CP3 feature flags), e.g. "presence"
-  createdAt DateTime @default(now())
+  name        String
+  status      String   @default("active") // active | trial | suspended
+  features    String[] @default([]) // DISABLED feature keys (CP3 feature flags), e.g. "presence"
+  brandName   String? // white-label product name override (G3)
+  brandAccent String? // white-label accent colour (hex), recolours the app
+  brandLogo   String? // white-label logo as a data: URL
+  createdAt   DateTime @default(now())
 }
 
 model Booking {

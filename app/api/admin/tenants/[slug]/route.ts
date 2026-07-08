@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getUser } from "@/lib/server/auth";
 import { DEFAULT_TENANT } from "@/lib/server/tenant";
-import { getTenantBySlug, setTenantStatus, setTenantFeatures, tenantStats } from "@/lib/server/tenants";
+import { getTenantBySlug, setTenantStatus, setTenantFeatures, setTenantBranding, tenantStats } from "@/lib/server/tenants";
 import { licenseState, saveLicense } from "@/lib/server/licensing";
 import { audit } from "@/lib/server/db";
 import { z } from "zod";
@@ -37,6 +37,13 @@ export async function GET(_req: Request, { params }: { params: Promise<{ slug: s
 const Patch = z.object({
   status: z.enum(["active", "suspended"]).optional(),
   features: z.array(z.string().max(40)).max(20).optional(),
+  branding: z
+    .object({
+      name: z.string().max(60).nullable().optional(),
+      accent: z.string().regex(/^#[0-9a-fA-F]{6}$/).nullable().optional(),
+      logo: z.string().max(300_000).nullable().optional(), // data: URL, capped
+    })
+    .optional(),
   license: z
     .object({
       tier: z.enum(["trial", "standard", "professional", "enterprise"]).optional(),
@@ -60,7 +67,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ slug: 
 
   const parsed = Patch.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: "Invalid request." }, { status: 400 });
-  const { status, features, license } = parsed.data;
+  const { status, features, license, branding } = parsed.data;
 
   if (status) {
     // Suspension drives licence enforcement (read-only) AND the tenant's display status.
@@ -75,6 +82,10 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ slug: 
   if (license) {
     await saveLicense(slug, license);
     await audit(me.email, "tenant.license", `${slug}: ${JSON.stringify(license)}`);
+  }
+  if (branding) {
+    await setTenantBranding(tenant.id, branding);
+    await audit(me.email, "tenant.branding", `${slug}: name=${branding.name ?? "-"} accent=${branding.accent ?? "-"} logo=${branding.logo ? "set" : "-"}`);
   }
 
   const [next, ls, stats] = await Promise.all([getTenantBySlug(slug), licenseState(slug), tenantStats(slug)]);
