@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
 import { useLocation } from "@/components/location-context";
 import { usePlan, getFloors, type FloorRoom } from "@/lib/plan-store";
 import { getLocks, setLockApi, createBookingApi, getOccupied, setBookingStatusApi } from "@/lib/api";
-import { deriveTimes, validateBooking, DURATION_LABELS, type DurationType, type Kind } from "@/lib/booking-rules";
+import { deriveTimes, validateBooking, todayInTz, DURATION_LABELS, type DurationType, type Kind } from "@/lib/booking-rules";
 import { spaceKey, type SpaceEl, type SpaceKind, type SpaceStatus } from "@/lib/types";
 import { FloorSvg } from "@/components/floorplan/floor-svg";
 import { Legend } from "@/components/floorplan/legend";
@@ -69,6 +69,15 @@ export default function BookPage() {
   // booking form
   const [duration, setDuration] = useState<DurationType>("full");
   const [endDate, setEndDate] = useState(() => new Date().toISOString().slice(0, 10));
+  // Dates must follow the OFFICE's timezone, not the visitor's browser/UTC. When a building (and
+  // its tz) loads, roll From/To forward to "today" AT THE OFFICE so you can't land on a past
+  // office-day (a UTC "today" can be a day behind for offices ahead of UTC, e.g. Sydney).
+  useEffect(() => {
+    if (!plan?.tz) return;
+    const t = todayInTz(plan.tz);
+    setSelDate((d) => (d < t ? t : d));
+    setEndDate((d) => (d < t ? t : d));
+  }, [planId, plan?.tz]);
   const [half, setHalf] = useState<"am" | "pm">("am");
   const [startTime, setStartTime] = useState("09:00");
   const [endTime, setEndTime] = useState("10:00");
@@ -410,6 +419,7 @@ export default function BookPage() {
                 office={office.b}
                 officeOpen={plan.openTime || "08:00"}
                 officeClose={plan.closeTime || "17:30"}
+                today={todayInTz(plan.tz)}
                 onToggleLock={toggleLock}
                 onBook={doBook}
                 adminBooking={selKey ? adminBookings[selKey] : undefined}
@@ -452,6 +462,7 @@ function Detail({
   office,
   officeOpen,
   officeClose,
+  today,
   onToggleLock,
   onBook,
   adminBooking,
@@ -477,6 +488,7 @@ function Detail({
   office: string;
   officeOpen: string;
   officeClose: string;
+  today: string; // today's date in the OFFICE timezone (min selectable date)
   onToggleLock: () => void;
   onBook: (el: SpaceEl) => void;
   adminBooking?: { id: string; user: string };
@@ -497,7 +509,6 @@ function Detail({
   setEndTime: (t: string) => void;
 }) {
   const label = spaceLabel(el);
-  const today = new Date().toISOString().slice(0, 10);
   const isLocked = spaceStatus === "locked";
   const isBooked = spaceStatus === "booked";
   // Half-day is retired from the UI (Full Day = office hours, Hourly covers shorter slots).

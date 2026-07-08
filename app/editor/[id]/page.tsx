@@ -1,12 +1,12 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { ArrowLeft, Save, RotateCcw, Plus, Trash2, Copy, UploadCloud, Rocket, X, Building2, MapPin, Clock, Layers, CalendarDays } from "lucide-react";
 import type { FloorPlan, FloorEl, SpaceEl, DeskShapeKind } from "@/lib/types";
 import { fetchPlan, savePlan, resetPlan, addCustomBuilding, saveFloors, getFloors, type FloorRoom } from "@/lib/plan-store";
-import { TIMEZONES, winTzFor } from "@/lib/timezones";
+import { TIMEZONES, winTzFor, tzLabel } from "@/lib/timezones";
 import { REGIONS, COUNTRIES } from "@/lib/countries";
 import { scaleEls, scaleFactors } from "@/lib/plan-scale";
 import { EditorCanvas } from "@/components/floorplan/editor-canvas";
@@ -28,6 +28,18 @@ export default function EditorPage() {
   const isNew = id === "new";
 
   const [plan, setPlan] = useState<FloorPlan>(blankPlan);
+  // Timezone options grouped by region (every IANA zone), labels with the current UTC offset.
+  // Memoised once per mount — offsets are re-evaluated on load so DST is reflected.
+  const tzGroups = useMemo(() => {
+    const groups: { region: string; zones: { iana: string; label: string }[] }[] = [];
+    for (const t of TIMEZONES) {
+      const g = groups[groups.length - 1];
+      const entry = { iana: t.iana, label: tzLabel(t.iana) };
+      if (g && g.region === t.region) g.zones.push(entry);
+      else groups.push({ region: t.region, zones: [entry] });
+    }
+    return groups;
+  }, []);
   // Stable unique id for THIS new-building session — generated once, reused across
   // every save/publish click so repeated saves can't fork or collide with another site.
   const newIdRef = useRef<string>("");
@@ -416,8 +428,12 @@ export default function EditorPage() {
                     className="ed-input"
                   >
                     <option value="">Select…</option>
-                    {TIMEZONES.map((t) => (
-                      <option key={t.iana} value={t.iana}>{t.label}</option>
+                    {tzGroups.map((g) => (
+                      <optgroup key={g.region} label={g.region}>
+                        {g.zones.map((z) => (
+                          <option key={z.iana} value={z.iana}>{z.label}</option>
+                        ))}
+                      </optgroup>
                     ))}
                   </select>
                 </Field>
