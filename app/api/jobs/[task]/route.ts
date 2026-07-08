@@ -8,6 +8,7 @@ import { getDirectoryMap } from "@/lib/server/directory";
 import { ACTIVE_STATUSES } from "@/lib/booking-rules";
 import { visibleColleagues } from "@/lib/presence-digest";
 import { runLicenseChecks } from "@/lib/server/license-notify";
+import { runMonthlyReport } from "@/lib/server/reports";
 
 // Cron model: a single `tick` task runs every 30 min (UTC). For each LIVE building it computes
 // its LOCAL time (from the building's saved timezone) and runs whatever is due, so every site
@@ -157,6 +158,11 @@ export async function GET(req: Request, { params }: { params: Promise<{ task: st
 
   if (task === "license-check") {
     return NextResponse.json({ task, ...(await runLicenseChecks()) });
+  }
+
+  if (task === "report") {
+    // Monthly ROI report for the request's tenant. Trigger with its own cron (1st of the month).
+    return NextResponse.json({ task, ...(await runMonthlyReport()) });
   }
 
   if (!(task in TARGET)) return NextResponse.json({ error: "unknown task" }, { status: 400 });

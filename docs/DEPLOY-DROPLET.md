@@ -148,6 +148,12 @@ Each `tick` also runs **licence-expiry checks** (CP4): customer workspaces are w
 14/7/1/0 days before expiry (emailed to their admins + `OPS_EMAIL`), each band sent once. Run it on
 demand with `curl -H "x-jobs-secret: …" https://app.roamhub360.com/api/jobs/license-check`.
 
+**Monthly ROI report (G4):** a separate task emails last month's utilisation (bookings, check-in %,
+no-show %, utilisation by type, busiest day) to a workspace's admins. Schedule it on the 1st:
+```bash
+0 7 1 * * curl -fsS -H "x-jobs-secret: <JOBS_SECRET>" https://app.roamhub360.com/api/jobs/report >/dev/null 2>&1
+```
+
 ## 9. Private demo gate (before real auth is in front of prospects)
 To password-protect the whole site (plain-compose path), uncomment `basic_auth` in `Caddyfile`:
 ```bash

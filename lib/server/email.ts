@@ -76,6 +76,40 @@ export function reminderEmail(b: Booking) {
   };
 }
 
+/** Monthly utilisation / ROI report (Growth G4). Proves the value of the workspace to admins. */
+export function utilizationReportEmail(
+  period: string,
+  data: {
+    totals: { bookings: number; activeUsers: number; checkInRate: number; noShowRate: number };
+    utilisation: { desk: number; office: number; room: number; parking: number };
+    busiestDay: string | null;
+  },
+) {
+  const stat = (label: string, value: string) =>
+    `<td style="padding:10px 12px;border:1px solid #d7e1e7;border-radius:8px"><div style="font-size:22px;font-weight:700;color:${C.navy}">${value}</div><div style="font-size:11px;color:#7491a0;text-transform:uppercase;letter-spacing:.05em">${esc(label)}</div></td>`;
+  const bar = (label: string, pct: number) =>
+    `<tr><td style="font-size:12px;color:${C.navy};padding:3px 8px 3px 0;white-space:nowrap">${esc(label)}</td><td style="width:100%"><div style="background:#e6eef5;border-radius:5px;height:10px"><div style="background:${C.primary};height:10px;border-radius:5px;width:${Math.max(0, Math.min(100, Math.round(pct)))}%"></div></div></td><td style="font-size:12px;color:#7491a0;padding-left:8px">${Math.round(pct)}%</td></tr>`;
+  return {
+    subject: `${period} workspace report — ${data.totals.bookings} bookings`,
+    html: shell(
+      `${period} at a glance`,
+      `<table cellspacing="6" style="width:100%;margin:4px 0 10px"><tr>
+         ${stat("Bookings", String(data.totals.bookings))}
+         ${stat("Active users", String(data.totals.activeUsers))}
+       </tr><tr>
+         ${stat("Check-in rate", `${data.totals.checkInRate}%`)}
+         ${stat("No-show rate", `${data.totals.noShowRate}%`)}
+       </tr></table>
+       <p style="font-size:13px;font-weight:600;margin:14px 0 4px">Utilisation by type</p>
+       <table style="width:100%;border-collapse:collapse">
+         ${bar("Desks", data.utilisation.desk)}${bar("Offices", data.utilisation.office)}${bar("Rooms", data.utilisation.room)}${bar("Parking", data.utilisation.parking)}
+       </table>
+       ${data.busiestDay ? `<p style="font-size:13px;color:${C.navy};margin-top:14px">Busiest day: <b>${esc(data.busiestDay)}</b>.</p>` : ""}
+       <p style="margin-top:16px">${btn(`${APP_URL}/insights`, "Open full insights")}</p>`,
+    ),
+  };
+}
+
 /** Licence expiry notice (Commercial SaaS CP4). `daysLeft` <= 0 means already expired. */
 export function licenseExpiryEmail(workspaceName: string, daysLeft: number, expiresOn: string, tier: string) {
   const expired = daysLeft <= 0;
