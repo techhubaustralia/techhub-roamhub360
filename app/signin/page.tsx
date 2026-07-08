@@ -61,8 +61,11 @@ export default function SignInPage() {
         </div>
 
         {/* Sign-in */}
-        <div className="flex flex-1 items-center justify-center border-t p-8 lg:border-l lg:border-t-0">
+        <div className="flex flex-1 flex-col items-center justify-center border-t p-8 lg:border-l lg:border-t-0">
           <SignInForm entraEnabled={entraEnabled} googleEnabled={googleEnabled} bare />
+          <p className="mt-4 text-center text-[12.5px] text-txt-mute">
+            New to {brand.productName}? <Link href="/signup" className="font-semibold text-primary">Start a free trial</Link>
+          </p>
         </div>
       </div>
     </div>

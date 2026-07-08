@@ -90,6 +90,7 @@ export async function createUser(input: {
   role?: string;
   sites?: string[];
   multiBook?: boolean;
+  tenantId?: string; // explicit tenant (e.g. self-serve signup provisioning a new workspace)
 }): Promise<Omit<UserRow, "tenantId">> {
   const bcrypt = (await import("bcryptjs")).default;
   const p = await prisma();
@@ -103,7 +104,7 @@ export async function createUser(input: {
       sites: input.sites ?? [],
       multiBook: input.multiBook ?? false,
       provider: "credentials",
-      tenantId: await currentTenantId(),
+      tenantId: input.tenantId ?? (await currentTenantId()),
     },
   });
   return { id: u.id, email: u.email, name: u.name, role: u.role, sites: u.sites, multiBook: u.multiBook, provider: u.provider };
