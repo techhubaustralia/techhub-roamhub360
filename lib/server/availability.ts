@@ -27,6 +27,14 @@ export interface FreeSpace {
   nearby?: boolean; // ranked as close to the requested colleague
 }
 
+/** The canonical label for a space (e.g. "Desk 1"), derived from the plan — not the model. */
+export async function resolveSpaceLabel(buildingId: string, key: string): Promise<string | null> {
+  const plan = (await getStoredPlan(buildingId)) ?? getFloorPlan(buildingId);
+  if (!plan) return null;
+  const el = plan.els.find((e) => isSpace(e.t) && spaceKey(e as SpaceEl) === key);
+  return el ? spaceLabel(el as SpaceEl) : null;
+}
+
 export async function findAvailability(
   opts: { date: string; kind?: SpaceKind; buildingQuery?: string; nearEmail?: string; limit?: number },
   user: AppUser,

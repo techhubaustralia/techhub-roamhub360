@@ -1,7 +1,7 @@
 import "server-only";
 import Anthropic from "@anthropic-ai/sdk";
 import OpenAI from "openai";
-import { findAvailability } from "./availability";
+import { findAvailability, resolveSpaceLabel } from "./availability";
 import { listBookings } from "./db";
 import { getDirectoryMap } from "./directory";
 import { getHiddenPresenceEmails } from "./users";
@@ -130,10 +130,11 @@ async function runTool(name: string, input: any, user: AppUser, setProposal: (p:
     return { count: mine.length, bookings: mine.map((b) => ({ space: b.spaceLabel, kind: b.kind, start: b.start, end: b.end, status: b.status })) };
   }
   if (name === "propose_booking") {
+    const label = (await resolveSpaceLabel(input.building_id, input.space_key)) || input.space_label;
     setProposal({
       buildingId: input.building_id,
       spaceKey: input.space_key,
-      spaceLabel: input.space_label,
+      spaceLabel: label,
       kind: input.kind,
       date: input.date,
       durationType: input.duration,
