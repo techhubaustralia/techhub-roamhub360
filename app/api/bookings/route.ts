@@ -9,6 +9,7 @@ import { rateLimit, clientIp, tooMany } from "@/lib/server/rate-limit";
 import { sendMail, createBookingEvent, roomMailboxFor } from "@/lib/server/graph";
 import { confirmationEmail, emailBrand } from "@/lib/server/email";
 import { sendPushToUser } from "@/lib/server/push";
+import { dispatchEvent } from "@/lib/server/webhooks";
 import { officeWinTz } from "@/lib/data";
 import { getStoredPlan } from "@/lib/server/store";
 import { getFloorPlan } from "@/lib/floorplans";
@@ -283,6 +284,10 @@ export async function POST(req: Request) {
       console.error("notify failed", e);
     }
     publishLive(await currentTenantId(), "bookings"); // real-time: notify other clients live
+    void dispatchEvent("booking.created", {
+      id: rec.id, kind: rec.kind, buildingId: rec.buildingId, spaceKey: rec.spaceKey,
+      spaceLabel: rec.spaceLabel, start: rec.start, end: rec.end, status: rec.status, userEmail: rec.userEmail,
+    }).catch(() => {}); // outbound webhooks / Slack (best-effort)
     return NextResponse.json(rec, { status: 201 });
   } catch (e) {
     if (e instanceof ConflictError) return NextResponse.json({ error: "That space is already booked for the selected time." }, { status: 409 });

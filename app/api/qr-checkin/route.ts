@@ -7,6 +7,7 @@ import { getFloorPlan } from "@/lib/floorplans";
 import { resolveSpaceLabel } from "@/lib/server/availability";
 import { currentTenantId } from "@/lib/server/tenant";
 import { publishLive } from "@/lib/server/live-bus";
+import { dispatchEvent } from "@/lib/server/webhooks";
 import { ACTIVE_STATUSES } from "@/lib/booking-rules";
 
 // Scan-a-QR-at-your-desk check-in. The sticker on a desk is STATIC — it encodes the space, not a
@@ -62,5 +63,9 @@ export async function POST(req: Request) {
   }
   await audit(me.email, "booking.checkin", `${label} via desk QR (${today})`);
   publishLive(await currentTenantId(), "bookings");
+  void dispatchEvent("booking.checkin", {
+    id: booking.id, kind: booking.kind, buildingId, spaceKey,
+    spaceLabel: label, start: booking.start, end: booking.end, status: "Checked in", userEmail: me.email,
+  }).catch(() => {});
   return NextResponse.json({ ok: true, spaceLabel: label, message: `Checked in to ${label}. Enjoy your day.` });
 }

@@ -11,6 +11,7 @@ import { spaceKey as keyOf } from "@/lib/types";
 import { currentTenantId } from "@/lib/server/tenant";
 import { publishLive } from "@/lib/server/live-bus";
 import { sendPushToUser } from "@/lib/server/push";
+import { dispatchEvent } from "@/lib/server/webhooks";
 
 const ALLOWED = new Set(["Booked", "Checked in", "Checked out", "Cancelled", "Declined"]);
 // Legal status transitions. Cancelled/Declined/Checked out are TERMINAL — a cancelled booking
@@ -103,6 +104,10 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
         console.error("edit notify failed", e);
       }
       publishLive(await currentTenantId(), "bookings");
+      void dispatchEvent("booking.updated", {
+        id: rec.id, kind: rec.kind, buildingId: rec.buildingId, spaceKey: rec.spaceKey,
+        spaceLabel: rec.spaceLabel, start: rec.start, end: rec.end, status: rec.status, userEmail: rec.userEmail,
+      }).catch(() => {});
       return NextResponse.json({ ok: true, booking: rec });
     } catch (e) {
       if (e instanceof ConflictError) return NextResponse.json({ error: "That time overlaps an existing booking for this space." }, { status: 409 });
@@ -164,5 +169,9 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     }
   }
   publishLive(await currentTenantId(), "bookings");
+  void dispatchEvent(isCancel ? "booking.cancelled" : status === "Checked in" ? "booking.checkin" : "booking.updated", {
+    id: booking.id, kind: booking.kind, buildingId: booking.buildingId, spaceKey: booking.spaceKey,
+    spaceLabel: booking.spaceLabel, start: booking.start, end: booking.end, status, userEmail: booking.userEmail,
+  }).catch(() => {});
   return NextResponse.json({ ok: true, cancelledBy: isCancel ? me.email : undefined, adminCancel: isAdminCancel });
 }
