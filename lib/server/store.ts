@@ -91,6 +91,18 @@ async function writeHidden(t: string, list: string[]): Promise<void> {
 }
 
 // ---------- Public API (tenant + backend agnostic) ----------
+// Generic tenant-scoped JSON blob — same dual backend (Azure Blob / DATA_DIR) as everything else.
+// Used for small operational state (e.g. web-push subscriptions) that doesn't warrant a DB table.
+export async function getTenantJson<T>(name: string): Promise<T | null> {
+  const t = await currentTenantId();
+  return readJsonT<T>(t, `${name}.json`, `${name}.json`);
+}
+export async function setTenantJson(name: string, data: unknown): Promise<void> {
+  const t = await currentTenantId();
+  if (useBlob) await putBlobJson(`${t}/${name}.json`, data);
+  else await writeFileJson(path.join(DATA_DIR, t, `${name}.json`), data);
+}
+
 export async function getStoredPlan(id: string): Promise<FloorPlan | null> {
   const t = await currentTenantId();
   return readJsonT<FloorPlan>(t, `${id}.json`, `plan-${id}.json`);

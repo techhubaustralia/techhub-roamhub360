@@ -10,6 +10,7 @@ import { officeWinTz } from "@/lib/data";
 import { spaceKey as keyOf } from "@/lib/types";
 import { currentTenantId } from "@/lib/server/tenant";
 import { publishLive } from "@/lib/server/live-bus";
+import { sendPushToUser } from "@/lib/server/push";
 
 const ALLOWED = new Set(["Booked", "Checked in", "Checked out", "Cancelled", "Declined"]);
 // Legal status transitions. Cancelled/Declined/Checked out are TERMINAL — a cancelled booking
@@ -92,6 +93,12 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
         }
         const mail = updatedEmail(rec, await emailBrand());
         await sendMail(rec.userEmail, mail.subject, mail.html);
+        await sendPushToUser(rec.userEmail, {
+          title: "Booking updated",
+          body: `${rec.spaceLabel} — ${rec.start.replace("T", " ")}`,
+          url: "/mine",
+          tag: `booking-${rec.id}`,
+        });
       } catch (e) {
         console.error("edit notify failed", e);
       }
@@ -146,6 +153,12 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       }
       const mail = cancellationEmail(booking, { byAdmin: isAdminCancel ? me.email : undefined, reason }, await emailBrand());
       await sendMail(booking.userEmail, mail.subject, mail.html);
+      await sendPushToUser(booking.userEmail, {
+        title: isAdminCancel ? "Booking cancelled by an admin" : "Booking cancelled",
+        body: `${booking.spaceLabel} — ${booking.start.replace("T", " ")}`,
+        url: "/mine",
+        tag: `booking-${booking.id}`,
+      });
     } catch (e) {
       console.error("cancel notify failed", e);
     }

@@ -8,6 +8,7 @@ import { publishLive } from "@/lib/server/live-bus";
 import { rateLimit, clientIp, tooMany } from "@/lib/server/rate-limit";
 import { sendMail, createBookingEvent, roomMailboxFor } from "@/lib/server/graph";
 import { confirmationEmail, emailBrand } from "@/lib/server/email";
+import { sendPushToUser } from "@/lib/server/push";
 import { officeWinTz } from "@/lib/data";
 import { getStoredPlan } from "@/lib/server/store";
 import { getFloorPlan } from "@/lib/floorplans";
@@ -233,6 +234,12 @@ export async function POST(req: Request) {
       const eb = await emailBrand(); // per-tenant product name for the email + calendar subject (G6)
       const mail = confirmationEmail(rec, eb);
       await sendMail(rec.userEmail, mail.subject, mail.html);
+      await sendPushToUser(rec.userEmail, {
+        title: `Booking confirmed · ${eb.productName}`,
+        body: `${rec.spaceLabel} — ${rec.start.replace("T", " ")}`,
+        url: "/mine",
+        tag: `booking-${rec.id}`,
+      });
       // Full-day bookings become an all-day calendar event shown as "Free" (so they don't
       // block the user's calendar); hourly bookings are normal timed "Busy" events.
       const allDay = rec.durationType === "full";

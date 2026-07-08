@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { Eye, Bell } from "lucide-react";
 import { getPrefs, updatePrefs, type UserPrefs } from "@/lib/api";
 import { PageHeader } from "@/components/page-header";
+import { PushToggle } from "@/components/push-toggle";
 
 function Toggle({ on, disabled, onChange }: { on: boolean; disabled?: boolean; onChange: () => void }) {
   return (
@@ -85,6 +86,7 @@ export default function SettingsPage() {
           saving={saving || !prefs}
           onToggle={() => toggle("notifyPresence")}
         />
+        <PushToggle />
       </section>
     </div>
   );
