@@ -9,6 +9,7 @@ import { StatCard } from "@/components/stat-card";
 import { StatusPill } from "@/components/status-pill";
 import { BookingItem } from "@/components/booking-item";
 import { SetupChecklist } from "@/components/setup-checklist";
+import { UpgradeNudge } from "@/components/upgrade-nudge";
 import { getBookings, setBookingStatusApi, isActiveBooking, type Booking } from "@/lib/api";
 import { getBuildingsMeta } from "@/lib/plan-store";
 
@@ -68,6 +69,7 @@ export default function HomePage() {
         }
       />
 
+      <UpgradeNudge />
       <SetupChecklist />
 
       <div className="mb-[15px] grid gap-[15px] sm:grid-cols-2 lg:grid-cols-4">

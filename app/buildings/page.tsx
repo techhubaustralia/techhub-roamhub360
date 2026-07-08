@@ -9,6 +9,7 @@ import type { BuildingRow } from "@/lib/types";
 import { deleteBuildingApi, restoreBuildingApi, getFloors, saveFloors, type CustomBuilding, type FloorRoom } from "@/lib/plan-store";
 import { PageHeader } from "@/components/page-header";
 import { StatusPill } from "@/components/status-pill";
+import { UpgradeNudge } from "@/components/upgrade-nudge";
 
 export default function BuildingsPage() {
   // null = not loaded yet; never seed with the static list, or deleted/hidden
@@ -104,6 +105,8 @@ export default function BuildingsPage() {
           </Link>
         }
       />
+
+      <UpgradeNudge kind="site" />
 
       <div className="overflow-hidden rounded-[14px] border bg-card shadow-sm">
         <table className="w-full border-collapse text-[13px]">
