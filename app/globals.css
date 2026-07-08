@@ -254,3 +254,10 @@ button[disabled],
 }
 
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+
+/* Print: hide app chrome (sidebar, topbar, floating widgets) so only page content prints.
+   Used by the QR desk-label sheet at /labels. */
+@media print {
+  .no-print { display: none !important; }
+  main { overflow: visible !important; padding: 0 !important; }
+}

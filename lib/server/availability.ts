@@ -27,6 +27,15 @@ export interface FreeSpace {
   nearby?: boolean; // ranked as close to the requested colleague
 }
 
+// Every bookable space in a building — used to print QR desk check-in labels.
+export async function listSpaces(buildingId: string): Promise<{ key: string; label: string; kind: SpaceKind }[]> {
+  const plan = (await getStoredPlan(buildingId)) ?? getFloorPlan(buildingId);
+  if (!plan) return [];
+  return plan.els
+    .filter((e) => isSpace(e.t))
+    .map((e) => ({ key: spaceKey(e as SpaceEl), label: spaceLabel(e as SpaceEl), kind: (e as SpaceEl).t }));
+}
+
 /** The canonical label for a space (e.g. "Desk 1"), derived from the plan — not the model. */
 export async function resolveSpaceLabel(buildingId: string, key: string): Promise<string | null> {
   const plan = (await getStoredPlan(buildingId)) ?? getFloorPlan(buildingId);

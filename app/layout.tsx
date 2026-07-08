@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Sora, Plus_Jakarta_Sans, Space_Grotesk } from "next/font/google";
 import "./globals.css";
 import { brand } from "@/lib/brand";
@@ -10,6 +10,7 @@ import { Topbar } from "@/components/topbar";
 import { LocationProvider } from "@/components/location-context";
 import { AssistantWidget } from "@/components/assistant-widget";
 import { LiveProvider } from "@/components/live-provider";
+import { PwaRegister } from "@/components/pwa-register";
 import { currentTenantId } from "@/lib/server/tenant";
 import { getTenantBranding } from "@/lib/server/tenants";
 
@@ -30,6 +31,11 @@ const mono = Space_Grotesk({ variable: "--font-space", subsets: ["latin"], weigh
 export const metadata: Metadata = {
   title: `${brand.productName} · ${brand.company}`,
   description: brand.descriptor,
+  appleWebApp: { capable: true, statusBarStyle: "black-translucent", title: brand.productName },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#0a1830",
 };
 
 export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
@@ -47,17 +53,24 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
           <LocationProvider>
           <TooltipProvider delay={150}>
             <div className="grid h-screen grid-cols-1 md:grid-cols-[244px_1fr]">
-              <Sidebar />
+              <div className="contents no-print">
+                <Sidebar />
+              </div>
               <div className="flex min-w-0 flex-col overflow-hidden">
                 <a href="#main" className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-2 focus:z-50 focus:rounded-[10px] focus:bg-primary focus:px-4 focus:py-2 focus:text-[13px] focus:font-semibold focus:text-primary-foreground">
                   Skip to content
                 </a>
-                <Topbar />
+                <div className="no-print">
+                  <Topbar />
+                </div>
                 <main id="main" className="flex-1 overflow-auto px-6 py-6">{children}</main>
               </div>
             </div>
-            <AssistantWidget />
+            <div className="no-print">
+              <AssistantWidget />
+            </div>
             <LiveProvider />
+            <PwaRegister />
             <Toaster position="bottom-right" />
           </TooltipProvider>
           </LocationProvider>
