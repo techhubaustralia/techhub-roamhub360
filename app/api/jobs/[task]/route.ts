@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { listBookings, setBookingStatus, audit, type Booking } from "@/lib/server/db";
 import { sendMail } from "@/lib/server/graph";
-import { reminderEmail, checkInEmail, checkOutEmail, presenceDigestEmail } from "@/lib/server/email";
+import { reminderEmail, checkInEmail, checkOutEmail, presenceDigestEmail, emailBrand } from "@/lib/server/email";
 import { listCustomBuildings, listHiddenBuildings, getStoredPlan } from "@/lib/server/store";
 import { getHiddenPresenceEmails, getPresenceDigestEmails } from "@/lib/server/users";
 import { getDirectoryMap } from "@/lib/server/directory";
@@ -66,23 +66,24 @@ async function liveBuildings(): Promise<{ id: string; iana: string; name: string
 
 async function runTask(task: Task, buildingRoot: string, localDate: string, localNow: string, all: Booking[], siteName = buildingRoot): Promise<number> {
   const mine = all.filter((b) => rootOf(b.buildingId) === buildingRoot);
+  const eb = await emailBrand(); // per-tenant email branding (G6); stock brand on the default host
   let n = 0;
   if (task === "reminder") {
     const tmr = nextDay(localDate);
     for (const b of mine.filter((b) => b.status === "Booked" && b.start.slice(0, 10) === tmr)) {
-      const m = reminderEmail(b);
+      const m = reminderEmail(b, eb);
       await sendMail(b.userEmail, m.subject, m.html);
       n++;
     }
   } else if (task === "checkin") {
     for (const b of mine.filter((b) => b.status === "Booked" && b.start.slice(0, 10) === localDate)) {
-      const m = checkInEmail(b, localDate);
+      const m = checkInEmail(b, localDate, eb);
       await sendMail(b.userEmail, m.subject, m.html);
       n++;
     }
   } else if (task === "checkout") {
     for (const b of mine.filter((b) => b.status === "Checked in" && b.start.slice(0, 10) === localDate)) {
-      const m = checkOutEmail(b, localDate);
+      const m = checkOutEmail(b, localDate, eb);
       await sendMail(b.userEmail, m.subject, m.html);
       n++;
     }
@@ -125,7 +126,7 @@ async function runTask(task: Task, buildingRoot: string, localDate: string, loca
         spaceLabel: c.spaceLabel,
         checkedIn: c.checkedIn,
       }));
-      const m = presenceDigestEmail(nameOf(rcpt), siteName, localDate, colleagues);
+      const m = presenceDigestEmail(nameOf(rcpt), siteName, localDate, colleagues, eb);
       await sendMail(rcpt, m.subject, m.html);
       n++;
     }

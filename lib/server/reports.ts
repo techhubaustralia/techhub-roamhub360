@@ -3,7 +3,7 @@ import { currentTenantId } from "./tenant";
 import { computeAnalytics } from "./analytics";
 import { listTenantAdminEmails } from "./users";
 import { sendMail } from "./graph";
-import { utilizationReportEmail } from "./email";
+import { utilizationReportEmail, emailBrand } from "./email";
 import { lastMonthRange } from "../date-range";
 
 // Monthly utilisation / ROI report (Growth G4). Emails last calendar month's occupancy,
@@ -19,7 +19,7 @@ export async function runMonthlyReport(now = new Date()): Promise<{ sent: number
 
   const a = await computeAnalytics({ from, to });
   const busiestDay = a.peakDays.length ? [...a.peakDays].sort((x, y) => y.count - x.count)[0]?.day ?? null : null;
-  const mail = utilizationReportEmail(label, { totals: a.totals, utilisation: a.utilisation, busiestDay });
+  const mail = utilizationReportEmail(label, { totals: a.totals, utilisation: a.utilisation, busiestDay }, await emailBrand(tenantId));
 
   let sent = 0;
   for (const to of admins) {

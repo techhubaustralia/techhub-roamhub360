@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getBooking, setBookingStatus, updateBookingTimes, listBookings, ConflictError, audit } from "@/lib/server/db";
 import { getUser, canAccessBuilding } from "@/lib/server/auth";
 import { cancelBookingEvent, updateBookingEvent, sendMail } from "@/lib/server/graph";
-import { cancellationEmail, updatedEmail } from "@/lib/server/email";
+import { cancellationEmail, updatedEmail, emailBrand } from "@/lib/server/email";
 import { validateBooking, overlaps, ACTIVE_STATUSES, type Kind } from "@/lib/booking-rules";
 import { getStoredPlan } from "@/lib/server/store";
 import { getFloorPlan } from "@/lib/floorplans";
@@ -88,7 +88,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
             showAs: allDay ? "free" : "busy",
           });
         }
-        const mail = updatedEmail(rec);
+        const mail = updatedEmail(rec, await emailBrand());
         await sendMail(rec.userEmail, mail.subject, mail.html);
       } catch (e) {
         console.error("edit notify failed", e);
@@ -141,7 +141,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       if (booking.eventId) {
         await cancelBookingEvent(booking.userEmail, booking.eventId);
       }
-      const mail = cancellationEmail(booking, { byAdmin: isAdminCancel ? me.email : undefined, reason });
+      const mail = cancellationEmail(booking, { byAdmin: isAdminCancel ? me.email : undefined, reason }, await emailBrand());
       await sendMail(booking.userEmail, mail.subject, mail.html);
     } catch (e) {
       console.error("cancel notify failed", e);

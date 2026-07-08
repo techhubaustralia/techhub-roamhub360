@@ -5,7 +5,7 @@ import { getUser, canAccessBuilding } from "@/lib/server/auth";
 import { assertCanWrite } from "@/lib/server/licensing";
 import { rateLimit, clientIp, tooMany } from "@/lib/server/rate-limit";
 import { sendMail, createBookingEvent, roomMailboxFor } from "@/lib/server/graph";
-import { confirmationEmail } from "@/lib/server/email";
+import { confirmationEmail, emailBrand } from "@/lib/server/email";
 import { officeWinTz } from "@/lib/data";
 import { getStoredPlan } from "@/lib/server/store";
 import { getFloorPlan } from "@/lib/floorplans";
@@ -228,7 +228,8 @@ export async function POST(req: Request) {
     );
     // notifications (no-op until Graph is configured; never fail the booking)
     try {
-      const mail = confirmationEmail(rec);
+      const eb = await emailBrand(); // per-tenant product name for the email + calendar subject (G6)
+      const mail = confirmationEmail(rec, eb);
       await sendMail(rec.userEmail, mail.subject, mail.html);
       // Full-day bookings become an all-day calendar event shown as "Free" (so they don't
       // block the user's calendar); hourly bookings are normal timed "Busy" events.
@@ -243,7 +244,7 @@ export async function POST(req: Request) {
         // with the room as a resource attendee so Exchange reserves it and a Teams link attached.
         const eventId = await createBookingEvent({
           ownerEmail: rec.userEmail,
-          subject: `${rec.spaceLabel} (RoamHub360)`,
+          subject: `${rec.spaceLabel} (${eb.productName})`,
           startLocal: rec.start,
           endLocal: rec.end,
           timeZone: tz,
@@ -259,7 +260,7 @@ export async function POST(req: Request) {
         const tz = policyPlan.winTz || officeWinTz(rec.buildingId);
         const eventId = await createBookingEvent({
           ownerEmail: rec.userEmail,
-          subject: `${rec.spaceLabel} (RoamHub360)`,
+          subject: `${rec.spaceLabel} (${eb.productName})`,
           startLocal: rec.start,
           endLocal: rec.end,
           timeZone: tz,

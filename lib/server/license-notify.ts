@@ -4,7 +4,7 @@ import { listTenants } from "./tenants";
 import { licenseState, getNotifiedThresholds, markNotifiedThresholds } from "./licensing";
 import { listTenantAdminEmails } from "./users";
 import { sendMail } from "./graph";
-import { licenseExpiryEmail } from "./email";
+import { licenseExpiryEmail, emailBrand } from "./email";
 import { pickExpiryNotice } from "../expiry-notice";
 
 // Licence-expiry notifications (Commercial SaaS CP4). Run from the jobs tick: for each customer
@@ -35,7 +35,7 @@ export async function runLicenseChecks(): Promise<{ checked: number; notified: n
     if (!notice) continue;
 
     const expiresOn = state.expiresAt ? new Date(state.expiresAt).toLocaleDateString("en-AU", { day: "numeric", month: "long", year: "numeric" }) : "—";
-    const mail = licenseExpiryEmail(t.name, state.daysLeft ?? 0, expiresOn, state.tier);
+    const mail = licenseExpiryEmail(t.name, state.daysLeft ?? 0, expiresOn, state.tier, await emailBrand(t.slug));
     const recipients = [...new Set([...(await listTenantAdminEmails(t.slug)), ...OPS])];
     for (const to of recipients) await sendMail(to, mail.subject, mail.html, DEFAULT_TENANT);
     await markNotifiedThresholds(t.slug, notice.mark);

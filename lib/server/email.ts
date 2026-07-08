@@ -3,29 +3,49 @@ import type { Booking } from "./db";
 import { sign } from "./token";
 import { escapeHtml as esc } from "../escape-html";
 import { brand } from "../brand";
+import { getTenantBranding } from "./tenants";
+import { currentTenantId } from "./tenant";
 
-// Brand-driven email templates. Emails can't use the app's CSS tokens or next/font,
-// so they use a web-safe font stack and the brand hex values from lib/brand.ts.
+// Brand-driven email templates. Emails can't use the app's CSS tokens or next/font, so they use a
+// web-safe font stack + hex values. Each template accepts an EmailBrand so per-tenant white-label
+// (G3/G6) reaches notifications; it defaults to the stock RoamHub360 brand.
 const APP_URL = process.env.APP_URL || brand.defaultAppUrl;
 const MAIL_FROM = process.env.MAIL_FROM || brand.defaultMailFrom;
 const C = brand.colors;
 
-const shell = (title: string, body: string) => `
+export interface EmailBrand {
+  productName: string;
+  accent: string; // button/link colour
+  appUrl: string;
+}
+const DEFAULT_EMAIL_BRAND: EmailBrand = { productName: brand.productName, accent: C.primary, appUrl: APP_URL };
+
+/** Resolve a tenant's email branding (name + accent). Defaults to the stock brand / default tenant. */
+export async function emailBrand(tenantId?: string): Promise<EmailBrand> {
+  const b = await getTenantBranding(tenantId ?? (await currentTenantId()));
+  return {
+    productName: b.name || brand.productName,
+    accent: b.accent && /^#[0-9a-fA-F]{6}$/.test(b.accent) ? b.accent : C.primary,
+    appUrl: APP_URL,
+  };
+}
+
+const shell = (title: string, body: string, b: EmailBrand = DEFAULT_EMAIL_BRAND) => `
 <div style="font-family:'Segoe UI',Roboto,Helvetica,Arial,sans-serif;max-width:520px;margin:auto;color:${C.navy}">
-  <div style="background:${C.navy};color:#fff;padding:16px 20px;border-radius:12px 12px 0 0;font-weight:700;letter-spacing:.04em">${brand.productName}</div>
+  <div style="background:${C.navy};color:#fff;padding:16px 20px;border-radius:12px 12px 0 0;font-weight:700;letter-spacing:.04em">${esc(b.productName)}</div>
   <div style="border:1px solid #d7e1e7;border-top:none;border-radius:0 0 12px 12px;padding:20px">
     <h2 style="margin:0 0 8px;font-size:18px">${title}</h2>
     ${body}
-    <p style="color:#7491a0;font-size:12px;margin-top:24px">Automated message from ${brand.productName} · ${brand.company}. Sent from ${MAIL_FROM}.</p>
+    <p style="color:#7491a0;font-size:12px;margin-top:24px">Automated message from ${esc(b.productName)} · ${brand.company}. Sent from ${MAIL_FROM}.</p>
   </div>
 </div>`;
 
-const btn = (href: string, label: string, color: string = C.primary) =>
-  `<a href="${href}" style="display:inline-block;background:${color};color:#fff;text-decoration:none;padding:10px 18px;border-radius:10px;font-weight:600;margin-right:8px">${label}</a>`;
+const btn = (href: string, label: string, color?: string, b: EmailBrand = DEFAULT_EMAIL_BRAND) =>
+  `<a href="${href}" style="display:inline-block;background:${color ?? b.accent};color:#fff;text-decoration:none;padding:10px 18px;border-radius:10px;font-weight:600;margin-right:8px">${label}</a>`;
 
 const when = (b: Booking) => `${esc(b.start.replace("T", " "))} → ${esc(b.end.replace("T", " "))}`;
 
-export function confirmationEmail(b: Booking) {
+export function confirmationEmail(b: Booking, eb: EmailBrand = DEFAULT_EMAIL_BRAND) {
   const onBehalf = b.bookedByEmail ? `<p style="color:#7491a0;font-size:13px">Booked on your behalf by ${esc(b.bookedByEmail)}.</p>` : "";
   return {
     subject: `Booking confirmed — ${b.spaceLabel}`,
@@ -34,12 +54,13 @@ export function confirmationEmail(b: Booking) {
       `<p>Your booking is confirmed.</p>
        <p><b>${esc(b.spaceLabel)}</b><br>${when(b)}</p>
        ${onBehalf}
-       <p style="margin-top:16px">${btn(`${APP_URL}/mine`, "View my bookings")}</p>`,
+       <p style="margin-top:16px">${btn(`${APP_URL}/mine`, "View my bookings", undefined, eb)}</p>`,
+      eb,
     ),
   };
 }
 
-export function cancellationEmail(b: Booking, opts?: { byAdmin?: string; reason?: string }) {
+export function cancellationEmail(b: Booking, opts?: { byAdmin?: string; reason?: string }, eb: EmailBrand = DEFAULT_EMAIL_BRAND) {
   const note = opts?.byAdmin
     ? `<p style="color:#7491a0;font-size:13px">Cancelled by an administrator (${esc(opts.byAdmin)}).${opts.reason ? ` Reason: ${esc(opts.reason)}` : ""}</p>`
     : b.bookedByEmail
@@ -52,27 +73,29 @@ export function cancellationEmail(b: Booking, opts?: { byAdmin?: string; reason?
       `<p>The following booking has been cancelled and the space released.</p>
        <p><b>${esc(b.spaceLabel)}</b><br>${when(b)}</p>
        ${note}
-       <p style="margin-top:16px">${btn(`${APP_URL}/book`, "Book another space")}</p>`,
+       <p style="margin-top:16px">${btn(`${APP_URL}/book`, "Book another space", undefined, eb)}</p>`,
+      eb,
     ),
   };
 }
 
-export function updatedEmail(b: Booking) {
+export function updatedEmail(b: Booking, eb: EmailBrand = DEFAULT_EMAIL_BRAND) {
   return {
     subject: `Booking updated — ${b.spaceLabel}`,
     html: shell(
       "Booking updated",
       `<p>Your booking has been updated.</p>
        <p><b>${esc(b.spaceLabel)}</b><br>${when(b)}</p>
-       <p style="margin-top:16px">${btn(`${APP_URL}/mine`, "View my bookings")}</p>`,
+       <p style="margin-top:16px">${btn(`${APP_URL}/mine`, "View my bookings", undefined, eb)}</p>`,
+      eb,
     ),
   };
 }
 
-export function reminderEmail(b: Booking) {
+export function reminderEmail(b: Booking, eb: EmailBrand = DEFAULT_EMAIL_BRAND) {
   return {
     subject: `Reminder — ${b.spaceLabel} tomorrow`,
-    html: shell("Booking reminder", `<p>Reminder of your booking tomorrow:</p><p><b>${esc(b.spaceLabel)}</b><br>${when(b)}</p>`),
+    html: shell("Booking reminder", `<p>Reminder of your booking tomorrow:</p><p><b>${esc(b.spaceLabel)}</b><br>${when(b)}</p>`, eb),
   };
 }
 
@@ -84,11 +107,12 @@ export function utilizationReportEmail(
     utilisation: { desk: number; office: number; room: number; parking: number };
     busiestDay: string | null;
   },
+  eb: EmailBrand = DEFAULT_EMAIL_BRAND,
 ) {
   const stat = (label: string, value: string) =>
     `<td style="padding:10px 12px;border:1px solid #d7e1e7;border-radius:8px"><div style="font-size:22px;font-weight:700;color:${C.navy}">${value}</div><div style="font-size:11px;color:#7491a0;text-transform:uppercase;letter-spacing:.05em">${esc(label)}</div></td>`;
   const bar = (label: string, pct: number) =>
-    `<tr><td style="font-size:12px;color:${C.navy};padding:3px 8px 3px 0;white-space:nowrap">${esc(label)}</td><td style="width:100%"><div style="background:#e6eef5;border-radius:5px;height:10px"><div style="background:${C.primary};height:10px;border-radius:5px;width:${Math.max(0, Math.min(100, Math.round(pct)))}%"></div></div></td><td style="font-size:12px;color:#7491a0;padding-left:8px">${Math.round(pct)}%</td></tr>`;
+    `<tr><td style="font-size:12px;color:${C.navy};padding:3px 8px 3px 0;white-space:nowrap">${esc(label)}</td><td style="width:100%"><div style="background:#e6eef5;border-radius:5px;height:10px"><div style="background:${eb.accent};height:10px;border-radius:5px;width:${Math.max(0, Math.min(100, Math.round(pct)))}%"></div></div></td><td style="font-size:12px;color:#7491a0;padding-left:8px">${Math.round(pct)}%</td></tr>`;
   return {
     subject: `${period} workspace report — ${data.totals.bookings} bookings`,
     html: shell(
@@ -105,15 +129,16 @@ export function utilizationReportEmail(
          ${bar("Desks", data.utilisation.desk)}${bar("Offices", data.utilisation.office)}${bar("Rooms", data.utilisation.room)}${bar("Parking", data.utilisation.parking)}
        </table>
        ${data.busiestDay ? `<p style="font-size:13px;color:${C.navy};margin-top:14px">Busiest day: <b>${esc(data.busiestDay)}</b>.</p>` : ""}
-       <p style="margin-top:16px">${btn(`${APP_URL}/insights`, "Open full insights")}</p>`,
+       <p style="margin-top:16px">${btn(`${APP_URL}/insights`, "Open full insights", undefined, eb)}</p>`,
+      eb,
     ),
   };
 }
 
 /** Licence expiry notice (Commercial SaaS CP4). `daysLeft` <= 0 means already expired. */
-export function licenseExpiryEmail(workspaceName: string, daysLeft: number, expiresOn: string, tier: string) {
+export function licenseExpiryEmail(workspaceName: string, daysLeft: number, expiresOn: string, tier: string, eb: EmailBrand = DEFAULT_EMAIL_BRAND) {
   const expired = daysLeft <= 0;
-  const headline = expired ? "Your RoamHub360 licence has expired" : `Your RoamHub360 licence expires in ${daysLeft} day${daysLeft === 1 ? "" : "s"}`;
+  const headline = expired ? `Your ${eb.productName} licence has expired` : `Your ${eb.productName} licence expires in ${daysLeft} day${daysLeft === 1 ? "" : "s"}`;
   const lead = expired
     ? `The <b>${esc(tier)}</b> licence for <b>${esc(workspaceName)}</b> expired on ${esc(expiresOn)}. The workspace is now read-only — existing bookings stay visible, but new ones are blocked until you renew.`
     : `The <b>${esc(tier)}</b> licence for <b>${esc(workspaceName)}</b> expires on <b>${esc(expiresOn)}</b>. Renew before then to avoid any interruption for your team.`;
@@ -122,8 +147,9 @@ export function licenseExpiryEmail(workspaceName: string, daysLeft: number, expi
     html: shell(
       headline,
       `<p>${lead}</p>
-       <p style="margin-top:16px">${btn(`${APP_URL}/admin/license`, "View plan & licence", expired ? C.booked : C.primary)}</p>
+       <p style="margin-top:16px">${btn(`${APP_URL}/admin/license`, "View plan & licence", expired ? C.booked : eb.accent, eb)}</p>
        <p style="color:#7491a0;font-size:12px;margin-top:16px">To renew or change your plan, reply to this email or contact TechHub Australia.</p>`,
+      eb,
     ),
   };
 }
@@ -134,6 +160,7 @@ export function presenceDigestEmail(
   siteName: string,
   date: string,
   colleagues: { name: string; spaceLabel: string; checkedIn: boolean }[],
+  eb: EmailBrand = DEFAULT_EMAIL_BRAND,
 ) {
   const pretty = new Date(date + "T00:00:00Z").toLocaleDateString("en-AU", { weekday: "long", day: "numeric", month: "long", timeZone: "UTC" });
   const first = esc(recipientName.split(/\s+/)[0] || recipientName);
@@ -148,13 +175,14 @@ export function presenceDigestEmail(
       "Who's in today",
       `<p>Morning ${first}, here's who's booked at <b>${esc(siteName)}</b> for ${esc(pretty)}:</p>
        ${list}
-       <p style="margin-top:18px">${btn(`${APP_URL}/team`, "Open Who's in")}</p>
-       <p style="color:#7491a0;font-size:12px;margin-top:14px">You're getting this because you turned on the daily digest. Manage it under <a href="${APP_URL}/settings" style="color:${C.primary}">Settings</a>.</p>`,
+       <p style="margin-top:18px">${btn(`${APP_URL}/team`, "Open Who's in", undefined, eb)}</p>
+       <p style="color:#7491a0;font-size:12px;margin-top:14px">You're getting this because you turned on the daily digest. Manage it under <a href="${APP_URL}/settings" style="color:${eb.accent}">Settings</a>.</p>`,
+      eb,
     ),
   };
 }
 
-export function checkInEmail(b: Booking, day: string) {
+export function checkInEmail(b: Booking, day: string, eb: EmailBrand = DEFAULT_EMAIL_BRAND) {
   const url = `${APP_URL}/api/checkin?token=${sign({ bookingId: b.id, action: "checkin", date: day })}`;
   return {
     subject: `Check in — ${b.spaceLabel}`,
@@ -162,12 +190,13 @@ export function checkInEmail(b: Booking, day: string) {
       "Time to check in",
       `<p>Check in for your booking to keep it. Bookings not checked in by 09:30 are automatically cancelled.</p>
        <p><b>${esc(b.spaceLabel)}</b><br>${when(b)}</p>
-       <p style="margin-top:16px">${btn(url, "Check in")}</p>`,
+       <p style="margin-top:16px">${btn(url, "Check in", undefined, eb)}</p>`,
+      eb,
     ),
   };
 }
 
-export function checkOutEmail(b: Booking, day: string) {
+export function checkOutEmail(b: Booking, day: string, eb: EmailBrand = DEFAULT_EMAIL_BRAND) {
   const url = `${APP_URL}/api/checkout?token=${sign({ bookingId: b.id, action: "checkout", date: day })}`;
   return {
     subject: `Check out — ${b.spaceLabel}`,
@@ -178,11 +207,12 @@ export function checkOutEmail(b: Booking, day: string) {
        <p style="margin-top:8px">Choose what you'd like to do:</p>
        <ul style="color:#334;font-size:13px;line-height:1.7;padding-left:18px;margin:6px 0 14px">
          <li><b>Check out now</b> — release the space for others.</li>
-         <li><b>Stay a little longer</b> — extend the end time under <a href="${APP_URL}/mine" style="color:${C.primary}">My bookings</a> (where permitted).</li>
+         <li><b>Stay a little longer</b> — extend the end time under <a href="${APP_URL}/mine" style="color:${eb.accent}">My bookings</a> (where permitted).</li>
          <li><b>Book another day</b> — reserve your next visit.</li>
        </ul>
-       <p style="margin-top:4px">${btn(url, "Check out", C.available)}${btn(`${APP_URL}/book`, "Book another day")}</p>
+       <p style="margin-top:4px">${btn(url, "Check out", C.available, eb)}${btn(`${APP_URL}/book`, "Book another day", undefined, eb)}</p>
        <p style="color:#7491a0;font-size:12px;margin-top:14px">If we don't hear from you, you'll be checked out automatically at 17:30.</p>`,
+      eb,
     ),
   };
 }
