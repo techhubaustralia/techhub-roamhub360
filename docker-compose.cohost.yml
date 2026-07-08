@@ -62,6 +62,19 @@ services:
       MAIL_FROM: ${MAIL_FROM:-}
       GRAPH_TIMEZONE: ${GRAPH_TIMEZONE:-AUS Eastern Standard Time}
       ROOM_MAILBOXES: ${ROOM_MAILBOXES:-}
+      # Secret encryption (CP1) — required for customers to save their Microsoft credentials
+      CREDENTIAL_KEY: ${CREDENTIAL_KEY:-}
+      # Commercial ops (CP4) + self-serve trial signup (G5)
+      OPS_EMAIL: ${OPS_EMAIL:-}
+      BILLING_PROVIDER: ${BILLING_PROVIDER:-none}
+      ALLOW_PUBLIC_SIGNUP: ${ALLOW_PUBLIC_SIGNUP:-false}
+      # AI booking concierge — Anthropic OR any OpenAI-compatible (free) provider
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      ASSISTANT_MODEL: ${ASSISTANT_MODEL:-claude-opus-4-8}
+      AI_PROVIDER: ${AI_PROVIDER:-}
+      AI_API_KEY: ${AI_API_KEY:-}
+      AI_BASE_URL: ${AI_BASE_URL:-}
+      AI_MODEL: ${AI_MODEL:-}
     volumes:
       - roamhub_appdata:/app/data
     depends_on:
