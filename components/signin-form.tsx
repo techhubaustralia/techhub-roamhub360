@@ -8,6 +8,8 @@ import { brand } from "@/lib/brand";
 export function SignInForm({ entraEnabled, googleEnabled, bare = false }: { entraEnabled: boolean; googleEnabled: boolean; bare?: boolean }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [totp, setTotp] = useState("");
+  const [showTotp, setShowTotp] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -15,10 +17,14 @@ export function SignInForm({ entraEnabled, googleEnabled, bare = false }: { entr
     e.preventDefault();
     setError("");
     setLoading(true);
-    const res = await signIn("credentials", { email, password, redirect: false });
+    const res = await signIn("credentials", { email, password, totp, redirect: false });
     setLoading(false);
-    if (res?.error) setError("Incorrect email or password.");
-    else window.location.assign("/");
+    if (res?.error) {
+      // Could be a wrong password OR a missing/invalid 2FA code — reveal the code field and let
+      // them add it (no enumeration: we don't say which). If they already entered one, it's wrong.
+      setShowTotp(true);
+      setError(showTotp ? "Incorrect email, password, or authentication code." : "Check your details. If you use two-factor authentication, enter your 6-digit code below.");
+    } else window.location.assign("/");
   }
 
   const inner = (
@@ -68,6 +74,19 @@ export function SignInForm({ entraEnabled, googleEnabled, bare = false }: { entr
               <input type="password" required value={password} onChange={(e) => setPassword(e.target.value)} className="ed-input" placeholder="••••••••" autoComplete="current-password" />
             </label>
             <a href="/forgot" className="-mt-1 self-end text-[12px] text-primary hover:underline">Forgot password?</a>
+            {showTotp && (
+              <label className="flex flex-col gap-1 text-[13px] font-medium">
+                Authentication code
+                <input
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  value={totp}
+                  onChange={(e) => setTotp(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                  className="ed-input tracking-[0.3em]"
+                  placeholder="123456"
+                />
+              </label>
+            )}
             {error && (
               <p className="text-[13px] text-destructive" role="alert">
                 {error}

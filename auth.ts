@@ -15,7 +15,7 @@ import { rateLimit } from "@/lib/server/rate-limit";
 const providers: Provider[] = [
   Credentials({
     name: "Email & password",
-    credentials: { email: {}, password: {} },
+    credentials: { email: {}, password: {}, totp: {} },
     async authorize(creds) {
       const email = String(creds?.email ?? "").toLowerCase().trim();
       const password = String(creds?.password ?? "");
@@ -27,6 +27,11 @@ const providers: Provider[] = [
       if (!u?.passwordHash) return null; // no local password (SSO-only or unknown)
       const ok = await bcrypt.compare(password, u.passwordHash);
       if (!ok) return null;
+      // Two-factor: if enabled, a valid current TOTP code is also required.
+      if (u.totpEnabled && u.totpSecret) {
+        const { verifyTotp } = await import("@/lib/server/totp");
+        if (!verifyTotp(u.totpSecret, String(creds?.totp ?? ""))) return null;
+      }
       return { id: u.id, email: u.email, name: u.name ?? email };
     },
   }),

@@ -4,6 +4,9 @@ import { createTenant, getTenantBySlug, validSlug } from "@/lib/server/tenants";
 import { saveLicense } from "@/lib/server/licensing";
 import { findUserByEmail, createUser } from "@/lib/server/users";
 import { rateLimit, clientIp, tooMany } from "@/lib/server/rate-limit";
+import { signEmailToken } from "@/lib/server/account-token";
+import { sendMail } from "@/lib/server/graph";
+import { verifyEmailEmail, emailBrand } from "@/lib/server/email";
 
 // Self-serve trial signup (Growth G5). Provisions a NEW isolated workspace: tenant + 14-day trial
 // licence + first Global Admin. PUBLIC, but OFF by default — the operator opts in with
@@ -51,7 +54,16 @@ export async function POST(req: Request) {
   await createTenant({ slug, name: company });
   const expiresAt = new Date(Date.now() + TRIAL_DAYS * 86_400_000).toISOString();
   await saveLicense(slug, { tier: "trial", maxSites: 1, maxFloorsPerSite: 2, status: "active", expiresAt, graceDays: 7 });
-  await createUser({ email, name, password, role: "global-admin", tenantId: slug });
+  const user = await createUser({ email, name, password, role: "global-admin", tenantId: slug });
+
+  // Send an email-confirmation link (best-effort; never blocks signup).
+  try {
+    const url = `${workspaceUrl(slug)}/verify-email?token=${encodeURIComponent(signEmailToken(user.id))}`;
+    const mail = verifyEmailEmail(url, await emailBrand(slug));
+    await sendMail(email, mail.subject, mail.html, slug);
+  } catch {
+    /* ignore — verification is non-blocking */
+  }
 
   return NextResponse.json({ ok: true, url: workspaceUrl(slug), trialDays: TRIAL_DAYS });
 }

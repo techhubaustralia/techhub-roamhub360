@@ -31,6 +31,9 @@ export interface UserRow {
   tenantId?: string | null;
   hidePresence?: boolean;
   notifyPresence?: boolean;
+  emailVerified?: Date | null;
+  totpSecret?: string | null;
+  totpEnabled?: boolean;
 }
 
 // Self-service preferences (Team Build-Up C privacy + D notifications).
@@ -119,6 +122,23 @@ export async function setUserPassword(id: string, password: string): Promise<voi
   const bcrypt = (await import("bcryptjs")).default;
   const p = await prisma();
   await p.user.update({ where: { id }, data: { passwordHash: await bcrypt.hash(password, 10) } });
+}
+
+/** Mark a user's email address as verified. */
+export async function setUserEmailVerified(id: string): Promise<void> {
+  const p = await prisma();
+  await p.user.update({ where: { id }, data: { emailVerified: new Date() } });
+}
+
+/** Store a pending 2FA secret (not yet enabled). */
+export async function setUserTotpSecret(id: string, secret: string): Promise<void> {
+  const p = await prisma();
+  await p.user.update({ where: { id }, data: { totpSecret: secret, totpEnabled: false } });
+}
+/** Enable or disable 2FA. Disabling clears the secret. */
+export async function setUserTotpEnabled(id: string, enabled: boolean): Promise<void> {
+  const p = await prisma();
+  await p.user.update({ where: { id }, data: enabled ? { totpEnabled: true } : { totpEnabled: false, totpSecret: null } });
 }
 
 export async function listUsers(tenantId?: string): Promise<Omit<UserRow, "tenantId">[]> {

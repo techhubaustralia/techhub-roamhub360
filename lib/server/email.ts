@@ -58,6 +58,18 @@ export function passwordResetEmail(resetUrl: string, eb: EmailBrand = DEFAULT_EM
   };
 }
 
+export function verifyEmailEmail(verifyUrl: string, eb: EmailBrand = DEFAULT_EMAIL_BRAND) {
+  return {
+    subject: `Confirm your email for ${eb.productName}`,
+    html: shell(
+      "Confirm your email",
+      `<p>Thanks for signing up. Please confirm this email address to secure your workspace — the link expires in 7 days.</p>
+       <p style="margin-top:16px">${btn(verifyUrl, "Confirm email", undefined, eb)}</p>`,
+      eb,
+    ),
+  };
+}
+
 export function inviteEmail(inviteUrl: string, opts: { workspaceName?: string; inviter?: string } = {}, eb: EmailBrand = DEFAULT_EMAIL_BRAND) {
   const who = opts.inviter ? ` by ${esc(opts.inviter)}` : "";
   const ws = opts.workspaceName ? esc(opts.workspaceName) : eb.productName;

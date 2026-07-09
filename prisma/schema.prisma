@@ -155,6 +155,9 @@ model User {
   tenantId     String? // per-customer isolation (completed in the multi-tenant phase)
   hidePresence Boolean  @default(false) // Team Build-Up C: opt out of the "Who's in" board
   notifyPresence Boolean @default(false) // Team Build-Up D: receive the daily "who's in" digest
+  emailVerified  DateTime? // set when the user confirms their email (self-serve signup)
+  totpSecret     String?   // base32 TOTP secret (2FA); null = 2FA not set up
+  totpEnabled    Boolean   @default(false) // 2FA active (secret confirmed)
   createdAt    DateTime @default(now())
 
   @@index([tenantId])

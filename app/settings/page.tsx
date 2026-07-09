@@ -7,6 +7,7 @@ import { getPrefs, updatePrefs, type UserPrefs } from "@/lib/api";
 import { PageHeader } from "@/components/page-header";
 import { PushToggle } from "@/components/push-toggle";
 import { ChangePassword } from "@/components/change-password";
+import { TwoFactor } from "@/components/two-factor";
 
 function Toggle({ on, disabled, onChange }: { on: boolean; disabled?: boolean; onChange: () => void }) {
   return (
@@ -93,6 +94,7 @@ export default function SettingsPage() {
       <section className="mt-5 overflow-hidden rounded-[14px] border bg-card shadow-sm">
         <div className="border-b bg-panel-2/60 px-4 py-2.5 text-[11px] font-semibold uppercase tracking-[0.05em] text-txt-mute">Account</div>
         <ChangePassword />
+        <TwoFactor />
       </section>
     </div>
   );

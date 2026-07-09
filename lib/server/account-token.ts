@@ -23,6 +23,26 @@ export function signPwToken(uid: string, ttlMs = 24 * 60 * 60 * 1000): string {
 }
 
 export function verifyPwToken(token: string): PwToken | null {
+  return verifyPurpose(token, "set-password") as PwToken | null;
+}
+
+// Email-verification tokens share the same HMAC scheme with a distinct purpose (a set-password
+// token can't be replayed to verify an email, and vice-versa).
+export function signEmailToken(uid: string, ttlMs = 7 * 24 * 60 * 60 * 1000): string {
+  return signPurpose(uid, "verify-email", ttlMs);
+}
+export function verifyEmailToken(token: string): { uid: string } | null {
+  const p = verifyPurpose(token, "verify-email");
+  return p ? { uid: p.uid } : null;
+}
+
+function signPurpose(uid: string, purpose: string, ttlMs: number): string {
+  if (MISSING()) throw new Error("AUTH_SECRET is required in production.");
+  const data = Buffer.from(JSON.stringify({ uid, purpose, exp: Date.now() + ttlMs })).toString("base64url");
+  const sig = crypto.createHmac("sha256", SECRET).update(data).digest("base64url");
+  return `${data}.${sig}`;
+}
+function verifyPurpose(token: string, purpose: string): { uid: string; purpose: string; exp: number } | null {
   if (MISSING()) return null;
   const [data, sig] = (token || "").split(".");
   if (!data || !sig) return null;
@@ -31,8 +51,8 @@ export function verifyPwToken(token: string): PwToken | null {
   const b = Buffer.from(expected);
   if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) return null;
   try {
-    const p = JSON.parse(Buffer.from(data, "base64url").toString()) as PwToken;
-    if (p.purpose !== "set-password" || !p.uid || (p.exp && Date.now() > p.exp)) return null;
+    const p = JSON.parse(Buffer.from(data, "base64url").toString()) as { uid: string; purpose: string; exp: number };
+    if (p.purpose !== purpose || !p.uid || (p.exp && Date.now() > p.exp)) return null;
     return p;
   } catch {
     return null;
