@@ -35,6 +35,23 @@ const providers: Provider[] = [
       return { id: u.id, email: u.email, name: u.name ?? email };
     },
   }),
+  // SSO handoff: OAuth runs on the fixed main host (one registered redirect URI); it then hands a
+  // short-lived signed token to the tenant subdomain, which exchanges it here for its own session.
+  // SAFE by design — only admits users ALREADY provisioned (no auto-join of a customer workspace by
+  // a random Microsoft/Google account); the getUser membership guard still enforces tenant access.
+  Credentials({
+    id: "sso-handoff",
+    name: "SSO",
+    credentials: { token: {} },
+    async authorize(creds) {
+      const { verifyHandoffToken } = await import("@/lib/server/account-token");
+      const h = verifyHandoffToken(String(creds?.token ?? ""));
+      if (!h?.email) return null;
+      const u = await findUserByEmail(h.email).catch(() => null);
+      if (!u) return null; // not provisioned in this workspace → refuse
+      return { id: u.id, email: u.email, name: u.name ?? h.email };
+    },
+  }),
 ];
 
 if (process.env.AUTH_MICROSOFT_ENTRA_ID_ID) {

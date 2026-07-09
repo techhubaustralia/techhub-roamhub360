@@ -13,6 +13,22 @@ export function SignInForm({ entraEnabled, googleEnabled, bare = false }: { entr
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
+  // OAuth providers require a fixed, pre-registered redirect URI, which a dynamic customer subdomain
+  // can't have. So on a subdomain we route SSO through the main host (/sso/start), which runs OAuth
+  // and hands the session back here. On the main host we sign in directly.
+  function startSso(provider: "google" | "microsoft-entra-id") {
+    const host = window.location.host;
+    const parts = host.split(".");
+    const sub = parts.length > 2 ? parts[0] : "";
+    const onSubdomain = !!sub && !["app", "www"].includes(sub) && !/^\d+\.\d+\.\d+\.\d+/.test(host);
+    if (onSubdomain) {
+      const apex = parts.slice(1).join(".");
+      window.location.href = `https://app.${apex}/sso/start?provider=${provider}&to=${encodeURIComponent(sub)}`;
+    } else {
+      signIn(provider, { callbackUrl: "/" });
+    }
+  }
+
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
@@ -42,7 +58,7 @@ export function SignInForm({ entraEnabled, googleEnabled, bare = false }: { entr
                 {googleEnabled && (
                   <button
                     type="button"
-                    onClick={() => signIn("google", { callbackUrl: "/" })}
+                    onClick={() => startSso("google")}
                     className="flex w-full items-center justify-center gap-2 rounded-[11px] border bg-panel-2 px-3 py-2.5 text-sm font-semibold transition-colors hover:border-primary"
                   >
                     <GoogleLogo /> Continue with Google
@@ -51,7 +67,7 @@ export function SignInForm({ entraEnabled, googleEnabled, bare = false }: { entr
                 {entraEnabled && (
                   <button
                     type="button"
-                    onClick={() => signIn("microsoft-entra-id", { callbackUrl: "/" })}
+                    onClick={() => startSso("microsoft-entra-id")}
                     className="flex w-full items-center justify-center gap-2 rounded-[11px] border bg-panel-2 px-3 py-2.5 text-sm font-semibold transition-colors hover:border-primary"
                   >
                     <MsLogo /> Continue with Microsoft

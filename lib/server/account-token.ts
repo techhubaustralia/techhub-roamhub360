@@ -36,6 +36,16 @@ export function verifyEmailToken(token: string): { uid: string } | null {
   return p ? { uid: p.uid } : null;
 }
 
+// SSO handoff tokens carry a verified email from the main host to a tenant subdomain after OAuth.
+// Very short-lived (2 min) — they exist only to bridge one redirect.
+export function signHandoffToken(email: string, ttlMs = 2 * 60 * 1000): string {
+  return signPurpose(email.toLowerCase(), "sso-handoff", ttlMs);
+}
+export function verifyHandoffToken(token: string): { email: string } | null {
+  const p = verifyPurpose(token, "sso-handoff");
+  return p ? { email: p.uid } : null;
+}
+
 function signPurpose(uid: string, purpose: string, ttlMs: number): string {
   if (MISSING()) throw new Error("AUTH_SECRET is required in production.");
   const data = Buffer.from(JSON.stringify({ uid, purpose, exp: Date.now() + ttlMs })).toString("base64url");
