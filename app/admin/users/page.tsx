@@ -6,6 +6,7 @@ import { Trash2, Shield, MapPin } from "lucide-react";
 import { BUILDINGS } from "@/lib/data";
 import { getBuildingsMeta } from "@/lib/plan-store";
 import { PageHeader } from "@/components/page-header";
+import { UserCsvImport } from "@/components/user-csv-import";
 import { StatusPill } from "@/components/status-pill";
 
 type Role = "global-admin" | "site-admin" | "staff";
@@ -151,7 +152,11 @@ export default function UsersPage() {
 
   return (
     <div className="animate-fade-up">
-      <PageHeader title="Users & roles" subtitle="Create accounts and set roles. Microsoft & Google sign-ins are added automatically on first login." />
+      <PageHeader
+        title="Users & roles"
+        subtitle="Create accounts and set roles. Microsoft & Google sign-ins are added automatically on first login."
+        action={<UserCsvImport onImported={loadUsers} />}
+      />
 
       {loadError && (
         <div className="mb-6 rounded-[12px] border border-amber/40 bg-amber/10 px-4 py-3 text-[12.5px] text-txt">{loadError}</div>

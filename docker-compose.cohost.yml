@@ -82,6 +82,14 @@ services:
       VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
       VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-}
       VAPID_SUBJECT: ${VAPID_SUBJECT:-}
+      # Transactional email via Resend (recommended). If set, ALL app email goes through it instead
+      # of Microsoft 365. RESEND_FROM must be a verified sender, e.g. "RoamHub360 <noreply@roamhub360.com>".
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      RESEND_FROM: ${RESEND_FROM:-}
+      # Stripe billing (optional). Set BILLING_PROVIDER=stripe (above) for live checkout + webhooks.
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
+      STRIPE_PRICE_ID: ${STRIPE_PRICE_ID:-}
     volumes:
       - roamhub_appdata:/app/data
     depends_on:

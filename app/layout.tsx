@@ -11,6 +11,7 @@ import { LocationProvider } from "@/components/location-context";
 import { AssistantWidget } from "@/components/assistant-widget";
 import { LiveProvider } from "@/components/live-provider";
 import { PwaRegister } from "@/components/pwa-register";
+import { CookieConsent } from "@/components/cookie-consent";
 import { currentTenantId } from "@/lib/server/tenant";
 import { getTenantBranding } from "@/lib/server/tenants";
 
@@ -71,6 +72,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
             </div>
             <LiveProvider />
             <PwaRegister />
+            <CookieConsent />
             <Toaster position="bottom-right" />
           </TooltipProvider>
           </LocationProvider>

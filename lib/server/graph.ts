@@ -2,6 +2,7 @@ import "server-only";
 import { brand } from "../brand";
 import { DEFAULT_TENANT, currentTenantId } from "./tenant";
 import { getIntegrationCreds } from "./tenant-integration";
+import { sendViaEsp } from "./mailer";
 
 // Microsoft Graph (app-only / client credentials). Sends mail from the brand mailbox, reserves
 // room mailboxes, and reads the directory. Credentials are resolved PER TENANT (Commercial SaaS
@@ -95,10 +96,13 @@ export async function graphPhotoDataUrl(userKey: string, tenantId?: string): Pro
 }
 
 export async function sendMail(to: string, subject: string, html: string, tenantId?: string): Promise<boolean> {
+  // Prefer the dedicated ESP (Resend) when configured — reliable, no dependency on any customer's
+  // Microsoft 365. Falls through to the Graph mailbox only if the ESP is off or the send failed.
+  if (await sendViaEsp(to, subject, html)) return true;
   const t = tenantId ?? (await currentTenantId());
   const creds = await credsFor(t);
   const from = creds?.mailFrom; // per-tenant sender (CP5); env MAIL_FROM for the default tenant
-  if (!creds || !from) return false; // no Graph, or no sender mailbox configured for this tenant
+  if (!creds || !from) return false; // no ESP, no Graph, or no sender mailbox configured
   await gfetch(
     `/users/${encodeURIComponent(from)}/sendMail`,
     {
