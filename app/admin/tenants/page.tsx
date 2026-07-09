@@ -2,10 +2,10 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { toast } from "sonner";
-import { Shield, Settings2, ExternalLink, UserPlus, Trash2 } from "lucide-react";
+import { Shield, Settings2, ExternalLink, UserPlus, Trash2, Download } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { StatusPill } from "@/components/status-pill";
-import { getTenantDetail, patchTenant, impersonateTenant, getTenantUsers, createTenantUser, deleteTenantUser, type TenantDetail, type TenantUser } from "@/lib/api";
+import { getTenantDetail, patchTenant, impersonateTenant, getTenantUsers, createTenantUser, deleteTenantUser, tenantExportUrl, deleteTenant, type TenantDetail, type TenantUser } from "@/lib/api";
 
 interface Tenant {
   id: string;
@@ -242,6 +242,20 @@ function ManagePanel({ slug, onClose, onChanged }: { slug: string; onClose: () =
     } else toast.error("Could not remove", { description: res.error });
   }
 
+  async function purge() {
+    const typed = window.prompt(`This permanently deletes the "${slug}" workspace and ALL its data (users, bookings, floor plans). This cannot be undone.\n\nType the workspace slug to confirm:`);
+    if (typed == null) return;
+    if (typed !== slug) return toast.error("Slug didn't match — nothing deleted.");
+    setBusy(true);
+    const res = await deleteTenant(slug, typed);
+    setBusy(false);
+    if (res.ok) {
+      toast.success(`Workspace "${slug}" permanently deleted`);
+      onChanged();
+      onClose();
+    } else toast.error("Could not delete", { description: res.error });
+  }
+
   const suspended = d?.tenant.status === "suspended";
   const disabled = d?.tenant.features ?? [];
   const toggleFeature = (key: string) => {
@@ -377,6 +391,20 @@ function ManagePanel({ slug, onClose, onChanged }: { slug: string; onClose: () =
                 </label>
               </div>
               <button onClick={saveBranding} disabled={busy} className="mt-3 rounded-[9px] bg-primary px-3 py-2 text-[12.5px] font-semibold text-primary-foreground hover:bg-orange-soft disabled:opacity-50">Save branding</button>
+            </div>
+
+            {/* Data & lifecycle (GDPR) */}
+            <div className="mb-4 rounded-[12px] border border-destructive/30 p-3">
+              <span className="mb-2 block text-[12px] font-semibold uppercase tracking-[0.05em] text-txt-mute">Data &amp; lifecycle</span>
+              <div className="flex flex-wrap items-center gap-2">
+                <a href={tenantExportUrl(slug)} className="inline-flex items-center gap-1.5 rounded-[9px] border bg-panel-2 px-2.5 py-1.5 text-[12.5px] font-semibold hover:border-primary">
+                  <Download className="size-3.5" /> Export data (JSON)
+                </a>
+                <button onClick={purge} disabled={busy} className="inline-flex items-center gap-1.5 rounded-[9px] border border-destructive/50 px-2.5 py-1.5 text-[12.5px] font-semibold text-destructive hover:bg-destructive/10 disabled:opacity-50">
+                  <Trash2 className="size-3.5" /> Delete workspace &amp; all data
+                </button>
+              </div>
+              <p className="mt-2 text-[11px] text-txt-mute">Export a full JSON snapshot (GDPR data request), or permanently erase the workspace on offboarding. Deletion is irreversible.</p>
             </div>
 
             {/* Suspend */}

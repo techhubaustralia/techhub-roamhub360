@@ -103,6 +103,20 @@ export async function setTenantJson(name: string, data: unknown): Promise<void> 
   else await writeFileJson(path.join(DATA_DIR, t, `${name}.json`), data);
 }
 
+/** Permanently remove ALL stored files/blobs for a tenant (plans, buildings, images). Used by the
+ *  GDPR hard-delete. The default workspace is never purged. */
+export async function purgeTenantStorage(tenantId: string): Promise<void> {
+  if (tenantId === DEFAULT_TENANT) return;
+  if (useBlob) {
+    const c = await container();
+    for await (const b of c.listBlobsFlat({ prefix: `${tenantId}/` })) {
+      await c.deleteBlob(b.name).catch(() => {});
+    }
+  } else {
+    await fs.rm(path.join(DATA_DIR, tenantId), { recursive: true, force: true }).catch(() => {});
+  }
+}
+
 export async function getStoredPlan(id: string): Promise<FloorPlan | null> {
   const t = await currentTenantId();
   return readJsonT<FloorPlan>(t, `${id}.json`, `plan-${id}.json`);

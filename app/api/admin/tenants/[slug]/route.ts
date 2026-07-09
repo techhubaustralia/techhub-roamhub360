@@ -103,3 +103,20 @@ export async function POST(_req: Request, { params }: { params: Promise<{ slug: 
   await audit(me.email, "tenant.impersonate", `${me.email} opened ${slug} workspace`);
   return NextResponse.json({ url: workspaceUrl(slug) });
 }
+
+// GDPR hard-delete: permanently erase a workspace and ALL its data. Irreversible. Requires the slug
+// echoed back in the body as confirmation. The default workspace can never be deleted.
+export async function DELETE(req: Request, { params }: { params: Promise<{ slug: string }> }) {
+  const me = await getUser();
+  if (!operator(me)) return NextResponse.json({ error: "Not authorized." }, { status: 403 });
+  const { slug } = await params;
+  if (slug === DEFAULT_TENANT) return NextResponse.json({ error: "The default workspace can't be deleted." }, { status: 400 });
+  if (!(await getTenantBySlug(slug))) return NextResponse.json({ error: "Workspace not found." }, { status: 404 });
+  const confirm = (await req.json().catch(() => ({})))?.confirm;
+  if (confirm !== slug) return NextResponse.json({ error: `Type the workspace slug "${slug}" to confirm deletion.` }, { status: 400 });
+
+  const { purgeTenant } = await import("@/lib/server/tenant-data");
+  const result = await purgeTenant(slug);
+  await audit(me.email, "tenant.delete", `PURGED ${slug}: ${JSON.stringify(result.deleted)}`);
+  return NextResponse.json({ ok: true, ...result });
+}

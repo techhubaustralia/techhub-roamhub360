@@ -197,6 +197,18 @@ export async function createTenantUser(
     return { ok: false, error: "Network error" };
   }
 }
+export function tenantExportUrl(slug: string): string {
+  return `/api/admin/tenants/${slug}/export`;
+}
+export async function deleteTenant(slug: string, confirm: string): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const r = await fetch(`/api/admin/tenants/${slug}`, { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ confirm }) });
+    const body = await r.json().catch(() => ({}));
+    return r.ok ? { ok: true } : { ok: false, error: (body as { error?: string }).error ?? "Could not delete" };
+  } catch {
+    return { ok: false, error: "Network error" };
+  }
+}
 export async function deleteTenantUser(slug: string, id: string): Promise<{ ok: boolean; error?: string }> {
   try {
     const r = await fetch(`/api/admin/tenants/${slug}/users`, { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id }) });
