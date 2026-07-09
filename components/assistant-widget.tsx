@@ -20,7 +20,7 @@ export function AssistantWidget() {
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
-  const [msgs, setMsgs] = useState<Msg[]>([{ role: "assistant", content: "Hi! I can find and book spaces, or tell you who's in. What do you need?" }]);
+  const [msgs, setMsgs] = useState<Msg[]>([{ role: "assistant", content: "Hi, I'm Hubbi 👋 I can find and book spaces, or tell you who's in. What do you need?" }]);
   const scroller = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -80,10 +80,10 @@ export function AssistantWidget() {
       {!open && (
         <button
           onClick={() => setOpen(true)}
-          aria-label="Open assistant"
+          aria-label="Open Hubbi, the booking assistant"
           className="fixed bottom-5 right-5 z-40 flex items-center gap-2 rounded-full bg-primary px-4 py-3 text-[13.5px] font-bold text-primary-foreground shadow-lg hover:bg-orange-soft"
         >
-          <Sparkles className="size-4" /> Ask
+          <Sparkles className="size-4" /> Ask Hubbi
         </button>
       )}
 
@@ -91,7 +91,7 @@ export function AssistantWidget() {
         <div className="fixed bottom-5 right-5 z-50 flex h-[540px] max-h-[85vh] w-[380px] max-w-[92vw] flex-col overflow-hidden rounded-[16px] border bg-card shadow-2xl">
           <header className="flex items-center gap-2 border-b bg-primary/[0.06] px-4 py-3">
             <Sparkles className="size-4 text-primary" />
-            <div className="flex-1 text-[14px] font-bold">Booking assistant</div>
+            <div className="flex-1 text-[14px] font-bold">Hubbi</div>
             <button aria-label="Close" onClick={() => setOpen(false)} className="grid size-7 place-items-center rounded-lg text-txt-mute hover:bg-panel-2"><X className="size-4" /></button>
           </header>
 
@@ -126,7 +126,7 @@ export function AssistantWidget() {
             onSubmit={(e) => { e.preventDefault(); send(input); }}
             className="flex items-center gap-2 border-t p-2.5"
           >
-            <input value={input} onChange={(e) => setInput(e.target.value)} placeholder="Ask to book, or who's in…" disabled={busy} className="ed-input flex-1 text-[13px]" />
+            <input value={input} onChange={(e) => setInput(e.target.value)} placeholder="Ask Hubbi to book, or who's in…" disabled={busy} className="ed-input flex-1 text-[13px]" />
             <button type="submit" disabled={busy || !input.trim()} aria-label="Send" className="grid size-9 shrink-0 place-items-center rounded-[10px] bg-primary text-primary-foreground hover:bg-orange-soft disabled:opacity-50">
               <Send className="size-4" />
             </button>
