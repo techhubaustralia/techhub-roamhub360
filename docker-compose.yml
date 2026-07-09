@@ -44,7 +44,9 @@ services:
     environment:
       DATABASE_URL: ${DATABASE_URL}
       APP_URL: ${APP_URL}
-      AUTH_URL: ${APP_URL} # Auth.js canonical URL (redirects behind the proxy)
+      # Don't set AUTH_URL — it pins auth redirects to one host and breaks per-tenant subdomains.
+      # trustHost:true + AUTH_TRUST_HOST make Auth.js use the real (proxy-forwarded) request host.
+      AUTH_TRUST_HOST: "true"
       CHECKIN_SECRET: ${CHECKIN_SECRET:?required — the app refuses to boot without it}
       JOBS_SECRET: ${JOBS_SECRET}
       AUTH_SECRET: ${AUTH_SECRET:?required for login sessions}

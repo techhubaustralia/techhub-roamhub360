@@ -175,6 +175,38 @@ export async function impersonateTenant(slug: string): Promise<{ ok: boolean; ur
   }
 }
 
+// ---- Control-plane user management for a specific client workspace (platform admin) ----
+export interface TenantUser { id: string; email: string; name?: string | null; role: string; sites?: string[]; multiBook?: boolean; provider?: string | null }
+export async function getTenantUsers(slug: string): Promise<TenantUser[]> {
+  try {
+    const r = await fetch(`/api/admin/tenants/${slug}/users`, { cache: "no-store" });
+    return r.ok ? (((await r.json()) as { users: TenantUser[] }).users ?? []) : [];
+  } catch {
+    return [];
+  }
+}
+export async function createTenantUser(
+  slug: string,
+  input: { email: string; name?: string; password: string; role: string },
+): Promise<{ ok: boolean; user?: TenantUser; error?: string }> {
+  try {
+    const r = await fetch(`/api/admin/tenants/${slug}/users`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(input) });
+    const body = await r.json().catch(() => ({}));
+    return r.ok ? { ok: true, user: body as TenantUser } : { ok: false, error: (body as { error?: string }).error ?? "Could not create user" };
+  } catch {
+    return { ok: false, error: "Network error" };
+  }
+}
+export async function deleteTenantUser(slug: string, id: string): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const r = await fetch(`/api/admin/tenants/${slug}/users`, { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id }) });
+    const body = await r.json().catch(() => ({}));
+    return r.ok ? { ok: true } : { ok: false, error: (body as { error?: string }).error ?? "Could not delete" };
+  } catch {
+    return { ok: false, error: "Network error" };
+  }
+}
+
 // ---- Licensing (Commercial SaaS CP2, admin) ----
 export interface LicenseSummary {
   tier: string;

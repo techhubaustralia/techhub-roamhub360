@@ -1,5 +1,9 @@
 import "server-only";
-import { currentTenantId } from "./tenant";
+import { currentTenantId, DEFAULT_TENANT } from "./tenant";
+
+// Rows belong to a tenant. On the DEFAULT workspace we also match legacy rows whose tenantId was
+// never stamped (null), so the very first bootstrap admin stays visible and counted.
+const tenantWhere = (t: string) => (t === DEFAULT_TENANT ? { OR: [{ tenantId: t }, { tenantId: null }] } : { tenantId: t });
 
 // App user store (Postgres via Prisma). Source of truth for identity + role for
 // both local (email/password) and Entra (SSO) users. Requires DATABASE_URL.
@@ -110,9 +114,11 @@ export async function createUser(input: {
   return { id: u.id, email: u.email, name: u.name, role: u.role, sites: u.sites, multiBook: u.multiBook, provider: u.provider };
 }
 
-export async function listUsers(): Promise<Omit<UserRow, "tenantId">[]> {
+export async function listUsers(tenantId?: string): Promise<Omit<UserRow, "tenantId">[]> {
   const p = await prisma();
+  const t = tenantId ?? (await currentTenantId());
   return p.user.findMany({
+    where: tenantWhere(t),
     orderBy: { createdAt: "desc" },
     select: { id: true, email: true, name: true, role: true, sites: true, multiBook: true, provider: true },
   });
@@ -145,10 +151,11 @@ export async function deleteUser(id: string): Promise<void> {
   await p.user.delete({ where: { id } });
 }
 
-/** Count global admins — used to prevent removing/demoting the last one. */
-export async function globalAdminCount(): Promise<number> {
+/** Count global admins IN A TENANT — used to prevent removing/demoting a workspace's last one. */
+export async function globalAdminCount(tenantId?: string): Promise<number> {
   const p = await prisma();
-  return p.user.count({ where: { role: "global-admin" } });
+  const t = tenantId ?? (await currentTenantId());
+  return p.user.count({ where: { ...tenantWhere(t), role: "global-admin" } });
 }
 
 /** Number of users in a tenant (0 without a DB). For the onboarding checklist (G1). */
