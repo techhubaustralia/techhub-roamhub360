@@ -51,6 +51,7 @@ function Stat({ label, value, sub }: { label: string; value: string; sub?: strin
 export default function LicensePage() {
   const [s, setS] = useState<LicenseSummary | null>(null);
   const [loading, setLoading] = useState(true);
+  const [checkingOut, setCheckingOut] = useState(false);
 
   useEffect(() => {
     getLicense().then((x) => {
@@ -58,6 +59,13 @@ export default function LicensePage() {
       setLoading(false);
     });
   }, []);
+
+  async function subscribe() {
+    setCheckingOut(true);
+    const res = await fetch("/api/billing", { method: "POST" }).then((r) => r.json()).catch(() => null);
+    if (res?.url) window.location.href = res.url as string;
+    else setCheckingOut(false);
+  }
 
   return (
     <div className="animate-fade-up max-w-2xl">
@@ -79,6 +87,11 @@ export default function LicensePage() {
             <Stat label="Floors per site" value={`${s.maxFloorsPerSite}`} sub="Maximum" />
             <Stat label="Renews" value={s.daysLeft != null ? `${s.daysLeft} d` : "—"} sub={fmtDate(s.expiresAt)} />
           </div>
+          {s.billing?.configured && (
+            <button onClick={subscribe} disabled={checkingOut} className="mt-5 rounded-[11px] bg-primary px-4 py-2.5 text-[13.5px] font-semibold text-primary-foreground hover:bg-orange-soft disabled:opacity-50">
+              {checkingOut ? "Opening checkout…" : s.effective === "active" ? "Manage subscription" : "Subscribe now"}
+            </button>
+          )}
           <p className="mt-5 text-[12px] text-txt-mute">
             Need more sites, floors or a longer term? Contact TechHub Australia — changes take effect immediately.
             {s.billing && !s.billing.configured && <span className="ml-1">Billing is managed directly by TechHub Australia.</span>}
