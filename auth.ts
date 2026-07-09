@@ -7,6 +7,7 @@ import bcrypt from "bcryptjs";
 import { authConfig } from "@/auth.config";
 import { findUserByEmail, upsertSsoUser } from "@/lib/server/users";
 import { verifyTeamsSsoToken } from "@/lib/server/teams-token";
+import { rateLimit } from "@/lib/server/rate-limit";
 
 // Full auth (Node runtime). Local email/password is always available; Microsoft
 // Entra SSO is enabled only when configured — so organisations without Microsoft
@@ -19,6 +20,9 @@ const providers: Provider[] = [
       const email = String(creds?.email ?? "").toLowerCase().trim();
       const password = String(creds?.password ?? "");
       if (!email || !password) return null;
+      // Brute-force throttle: cap failed attempts per account (20 / 15 min). A correct login
+      // still succeeds within the window; only guessing is slowed.
+      if (!rateLimit(`login:${email}`, 20, 15 * 60 * 1000).ok) return null;
       const u = await findUserByEmail(email);
       if (!u?.passwordHash) return null; // no local password (SSO-only or unknown)
       const ok = await bcrypt.compare(password, u.passwordHash);

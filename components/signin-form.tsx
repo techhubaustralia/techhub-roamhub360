@@ -67,6 +67,7 @@ export function SignInForm({ entraEnabled, googleEnabled, bare = false }: { entr
               Password
               <input type="password" required value={password} onChange={(e) => setPassword(e.target.value)} className="ed-input" placeholder="••••••••" autoComplete="current-password" />
             </label>
+            <a href="/forgot" className="-mt-1 self-end text-[12px] text-primary hover:underline">Forgot password?</a>
             {error && (
               <p className="text-[13px] text-destructive" role="alert">
                 {error}

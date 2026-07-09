@@ -187,7 +187,7 @@ export async function getTenantUsers(slug: string): Promise<TenantUser[]> {
 }
 export async function createTenantUser(
   slug: string,
-  input: { email: string; name?: string; password: string; role: string },
+  input: { email: string; name?: string; password?: string; role: string; invite?: boolean },
 ): Promise<{ ok: boolean; user?: TenantUser; error?: string }> {
   try {
     const r = await fetch(`/api/admin/tenants/${slug}/users`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(input) });

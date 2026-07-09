@@ -31,10 +31,11 @@ interface FormState {
   sites: string[];
   multiBook: boolean;
   provider?: string;
+  invite?: boolean; // email a set-password link instead of setting one (new users only)
 }
 
 const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
-const blank = (): FormState => ({ email: "", name: "", password: "", role: "staff", sites: [], multiBook: false });
+const blank = (): FormState => ({ email: "", name: "", password: "", role: "staff", sites: [], multiBook: false, invite: true });
 
 function roleLabel(r: Role): string {
   return r === "global-admin" ? "Global Admin" : r === "site-admin" ? "Site Admin" : "Staff";
@@ -77,7 +78,8 @@ export default function UsersPage() {
 
   const emailValid = EMAIL_RE.test(form.email.trim());
   const isSso = Boolean(form.provider && form.provider !== "credentials");
-  const passwordValid = editing ? form.password.length === 0 || form.password.length >= 8 : form.password.length >= 8;
+  const inviting = !editing && !isSso && !!form.invite;
+  const passwordValid = editing ? form.password.length === 0 || form.password.length >= 8 : inviting || form.password.length >= 8;
   const sitesValid = form.role !== "site-admin" || form.sites.length > 0;
   const canSave = (editing || emailValid) && form.name.trim().length > 0 && (isSso || passwordValid) && sitesValid && !saving;
 
@@ -108,7 +110,7 @@ export default function UsersPage() {
       res = await fetch("/api/users", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: form.email.trim().toLowerCase(), name: form.name.trim(), password: form.password, role: form.role, sites: sitesOut, multiBook: multiOut }),
+        body: JSON.stringify({ email: form.email.trim().toLowerCase(), name: form.name.trim(), password: inviting ? undefined : form.password, role: form.role, sites: sitesOut, multiBook: multiOut, invite: inviting }),
       });
     }
     setSaving(false);
@@ -117,7 +119,7 @@ export default function UsersPage() {
       toast.error(editing ? "Could not save changes" : "Could not create user", { description: e.error });
       return;
     }
-    toast(editing ? "User updated" : "User created", { description: `${form.name.trim()} → ${roleLabel(form.role)}` });
+    toast(editing ? "User updated" : inviting ? "Invite sent" : "User created", { description: `${form.name.trim()} → ${roleLabel(form.role)}` });
     reset();
     loadUsers();
   }
@@ -186,18 +188,24 @@ export default function UsersPage() {
           </label>
           <label className="block">
             <span className="mb-1 block text-[11.5px] font-medium text-txt-mute">
-              {isSso ? "Password (sign-in via " + providerLabel(form.provider!) + ")" : editing ? "Password (leave blank to keep)" : "Password"}
+              {isSso ? "Password (sign-in via " + providerLabel(form.provider!) + ")" : editing ? "Password (leave blank to keep)" : inviting ? "Password (they set their own)" : "Password"}
             </span>
             <input
               type="password"
               autoComplete="new-password"
-              value={form.password}
-              disabled={isSso}
+              value={inviting ? "" : form.password}
+              disabled={isSso || inviting}
               onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
-              placeholder={isSso ? "Managed by identity provider" : "At least 8 characters"}
+              placeholder={isSso ? "Managed by identity provider" : inviting ? "Sent as a secure email link" : "At least 8 characters"}
               className="w-full rounded-[10px] border bg-panel-2 px-3 py-2 text-[13px] disabled:opacity-60"
             />
-            {!isSso && form.password.length > 0 && form.password.length < 8 && <span className="mt-1 block text-[11px] text-destructive">At least 8 characters.</span>}
+            {!isSso && !inviting && form.password.length > 0 && form.password.length < 8 && <span className="mt-1 block text-[11px] text-destructive">At least 8 characters.</span>}
+            {!editing && !isSso && (
+              <label className="mt-2 flex items-center gap-2 text-[12px] text-txt-mute">
+                <input type="checkbox" checked={!!form.invite} onChange={(e) => setForm((f) => ({ ...f, invite: e.target.checked }))} className="size-3.5 accent-[var(--primary)]" />
+                Invite by email (they set their own password)
+              </label>
+            )}
           </label>
         </div>
 

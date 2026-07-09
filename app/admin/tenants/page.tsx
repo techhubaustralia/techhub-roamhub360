@@ -168,7 +168,7 @@ function ManagePanel({ slug, onClose, onChanged }: { slug: string; onClose: () =
   const [brandLogo, setBrandLogo] = useState<string | null>(null);
   // users
   const [users, setUsers] = useState<TenantUser[] | null>(null);
-  const [nu, setNu] = useState({ email: "", name: "", password: "", role: "global-admin" });
+  const [nu, setNu] = useState({ email: "", name: "", password: "", role: "global-admin", invite: true });
 
   const reloadUsers = useCallback(() => getTenantUsers(slug).then(setUsers), [slug]);
   useEffect(() => {
@@ -215,15 +215,20 @@ function ManagePanel({ slug, onClose, onChanged }: { slug: string; onClose: () =
   }
 
   async function addUser() {
-    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(nu.email) || nu.password.length < 8) {
-      return toast.error("Enter a valid email and a password of 8+ characters.");
-    }
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(nu.email)) return toast.error("Enter a valid email address.");
+    if (!nu.invite && nu.password.length < 8) return toast.error("Set a password of 8+ characters, or use invite by email.");
     setBusy(true);
-    const res = await createTenantUser(slug, { email: nu.email.trim().toLowerCase(), name: nu.name.trim() || undefined, password: nu.password, role: nu.role });
+    const res = await createTenantUser(slug, {
+      email: nu.email.trim().toLowerCase(),
+      name: nu.name.trim() || undefined,
+      role: nu.role,
+      invite: nu.invite,
+      password: nu.invite ? undefined : nu.password,
+    });
     setBusy(false);
     if (res.ok) {
-      toast.success("User added", { description: `${nu.email} → ${nu.role}` });
-      setNu({ email: "", name: "", password: "", role: "global-admin" });
+      toast.success(nu.invite ? "Invite sent" : "User added", { description: `${nu.email} → ${nu.role}` });
+      setNu({ email: "", name: "", password: "", role: "global-admin", invite: true });
       reloadUsers();
       onChanged(); // refresh the user count on the list
     } else toast.error("Could not add user", { description: res.error });
@@ -294,17 +299,23 @@ function ManagePanel({ slug, onClose, onChanged }: { slug: string; onClose: () =
               <div className="grid grid-cols-2 gap-2">
                 <input value={nu.email} onChange={(e) => setNu((s) => ({ ...s, email: e.target.value }))} placeholder="admin@client.com" className="rounded-[9px] border bg-panel-2 px-2 py-1.5 text-[13px]" />
                 <input value={nu.name} onChange={(e) => setNu((s) => ({ ...s, name: e.target.value }))} placeholder="Full name (optional)" className="rounded-[9px] border bg-panel-2 px-2 py-1.5 text-[13px]" />
-                <input type="password" value={nu.password} onChange={(e) => setNu((s) => ({ ...s, password: e.target.value }))} placeholder="Temp password (8+ chars)" className="rounded-[9px] border bg-panel-2 px-2 py-1.5 text-[13px]" />
                 <select value={nu.role} onChange={(e) => setNu((s) => ({ ...s, role: e.target.value }))} className="rounded-[9px] border bg-panel-2 px-2 py-1.5 text-[13px]">
                   <option value="global-admin">Global admin</option>
                   <option value="site-admin">Site admin</option>
                   <option value="staff">Staff</option>
                 </select>
+                {!nu.invite && (
+                  <input type="password" value={nu.password} onChange={(e) => setNu((s) => ({ ...s, password: e.target.value }))} placeholder="Temp password (8+ chars)" className="rounded-[9px] border bg-panel-2 px-2 py-1.5 text-[13px]" />
+                )}
               </div>
+              <label className="mt-2 flex items-center gap-2 text-[12.5px]">
+                <input type="checkbox" checked={nu.invite} onChange={(e) => setNu((s) => ({ ...s, invite: e.target.checked }))} className="size-4 accent-[var(--primary)]" />
+                Invite by email (they set their own password)
+              </label>
               <button onClick={addUser} disabled={busy} className="mt-3 inline-flex items-center gap-1.5 rounded-[9px] bg-primary px-3 py-2 text-[12.5px] font-semibold text-primary-foreground hover:bg-orange-soft disabled:opacity-50">
-                <UserPlus className="size-3.5" /> Add user to {d.tenant.name}
+                <UserPlus className="size-3.5" /> {nu.invite ? "Send invite to" : "Add user to"} {d.tenant.name}
               </button>
-              <p className="mt-2 text-[11px] text-txt-mute">They sign in at {d.workspaceUrl.replace("https://", "")} with this email &amp; password. Clients with Microsoft 365 can instead sign in with Microsoft and you promote them here.</p>
+              <p className="mt-2 text-[11px] text-txt-mute">Invited users get a secure set-password link by email. Clients with Microsoft 365 can instead sign in with Microsoft and you promote them here. Email delivery needs Microsoft 365 connected.</p>
             </div>
 
             {/* Licence */}

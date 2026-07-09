@@ -4,6 +4,7 @@ import { getUser } from "@/lib/server/auth";
 import { getTenantBySlug } from "@/lib/server/tenants";
 import { listUsers, createUser, getUserById, deleteUser, globalAdminCount } from "@/lib/server/users";
 import { audit } from "@/lib/server/db";
+import { sendInvite } from "@/lib/server/invite";
 
 // Control-plane user management for a SPECIFIC customer workspace. Platform operators only — lets
 // TechHub provision a client's users (e.g. their first Global Admin) without hopping subdomains.
@@ -12,10 +13,10 @@ export const runtime = "nodejs";
 
 async function guard(slug: string) {
   const me = await getUser();
-  if (!me.platformAdmin) return { error: NextResponse.json({ error: "Not authorized." }, { status: 403 }), me: null };
+  if (!me.platformAdmin) return { error: NextResponse.json({ error: "Not authorized." }, { status: 403 }), me: null, tenant: null };
   const tenant = await getTenantBySlug(slug);
-  if (!tenant) return { error: NextResponse.json({ error: "Workspace not found." }, { status: 404 }), me: null };
-  return { error: null, me };
+  if (!tenant) return { error: NextResponse.json({ error: "Workspace not found." }, { status: 404 }), me: null, tenant: null };
+  return { error: null, me, tenant };
 }
 
 export async function GET(_req: Request, { params }: { params: Promise<{ slug: string }> }) {
@@ -25,14 +26,17 @@ export async function GET(_req: Request, { params }: { params: Promise<{ slug: s
   return NextResponse.json({ users: await listUsers(slug) });
 }
 
-const CreateUser = z.object({
-  email: z.string().email(),
-  name: z.string().max(120).optional(),
-  password: z.string().min(8, "Password must be at least 8 characters"),
-  role: z.enum(["global-admin", "site-admin", "staff"]).default("staff"),
-  sites: z.array(z.string()).optional(),
-  multiBook: z.boolean().optional(),
-});
+const CreateUser = z
+  .object({
+    email: z.string().email(),
+    name: z.string().max(120).optional(),
+    password: z.string().min(8, "Password must be at least 8 characters").optional(),
+    role: z.enum(["global-admin", "site-admin", "staff"]).default("staff"),
+    sites: z.array(z.string()).optional(),
+    multiBook: z.boolean().optional(),
+    invite: z.boolean().optional(),
+  })
+  .refine((d) => d.invite || (d.password?.length ?? 0) >= 8, { message: "A password (8+ chars) is required unless you invite by email.", path: ["password"] });
 
 export async function POST(req: Request, { params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
@@ -40,10 +44,13 @@ export async function POST(req: Request, { params }: { params: Promise<{ slug: s
   if (g.error) return g.error;
   const parsed = CreateUser.safeParse(await req.json().catch(() => ({})));
   if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0]?.message ?? "Invalid input" }, { status: 400 });
+  const d = parsed.data;
   try {
-    const created = await createUser({ ...parsed.data, tenantId: slug }); // stamp the target workspace
-    await audit(g.me!.email, "tenant.user.create", `${created.email} (${created.role}) in ${slug}`);
-    return NextResponse.json(created, { status: 201 });
+    const created = await createUser({ email: d.email, name: d.name, password: d.invite ? undefined : d.password, role: d.role, sites: d.sites, multiBook: d.multiBook, tenantId: slug });
+    let invited = false;
+    if (d.invite) invited = await sendInvite(req, created, { tenantId: slug, workspaceName: g.tenant?.name, inviter: g.me!.email });
+    await audit(g.me!.email, "tenant.user.create", `${created.email} (${created.role}) in ${slug}${d.invite ? " — invited" : ""}`);
+    return NextResponse.json({ ...created, invited }, { status: 201 });
   } catch (e) {
     const msg = e instanceof Error && /unique/i.test(e.message) ? "A user with that email already exists." : "Could not create user.";
     return NextResponse.json({ error: msg }, { status: 400 });

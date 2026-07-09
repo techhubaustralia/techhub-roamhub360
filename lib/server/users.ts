@@ -90,15 +90,15 @@ export async function upsertSsoUser(email: string, name?: string, provider = "ss
 export async function createUser(input: {
   email: string;
   name?: string;
-  password: string;
+  password?: string; // omit to create an invited user with NO password until they set one
   role?: string;
   sites?: string[];
   multiBook?: boolean;
   tenantId?: string; // explicit tenant (e.g. self-serve signup provisioning a new workspace)
-}): Promise<Omit<UserRow, "tenantId">> {
-  const bcrypt = (await import("bcryptjs")).default;
+}): Promise<Omit<UserRow, "tenantId"> & { id: string }> {
   const p = await prisma();
-  const passwordHash = await bcrypt.hash(input.password, 10);
+  let passwordHash: string | null = null;
+  if (input.password) passwordHash = await (await import("bcryptjs")).default.hash(input.password, 10);
   const u = await p.user.create({
     data: {
       email: input.email.toLowerCase(),
@@ -112,6 +112,13 @@ export async function createUser(input: {
     },
   });
   return { id: u.id, email: u.email, name: u.name, role: u.role, sites: u.sites, multiBook: u.multiBook, provider: u.provider };
+}
+
+/** Set a user's password by id (reset / invite / self-service change). */
+export async function setUserPassword(id: string, password: string): Promise<void> {
+  const bcrypt = (await import("bcryptjs")).default;
+  const p = await prisma();
+  await p.user.update({ where: { id }, data: { passwordHash: await bcrypt.hash(password, 10) } });
 }
 
 export async function listUsers(tenantId?: string): Promise<Omit<UserRow, "tenantId">[]> {

@@ -45,6 +45,34 @@ const btn = (href: string, label: string, color?: string, b: EmailBrand = DEFAUL
 
 const when = (b: Booking) => `${esc(b.start.replace("T", " "))} → ${esc(b.end.replace("T", " "))}`;
 
+export function passwordResetEmail(resetUrl: string, eb: EmailBrand = DEFAULT_EMAIL_BRAND) {
+  return {
+    subject: `Reset your ${eb.productName} password`,
+    html: shell(
+      "Reset your password",
+      `<p>We received a request to reset your password. Click below to choose a new one — the link expires in 24 hours.</p>
+       <p style="margin-top:16px">${btn(resetUrl, "Reset password", undefined, eb)}</p>
+       <p style="color:#7491a0;font-size:12px;margin-top:16px">If you didn't request this, you can safely ignore this email — your password won't change.</p>`,
+      eb,
+    ),
+  };
+}
+
+export function inviteEmail(inviteUrl: string, opts: { workspaceName?: string; inviter?: string } = {}, eb: EmailBrand = DEFAULT_EMAIL_BRAND) {
+  const who = opts.inviter ? ` by ${esc(opts.inviter)}` : "";
+  const ws = opts.workspaceName ? esc(opts.workspaceName) : eb.productName;
+  return {
+    subject: `You've been invited to ${ws}`,
+    html: shell(
+      `Welcome to ${ws}`,
+      `<p>You've been invited${who} to join <b>${ws}</b> on ${eb.productName}. Set your password to get started — this link expires in 24 hours.</p>
+       <p style="margin-top:16px">${btn(inviteUrl, "Set your password", undefined, eb)}</p>
+       <p style="color:#7491a0;font-size:12px;margin-top:16px">Once set, sign in any time with your email and password.</p>`,
+      eb,
+    ),
+  };
+}
+
 export function confirmationEmail(b: Booking, eb: EmailBrand = DEFAULT_EMAIL_BRAND) {
   const onBehalf = b.bookedByEmail ? `<p style="color:#7491a0;font-size:13px">Booked on your behalf by ${esc(b.bookedByEmail)}.</p>` : "";
   return {
