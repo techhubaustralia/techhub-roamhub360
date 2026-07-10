@@ -103,7 +103,12 @@ export function Sidebar() {
         </div>
         <button
           type="button"
-          onClick={() => signOut({ callbackUrl: "/signin" })}
+          onClick={async () => {
+            // Redirect client-side (relative) so we stay on the current workspace subdomain — letting
+            // Auth.js build the URL leaks the container's internal 0.0.0.0:3000 address behind the proxy.
+            await signOut({ redirect: false });
+            window.location.assign("/signin");
+          }}
           title="Sign out"
           aria-label="Sign out"
           className="grid size-8 shrink-0 place-items-center rounded-[9px] text-txt-mute transition-colors hover:bg-panel-2 hover:text-foreground"

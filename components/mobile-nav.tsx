@@ -86,7 +86,7 @@ export function MobileNav() {
                 </>
               )}
             </nav>
-            <button type="button" onClick={() => signOut({ callbackUrl: "/signin" })} className="m-3 flex w-full items-center gap-2 rounded-[10px] px-3 py-2.5 text-[13.5px] font-medium text-txt-dim hover:bg-panel-2">
+            <button type="button" onClick={async () => { await signOut({ redirect: false }); window.location.assign("/signin"); }} className="m-3 flex w-full items-center gap-2 rounded-[10px] px-3 py-2.5 text-[13.5px] font-medium text-txt-dim hover:bg-panel-2">
               <LogOut className="size-4" /> Sign out
             </button>
           </aside>
