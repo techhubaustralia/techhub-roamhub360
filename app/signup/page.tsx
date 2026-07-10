@@ -53,8 +53,10 @@ export default function SignupPage() {
         {done ? (
           <div className="rounded-2xl border bg-card p-6 text-center shadow-lg">
             <CheckCircle2 className="mx-auto size-10 text-ok" />
-            <h2 className="mt-3 font-heading text-[17px] font-bold">Your workspace is ready</h2>
-            <p className="mt-1 text-[13px] text-txt-dim">You&apos;ve got a {done.trialDays}-day trial. Sign in to set it up.</p>
+            <h2 className="mt-3 font-heading text-[17px] font-bold">Check your email to get started</h2>
+            <p className="mt-1 text-[13px] text-txt-dim">
+              Your {done.trialDays}-day trial workspace is created. We&apos;ve emailed <span className="font-semibold text-foreground">{email}</span> a verification link — <b>you must verify your email before you can sign in.</b>
+            </p>
             <a href={done.url} className="mt-4 inline-flex items-center gap-1.5 rounded-[11px] bg-primary px-4 py-2.5 text-sm font-bold text-primary-foreground hover:bg-orange-soft">
               Go to your workspace <ArrowRight className="size-4" />
             </a>

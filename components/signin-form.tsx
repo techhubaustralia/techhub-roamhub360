@@ -12,6 +12,17 @@ export function SignInForm({ entraEnabled, googleEnabled, bare = false }: { entr
   const [showTotp, setShowTotp] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [failed, setFailed] = useState(false); // a sign-in attempt was rejected
+  const [resent, setResent] = useState(false);
+
+  async function resendVerification() {
+    await fetch("/api/account/resend-verification", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email }),
+    }).catch(() => {});
+    setResent(true);
+  }
 
   // OAuth providers require a fixed, pre-registered redirect URI, which a dynamic customer subdomain
   // can't have. So on a subdomain we route SSO through the main host (/sso/start), which runs OAuth
@@ -36,10 +47,11 @@ export function SignInForm({ entraEnabled, googleEnabled, bare = false }: { entr
     const res = await signIn("credentials", { email, password, totp, redirect: false });
     setLoading(false);
     if (res?.error) {
-      // Could be a wrong password OR a missing/invalid 2FA code — reveal the code field and let
-      // them add it (no enumeration: we don't say which). If they already entered one, it's wrong.
+      // Rejected: wrong password, an unverified new signup, or a missing/invalid 2FA code. We don't
+      // say which (no enumeration) — but reveal the 2FA field and offer to resend verification.
       setShowTotp(true);
-      setError(showTotp ? "Incorrect email, password, or authentication code." : "Check your details. If you use two-factor authentication, enter your 6-digit code below.");
+      setFailed(true);
+      setError(showTotp ? "Incorrect email, password, or authentication code." : "Couldn't sign you in. If you just created a workspace, verify your email first — check your inbox.");
     } else window.location.assign("/");
   }
 
@@ -107,6 +119,15 @@ export function SignInForm({ entraEnabled, googleEnabled, bare = false }: { entr
               <p className="text-[13px] text-destructive" role="alert">
                 {error}
               </p>
+            )}
+            {failed && (
+              resent ? (
+                <p className="text-[12px] text-txt-mute">If your account needs verifying, we&apos;ve resent the link — check your inbox.</p>
+              ) : (
+                <button type="button" onClick={resendVerification} className="self-start text-[12px] text-primary hover:underline">
+                  Resend verification email
+                </button>
+              )
             )}
             <button
               type="submit"

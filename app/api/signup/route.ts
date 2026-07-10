@@ -54,7 +54,7 @@ export async function POST(req: Request) {
   await createTenant({ slug, name: company });
   const expiresAt = new Date(Date.now() + TRIAL_DAYS * 86_400_000).toISOString();
   await saveLicense(slug, { tier: "trial", maxSites: 1, maxFloorsPerSite: 2, status: "active", expiresAt, graceDays: 7 });
-  const user = await createUser({ email, name, password, role: "global-admin", tenantId: slug });
+  const user = await createUser({ email, name, password, role: "global-admin", tenantId: slug, mustVerify: true });
 
   // Send an email-confirmation link (best-effort; never blocks signup).
   try {

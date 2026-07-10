@@ -30,6 +30,8 @@ const providers: Provider[] = [
       if (!u?.passwordHash) return null; // no local password (SSO-only or unknown)
       const ok = await bcrypt.compare(password, u.passwordHash);
       if (!ok) return null;
+      // Self-serve signups must confirm their email before the first sign-in.
+      if (u.mustVerify) return null;
       // Two-factor: if enabled, a valid current TOTP code is also required.
       if (u.totpEnabled && u.totpSecret) {
         const { verifyTotp } = await import("@/lib/server/totp");

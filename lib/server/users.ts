@@ -32,6 +32,7 @@ export interface UserRow {
   hidePresence?: boolean;
   notifyPresence?: boolean;
   emailVerified?: Date | null;
+  mustVerify?: boolean;
   totpSecret?: string | null;
   totpEnabled?: boolean;
 }
@@ -98,6 +99,7 @@ export async function createUser(input: {
   sites?: string[];
   multiBook?: boolean;
   tenantId?: string; // explicit tenant (e.g. self-serve signup provisioning a new workspace)
+  mustVerify?: boolean; // self-serve signup: block sign-in until the email is verified
 }): Promise<Omit<UserRow, "tenantId"> & { id: string }> {
   const p = await prisma();
   let passwordHash: string | null = null;
@@ -112,6 +114,7 @@ export async function createUser(input: {
       multiBook: input.multiBook ?? false,
       provider: "credentials",
       tenantId: input.tenantId ?? (await currentTenantId()),
+      mustVerify: input.mustVerify ?? false,
     },
   });
   return { id: u.id, email: u.email, name: u.name, role: u.role, sites: u.sites, multiBook: u.multiBook, provider: u.provider };
@@ -124,10 +127,10 @@ export async function setUserPassword(id: string, password: string): Promise<voi
   await p.user.update({ where: { id }, data: { passwordHash: await bcrypt.hash(password, 10) } });
 }
 
-/** Mark a user's email address as verified. */
+/** Mark a user's email as verified — clears the sign-in block. */
 export async function setUserEmailVerified(id: string): Promise<void> {
   const p = await prisma();
-  await p.user.update({ where: { id }, data: { emailVerified: new Date() } });
+  await p.user.update({ where: { id }, data: { emailVerified: new Date(), mustVerify: false } });
 }
 
 /** Store a pending 2FA secret (not yet enabled). */

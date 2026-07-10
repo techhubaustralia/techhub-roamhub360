@@ -37,9 +37,9 @@ function VerifyInner() {
         {state === "loading" ? <span className="animate-pulse">•••</span> : state === "ok" ? "✅" : "⚠️"}
       </div>
       <h1 className="mt-5 text-2xl font-semibold">{state === "loading" ? "Confirming…" : state === "ok" ? "Email confirmed" : "Couldn't confirm"}</h1>
-      {state === "ok" && <p className="mt-2 text-muted-foreground">Thanks — your email is verified.</p>}
+      {state === "ok" && <p className="mt-2 text-muted-foreground">Thanks — your email is verified. You can now sign in.</p>}
       {state === "error" && <p className="mt-2 text-muted-foreground">{msg}</p>}
-      <Link href="/" className="mt-6 inline-block w-full rounded-[12px] bg-primary px-4 py-3 text-[15px] font-semibold text-primary-foreground">Continue</Link>
+      <Link href="/signin" className="mt-6 inline-block w-full rounded-[12px] bg-primary px-4 py-3 text-[15px] font-semibold text-primary-foreground">{state === "ok" ? "Sign in" : "Back to sign in"}</Link>
     </div>
   );
 }

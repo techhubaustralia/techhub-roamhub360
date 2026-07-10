@@ -156,6 +156,7 @@ model User {
   hidePresence Boolean  @default(false) // Team Build-Up C: opt out of the "Who's in" board
   notifyPresence Boolean @default(false) // Team Build-Up D: receive the daily "who's in" digest
   emailVerified  DateTime? // set when the user confirms their email (self-serve signup)
+  mustVerify     Boolean   @default(false) // self-serve signup: cannot sign in until email verified
   totpSecret     String?   // base32 TOTP secret (2FA); null = 2FA not set up
   totpEnabled    Boolean   @default(false) // 2FA active (secret confirmed)
   createdAt    DateTime @default(now())
