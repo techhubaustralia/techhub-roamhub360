@@ -103,11 +103,20 @@ export async function sendMail(to: string, subject: string, html: string, tenant
     return true;
   }
   const t = tenantId ?? (await currentTenantId());
-  const creds = await credsFor(t);
-  const from = creds?.mailFrom; // per-tenant sender (CP5); env MAIL_FROM for the default tenant
+  // Prefer the workspace's own mailbox (if it connected M365). Otherwise fall back to the PLATFORM
+  // mailbox (default-tenant env creds, e.g. donotreply@roamhub360.com) so transactional email —
+  // invites, password resets, verification — works for customer workspaces that haven't set up
+  // their own Microsoft 365. Sends still authenticate against whichever tenant owns the mailbox.
+  let creds = await credsFor(t);
+  let sendTenant = t;
+  if (!creds && t !== DEFAULT_TENANT) {
+    creds = await credsFor(DEFAULT_TENANT);
+    sendTenant = DEFAULT_TENANT;
+  }
+  const from = creds?.mailFrom;
   if (!creds || !from) {
-    console.error(`[mail] NOT SENT to ${to}: no mail config for tenant "${t}" (creds=${!!creds}, from=${from ?? "unset"})`);
-    return false; // no ESP, no Graph, or no sender mailbox configured
+    console.error(`[mail] NOT SENT to ${to}: no mail config for tenant "${t}" and no platform fallback (set AZURE_TENANT_ID/GRAPH_CLIENT_ID/GRAPH_CLIENT_SECRET/MAIL_FROM)`);
+    return false;
   }
   try {
     await gfetch(
@@ -119,12 +128,12 @@ export async function sendMail(to: string, subject: string, html: string, tenant
           saveToSentItems: false,
         }),
       },
-      t,
+      sendTenant,
     );
-    console.log(`[mail] sent to ${to} from ${from} (tenant "${t}")`);
+    console.log(`[mail] sent to ${to} from ${from} (requested "${t}"${sendTenant !== t ? ", via platform mailbox" : ""})`);
     return true;
   } catch (e) {
-    console.error(`[mail] FAILED to ${to} from ${from} (tenant "${t}"): ${e instanceof Error ? e.message : String(e)}`);
+    console.error(`[mail] FAILED to ${to} from ${from} (tenant "${sendTenant}"): ${e instanceof Error ? e.message : String(e)}`);
     return false; // callers treat false as "not sent"; never throw out of sendMail
   }
 }
