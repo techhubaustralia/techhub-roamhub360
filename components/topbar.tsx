@@ -6,7 +6,10 @@ import { NotificationsBell } from "./notifications-bell";
 
 export function Topbar() {
   return (
-    <header className="flex items-center gap-3 border-b bg-card px-4 py-3 md:px-6">
+    <header
+      className="flex items-center gap-3 border-b bg-card px-4 py-3 md:px-6"
+      style={{ paddingTop: "calc(0.75rem + env(safe-area-inset-top))" }}
+    >
       <MobileNav />
       <LocationPicker />
       <div className="flex-1" />

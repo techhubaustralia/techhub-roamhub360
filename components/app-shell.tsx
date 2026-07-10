@@ -5,6 +5,7 @@ import { isBareRoute } from "@/lib/bare-routes";
 import { Sidebar } from "@/components/sidebar";
 import { Topbar } from "@/components/topbar";
 import { AssistantWidget } from "@/components/assistant-widget";
+import { MobileTabBar } from "@/components/mobile-tab-bar";
 
 // Decides the app chrome at the top level. On standalone/full-screen routes (sign-in, password
 // reset, SSO handoff, legal, QR check-in) it renders ONLY the page — no sidebar/topbar — so those
@@ -33,11 +34,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <div className="no-print">
             <Topbar />
           </div>
-          <main id="main" className="flex-1 overflow-auto px-6 py-6">
+          <main id="main" className="flex-1 overflow-auto px-4 py-6 pb-24 sm:px-6 md:pb-6">
             {children}
           </main>
         </div>
       </div>
+      <MobileTabBar />
       <div className="no-print">
         <AssistantWidget />
       </div>

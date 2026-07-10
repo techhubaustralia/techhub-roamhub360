@@ -35,6 +35,7 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = {
   themeColor: "#0a1830",
+  viewportFit: "cover", // lets content pad around notches / gesture bars via env(safe-area-inset-*)
 };
 
 export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

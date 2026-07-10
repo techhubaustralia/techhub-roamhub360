@@ -81,7 +81,7 @@ export function AssistantWidget() {
         <button
           onClick={() => setOpen(true)}
           aria-label="Open Hubbi, the booking assistant"
-          className="fixed bottom-5 right-5 z-40 flex items-center gap-2 rounded-full bg-primary px-4 py-3 text-[13.5px] font-bold text-primary-foreground shadow-lg hover:bg-orange-soft"
+          className="fixed bottom-20 right-4 z-40 flex items-center gap-2 rounded-full bg-primary px-4 py-3 text-[13.5px] font-bold text-primary-foreground shadow-lg hover:bg-orange-soft md:bottom-5 md:right-5"
         >
           <Sparkles className="size-4" /> Ask Hubbi
         </button>
