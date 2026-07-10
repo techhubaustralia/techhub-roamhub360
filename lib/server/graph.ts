@@ -102,20 +102,15 @@ export async function sendMail(to: string, subject: string, html: string, tenant
     console.log(`[mail] sent via ESP to ${to}`);
     return true;
   }
-  const t = tenantId ?? (await currentTenantId());
-  // Prefer the workspace's own mailbox (if it connected M365). Otherwise fall back to the PLATFORM
-  // mailbox (default-tenant env creds, e.g. donotreply@roamhub360.com) so transactional email —
-  // invites, password resets, verification — works for customer workspaces that haven't set up
-  // their own Microsoft 365. Sends still authenticate against whichever tenant owns the mailbox.
-  let creds = await credsFor(t);
-  let sendTenant = t;
-  if (!creds && t !== DEFAULT_TENANT) {
-    creds = await credsFor(DEFAULT_TENANT);
-    sendTenant = DEFAULT_TENANT;
-  }
+  const t = tenantId ?? (await currentTenantId()); // kept for logging/context only
+  // ONE sender for the whole platform: EVERY email — every workspace, every function (bookings,
+  // invites, resets, verification, digests) — sends from the single central mailbox
+  // (default-tenant env creds, e.g. donotreply@roamhub360.com). Per-tenant Microsoft 365 is still
+  // used for calendar events + directory sync, just never for the "From" of email.
+  const creds = await credsFor(DEFAULT_TENANT);
   const from = creds?.mailFrom;
   if (!creds || !from) {
-    console.error(`[mail] NOT SENT to ${to}: no mail config for tenant "${t}" and no platform fallback (set AZURE_TENANT_ID/GRAPH_CLIENT_ID/GRAPH_CLIENT_SECRET/MAIL_FROM)`);
+    console.error(`[mail] NOT SENT to ${to}: platform mailbox not configured (set AZURE_TENANT_ID / GRAPH_CLIENT_ID / GRAPH_CLIENT_SECRET / MAIL_FROM)`);
     return false;
   }
   try {
@@ -128,12 +123,12 @@ export async function sendMail(to: string, subject: string, html: string, tenant
           saveToSentItems: false,
         }),
       },
-      sendTenant,
+      DEFAULT_TENANT,
     );
-    console.log(`[mail] sent to ${to} from ${from} (requested "${t}"${sendTenant !== t ? ", via platform mailbox" : ""})`);
+    console.log(`[mail] sent to ${to} from ${from} (for "${t}")`);
     return true;
   } catch (e) {
-    console.error(`[mail] FAILED to ${to} from ${from} (tenant "${sendTenant}"): ${e instanceof Error ? e.message : String(e)}`);
+    console.error(`[mail] FAILED to ${to} from ${from}: ${e instanceof Error ? e.message : String(e)}`);
     return false; // callers treat false as "not sent"; never throw out of sendMail
   }
 }
