@@ -5,10 +5,8 @@ import { brand } from "@/lib/brand";
 import { ThemeProvider } from "@/components/theme-provider";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "@/components/ui/sonner";
-import { Sidebar } from "@/components/sidebar";
-import { Topbar } from "@/components/topbar";
+import { AppShell } from "@/components/app-shell";
 import { LocationProvider } from "@/components/location-context";
-import { AssistantWidget } from "@/components/assistant-widget";
 import { LiveProvider } from "@/components/live-provider";
 import { PwaRegister } from "@/components/pwa-register";
 import { CookieConsent } from "@/components/cookie-consent";
@@ -53,23 +51,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
         <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false}>
           <LocationProvider>
           <TooltipProvider delay={150}>
-            <div className="grid h-screen grid-cols-1 md:grid-cols-[244px_1fr]">
-              <div className="contents no-print">
-                <Sidebar />
-              </div>
-              <div className="flex min-w-0 flex-col overflow-hidden">
-                <a href="#main" className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-2 focus:z-50 focus:rounded-[10px] focus:bg-primary focus:px-4 focus:py-2 focus:text-[13px] focus:font-semibold focus:text-primary-foreground">
-                  Skip to content
-                </a>
-                <div className="no-print">
-                  <Topbar />
-                </div>
-                <main id="main" className="flex-1 overflow-auto px-6 py-6">{children}</main>
-              </div>
-            </div>
-            <div className="no-print">
-              <AssistantWidget />
-            </div>
+            <AppShell>{children}</AppShell>
             <LiveProvider />
             <PwaRegister />
             <CookieConsent />
