@@ -98,23 +98,35 @@ export async function graphPhotoDataUrl(userKey: string, tenantId?: string): Pro
 export async function sendMail(to: string, subject: string, html: string, tenantId?: string): Promise<boolean> {
   // Prefer the dedicated ESP (Resend) when configured — reliable, no dependency on any customer's
   // Microsoft 365. Falls through to the Graph mailbox only if the ESP is off or the send failed.
-  if (await sendViaEsp(to, subject, html)) return true;
+  if (await sendViaEsp(to, subject, html)) {
+    console.log(`[mail] sent via ESP to ${to}`);
+    return true;
+  }
   const t = tenantId ?? (await currentTenantId());
   const creds = await credsFor(t);
   const from = creds?.mailFrom; // per-tenant sender (CP5); env MAIL_FROM for the default tenant
-  if (!creds || !from) return false; // no ESP, no Graph, or no sender mailbox configured
-  await gfetch(
-    `/users/${encodeURIComponent(from)}/sendMail`,
-    {
-      method: "POST",
-      body: JSON.stringify({
-        message: { subject, body: { contentType: "HTML", content: html }, toRecipients: [{ emailAddress: { address: to } }] },
-        saveToSentItems: false,
-      }),
-    },
-    t,
-  );
-  return true;
+  if (!creds || !from) {
+    console.error(`[mail] NOT SENT to ${to}: no mail config for tenant "${t}" (creds=${!!creds}, from=${from ?? "unset"})`);
+    return false; // no ESP, no Graph, or no sender mailbox configured
+  }
+  try {
+    await gfetch(
+      `/users/${encodeURIComponent(from)}/sendMail`,
+      {
+        method: "POST",
+        body: JSON.stringify({
+          message: { subject, body: { contentType: "HTML", content: html }, toRecipients: [{ emailAddress: { address: to } }] },
+          saveToSentItems: false,
+        }),
+      },
+      t,
+    );
+    console.log(`[mail] sent to ${to} from ${from} (tenant "${t}")`);
+    return true;
+  } catch (e) {
+    console.error(`[mail] FAILED to ${to} from ${from} (tenant "${t}"): ${e instanceof Error ? e.message : String(e)}`);
+    return false; // callers treat false as "not sent"; never throw out of sendMail
+  }
 }
 
 interface BookingEventOpts {
