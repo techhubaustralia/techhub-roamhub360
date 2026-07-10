@@ -255,9 +255,15 @@ Once you onboard customers on the **Tenants** page, each gets an isolated worksp
        }
    }
    ```
-   and a **wildcard site block** (leave the explicit `app.roamhub360.com` and helpdesk blocks as
-   they are — a more specific host always wins):
+   and make BOTH the explicit `app.roamhub360.com` block AND a wildcard block use `on_demand`:
    ```
+   app.roamhub360.com {
+       tls {
+           on_demand
+       }
+       reverse_proxy 127.0.0.1:3100
+   }
+
    *.roamhub360.com {
        tls {
            on_demand
@@ -266,6 +272,11 @@ Once you onboard customers on the **Tenants** page, each gets an isolated worksp
    }
    ```
    Then `systemctl reload caddy`.
+
+   > ⚠️ IMPORTANT: `app.roamhub360.com` must ALSO have `tls { on_demand }`. If it's a plain block
+   > (managed cert) sitting alongside the `*.roamhub360.com` on-demand wildcard, Caddy leaves it
+   > neither pre-provisioned nor on-demand-eligible → no certificate → the site fails the TLS
+   > handshake with `ERR_SSL_PROTOCOL_ERROR` while the on-demand subdomains work fine.
 
 Creating a workspace `acme` on the Tenants page then makes `https://acme.roamhub360.com` live
 automatically (Caddy fetches the cert on first visit, after `/api/tenants/verify` confirms the

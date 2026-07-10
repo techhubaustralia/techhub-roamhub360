@@ -5,6 +5,7 @@ import { getTenantBySlug } from "@/lib/server/tenants";
 import { DEFAULT_TENANT } from "@/lib/server/tenant";
 import { signHandoffToken } from "@/lib/server/account-token";
 import { brand } from "@/lib/brand";
+import { AuthShell } from "@/components/auth-shell";
 
 // Central-auth relay (main host). After OAuth completes here (fixed, registered redirect URI), we
 // hand the verified identity to the target tenant subdomain — but ONLY if this user is a member of
@@ -35,13 +36,13 @@ export default async function SsoRelay({ searchParams }: { searchParams: Promise
   const member = me.platformAdmin || (me.homeTenant ?? DEFAULT_TENANT) === slug;
   if (!member) {
     return (
-      <div className="mx-auto flex min-h-[80vh] max-w-sm flex-col justify-center px-6 text-center">
+      <AuthShell className="text-center">
         <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-amber-500/15 text-4xl">⚠️</div>
         <h1 className="mt-5 text-2xl font-semibold">Not a member of this workspace</h1>
         <p className="mt-2 text-muted-foreground">Your account isn&apos;t part of <span className="font-medium text-foreground">{slug}</span>. Ask that workspace&apos;s administrator to invite you.</p>
         <Link href="/" className="mt-6 inline-block w-full rounded-[12px] bg-primary px-4 py-3 text-[15px] font-semibold text-primary-foreground">Continue</Link>
         <p className="mt-10 text-xs text-muted-foreground">{brand.productName}</p>
-      </div>
+      </AuthShell>
     );
   }
 

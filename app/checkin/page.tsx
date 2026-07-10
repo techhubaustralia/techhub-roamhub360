@@ -4,6 +4,7 @@ import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { brand } from "@/lib/brand";
+import { AuthShell } from "@/components/auth-shell";
 
 type State =
   | { phase: "loading" }
@@ -43,7 +44,7 @@ function CheckinInner() {
   const loading = state.phase === "loading";
 
   return (
-    <div className="mx-auto flex min-h-[80vh] max-w-sm flex-col items-center justify-center px-6 text-center">
+    <AuthShell className="items-center text-center">
       <div
         className={`flex h-24 w-24 items-center justify-center rounded-full text-5xl ${
           loading ? "bg-muted" : ok ? "bg-emerald-500/15" : "bg-amber-500/15"
@@ -70,7 +71,7 @@ function CheckinInner() {
         </Link>
       </div>
       <p className="mt-10 text-xs text-muted-foreground">{brand.productName}</p>
-    </div>
+    </AuthShell>
   );
 }
 

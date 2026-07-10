@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { brand } from "@/lib/brand";
+import { AuthShell } from "@/components/auth-shell";
 
 export default function ForgotPage() {
   const [email, setEmail] = useState("");
@@ -22,7 +23,7 @@ export default function ForgotPage() {
   }
 
   return (
-    <div className="mx-auto flex min-h-[80vh] max-w-sm flex-col justify-center px-6">
+    <AuthShell>
       <h1 className="text-2xl font-semibold">Reset your password</h1>
       {sent ? (
         <p className="mt-3 text-muted-foreground">
@@ -49,6 +50,6 @@ export default function ForgotPage() {
       )}
       <Link href="/signin" className="mt-6 text-sm text-primary hover:underline">← Back to sign in</Link>
       <p className="mt-10 text-xs text-muted-foreground">{brand.productName}</p>
-    </div>
+    </AuthShell>
   );
 }

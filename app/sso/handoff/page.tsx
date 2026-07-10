@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { signIn } from "next-auth/react";
 import { brand } from "@/lib/brand";
+import { AuthShell } from "@/components/auth-shell";
 
 // Subdomain side of the SSO handoff: exchange the short-lived token from the main host for a session
 // on THIS workspace. Fails cleanly if the user isn't a member here.
@@ -38,11 +39,11 @@ function Handoff() {
 
 export default function SsoHandoffPage() {
   return (
-    <div className="mx-auto flex min-h-[80vh] max-w-sm flex-col justify-center px-6">
+    <AuthShell>
       <Suspense fallback={<div className="p-10 text-center text-muted-foreground">Loading…</div>}>
         <Handoff />
       </Suspense>
       <p className="mt-10 text-center text-xs text-muted-foreground">{brand.productName}</p>
-    </div>
+    </AuthShell>
   );
 }

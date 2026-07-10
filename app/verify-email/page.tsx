@@ -4,6 +4,7 @@ import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { brand } from "@/lib/brand";
+import { AuthShell } from "@/components/auth-shell";
 
 function VerifyInner() {
   const token = useSearchParams().get("token") ?? "";
@@ -45,11 +46,11 @@ function VerifyInner() {
 
 export default function VerifyEmailPage() {
   return (
-    <div className="mx-auto flex min-h-[80vh] max-w-sm flex-col justify-center px-6">
+    <AuthShell>
       <Suspense fallback={<div className="text-center text-muted-foreground">Loading…</div>}>
         <VerifyInner />
       </Suspense>
       <p className="mt-10 text-center text-xs text-muted-foreground">{brand.productName}</p>
-    </div>
+    </AuthShell>
   );
 }
