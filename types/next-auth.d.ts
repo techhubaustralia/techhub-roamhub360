@@ -9,6 +9,7 @@ declare module "next-auth" {
       sites?: string[];
       multiBook?: boolean;
       homeTenant?: string;
+      platformAdmin?: boolean;
     } & DefaultSession["user"];
   }
 }
@@ -20,5 +21,6 @@ declare module "next-auth/jwt" {
     multiBook?: boolean;
     uid?: string;
     homeTenant?: string;
+    platformAdmin?: boolean;
   }
 }

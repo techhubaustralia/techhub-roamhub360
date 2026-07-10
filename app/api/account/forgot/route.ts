@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { findUserByEmail } from "@/lib/server/users";
-import { signPwToken, requestOrigin } from "@/lib/server/account-token";
+import { signPwToken } from "@/lib/server/account-token";
+import { workspaceOrigin } from "@/lib/server/tenant";
 import { sendMail } from "@/lib/server/graph";
 import { passwordResetEmail, emailBrand } from "@/lib/server/email";
 import { rateLimit } from "@/lib/server/rate-limit";
@@ -25,7 +26,7 @@ export async function POST(req: Request) {
   try {
     const user = await findUserByEmail(email);
     if (user?.passwordHash && user.id) {
-      const url = `${requestOrigin(req)}/set-password?token=${encodeURIComponent(signPwToken(user.id))}`;
+      const url = `${workspaceOrigin(user.tenantId)}/set-password?token=${encodeURIComponent(signPwToken(user.id))}`;
       const mail = passwordResetEmail(url, await emailBrand(user.tenantId ?? undefined));
       await sendMail(user.email, mail.subject, mail.html, user.tenantId ?? undefined);
     }

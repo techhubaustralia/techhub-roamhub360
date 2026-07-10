@@ -26,3 +26,17 @@ export async function currentTenantId(): Promise<string> {
     return DEFAULT_TENANT;
   }
 }
+
+/** Absolute origin for a workspace, e.g. "https://acme.roamhub360.com" (or the main app host for the
+ *  default workspace). Used to build links (invites, resets) that land on the RIGHT subdomain — not
+ *  wherever the request happened to originate. Derived from APP_URL's apex. */
+export function workspaceOrigin(slug?: string | null): string {
+  const base = process.env.APP_URL || "https://app.roamhub360.com";
+  try {
+    const host = new URL(base).host;
+    const apex = host.split(".").slice(1).join(".") || host;
+    return !slug || slug === DEFAULT_TENANT ? base.replace(/\/+$/, "") : `https://${slug}.${apex}`;
+  } catch {
+    return !slug || slug === DEFAULT_TENANT ? "https://app.roamhub360.com" : `https://${slug}.roamhub360.com`;
+  }
+}

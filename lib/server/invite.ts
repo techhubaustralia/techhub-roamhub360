@@ -1,5 +1,6 @@
 import "server-only";
 import { signPwToken, requestOrigin } from "./account-token";
+import { workspaceOrigin } from "./tenant";
 import { sendMail } from "./graph";
 import { inviteEmail, emailBrand } from "./email";
 
@@ -11,7 +12,9 @@ export async function sendInvite(
   opts: { tenantId?: string; workspaceName?: string; inviter?: string } = {},
 ): Promise<boolean> {
   try {
-    const url = `${requestOrigin(req)}/set-password?token=${encodeURIComponent(signPwToken(user.id))}`;
+    // Link to the user's OWN workspace subdomain (not wherever the admin happened to send it from).
+    const origin = opts.tenantId ? workspaceOrigin(opts.tenantId) : requestOrigin(req);
+    const url = `${origin}/set-password?token=${encodeURIComponent(signPwToken(user.id))}`;
     const mail = inviteEmail(url, { workspaceName: opts.workspaceName, inviter: opts.inviter }, await emailBrand(opts.tenantId));
     return await sendMail(user.email, mail.subject, mail.html, opts.tenantId);
   } catch {

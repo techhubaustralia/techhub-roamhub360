@@ -9,6 +9,9 @@ import { findUserByEmail, upsertSsoUser } from "@/lib/server/users";
 import { verifyTeamsSsoToken } from "@/lib/server/teams-token";
 import { rateLimit } from "@/lib/server/rate-limit";
 
+// Break-glass platform operators (comma-separated env). They may access any workspace.
+const BOOTSTRAP_ADMINS = (process.env.BOOTSTRAP_ADMINS || "").split(",").map((s) => s.trim().toLowerCase()).filter(Boolean);
+
 // Full auth (Node runtime). Local email/password is always available; Microsoft
 // Entra SSO is enabled only when configured — so organisations without Microsoft
 // can still use RoamHub360 with local accounts.
@@ -110,6 +113,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     },
     async jwt({ token, user, trigger }) {
       const email = (user?.email ?? token.email)?.toString().toLowerCase();
+      // Platform-admin flag is cheap and set every time (so existing sessions get it without re-login).
+      if (email) token.platformAdmin = BOOTSTRAP_ADMINS.includes(email);
       // Attach role/sites from the User table on sign-in, on refresh, or if missing.
       if (email && (user || trigger === "update" || token.role === undefined)) {
         const u = await findUserByEmail(email).catch(() => null);
@@ -121,14 +126,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       }
       return token;
     },
-    async session({ session, token }) {
-      if (session.user) {
-        session.user.role = token.role as string | undefined;
-        session.user.sites = (token.sites as string[] | undefined) ?? [];
-        session.user.multiBook = Boolean(token.multiBook);
-        session.user.homeTenant = token.homeTenant as string | undefined;
-      }
-      return session;
-    },
+    // session callback is shared from auth.config (edge + node) — maps token claims onto the session.
   },
 });
