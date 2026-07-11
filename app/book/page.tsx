@@ -336,10 +336,10 @@ export default function BookPage() {
             <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-ok">
               <span className="size-2 animate-[pulse-dot_1.6s_infinite] rounded-full bg-ok" /> Live
             </span>
-            <button onClick={() => zoomBy(1.25)} title="Zoom in" className="grid size-9 place-items-center rounded-[9px] border bg-panel-2 text-txt-dim hover:text-foreground">
+            <button onClick={() => zoomBy(1.25)} title="Zoom in" aria-label="Zoom in" className="grid size-11 place-items-center rounded-[9px] border bg-panel-2 text-txt-dim hover:text-foreground md:size-9">
               <Plus className="size-4" />
             </button>
-            <button onClick={() => zoomBy(0.8)} title="Zoom out" className="grid size-9 place-items-center rounded-[9px] border bg-panel-2 text-txt-dim hover:text-foreground">
+            <button onClick={() => zoomBy(0.8)} title="Zoom out" aria-label="Zoom out" className="grid size-11 place-items-center rounded-[9px] border bg-panel-2 text-txt-dim hover:text-foreground md:size-9">
               <Minus className="size-4" />
             </button>
             <span className="w-10 text-center text-[12px] font-semibold text-txt-mute">{Math.round(zoom * 100)}%</span>

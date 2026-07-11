@@ -141,11 +141,11 @@ export default function TeamPage() {
         subtitle="See who from your workspace is booked or checked in — pick a day to plan around your team."
         action={
           <div className="flex items-center gap-1 rounded-[10px] border bg-card p-1">
-            <button aria-label="Previous day" onClick={() => setDate((d) => shiftDay(d, -1))} className="grid size-9 place-items-center rounded-lg hover:bg-panel-2">
+            <button aria-label="Previous day" onClick={() => setDate((d) => shiftDay(d, -1))} className="grid size-11 place-items-center rounded-lg hover:bg-panel-2 md:size-9">
               <ChevronLeft className="size-4" />
             </button>
             <input type="date" value={date} onChange={(e) => setDate(e.target.value || todayLocal())} className="ed-input !w-auto border-0 bg-transparent px-1 text-[13px] font-semibold" />
-            <button aria-label="Next day" onClick={() => setDate((d) => shiftDay(d, 1))} className="grid size-9 place-items-center rounded-lg hover:bg-panel-2">
+            <button aria-label="Next day" onClick={() => setDate((d) => shiftDay(d, 1))} className="grid size-11 place-items-center rounded-lg hover:bg-panel-2 md:size-9">
               <ChevronRight className="size-4" />
             </button>
           </div>

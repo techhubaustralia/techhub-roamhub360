@@ -26,8 +26,13 @@ export function LocationPicker() {
     (groups[o.region][o.country] ??= []).push(o);
   }
 
+  // Build the breadcrumb, dropping blanks/dashes AND consecutive duplicates (demo data often has
+  // region === country, which rendered an ugly "Australia › Australia").
   const full = office
-    ? [office.flag, office.region, office.country, office.b].filter((s) => s && s !== "—").join(" › ")
+    ? [office.region, office.country, office.b]
+        .filter((s) => s && s !== "—")
+        .filter((s, i, a) => s !== a[i - 1])
+        .join(" › ")
     : "No buildings";
   const short = office ? office.b : "No buildings"; // just the building name — compact for phones
 

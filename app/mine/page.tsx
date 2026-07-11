@@ -74,7 +74,8 @@ export default function MinePage() {
         }
       />
 
-      <div className="overflow-hidden rounded-[14px] border bg-card shadow-sm">
+      {/* Desktop: table. Mobile: card list (below) — a 6-col table can't fit a phone. */}
+      <div className="hidden overflow-hidden rounded-[14px] border bg-card shadow-sm md:block">
         <table className="w-full border-collapse text-[13px]">
           <thead>
             <tr className="text-left text-[10.5px] uppercase tracking-[0.05em] text-txt-mute">
@@ -122,6 +123,36 @@ export default function MinePage() {
             )}
           </tbody>
         </table>
+      </div>
+
+      {/* Mobile card list */}
+      <div className="flex flex-col gap-3 md:hidden">
+        {loading ? (
+          <div className="rounded-[14px] border bg-card p-8 text-center text-[13px] text-txt-mute">Loading…</div>
+        ) : shown.length === 0 ? (
+          <div className="rounded-[14px] border bg-card p-8 text-center text-[13px] text-txt-mute">
+            {showHistory ? "No past bookings." : <>No active bookings. <Link href="/book" className="font-semibold text-primary">Book a space</Link>.</>}
+          </div>
+        ) : (
+          shown.map((r) => (
+            <div key={r.id} className="rounded-[14px] border bg-card p-4 shadow-sm">
+              <div className="flex items-start justify-between gap-3">
+                <div className="text-[15px] font-bold">{r.spaceLabel}</div>
+                {pill(r)}
+              </div>
+              <div className="mt-1 text-[12.5px] text-txt-mute">{KIND_LABEL[r.kind] ?? r.kind} · {bName(r.buildingId)}</div>
+              <div className="mt-1 text-[12.5px]">{r.start.replace("T", " ")}<span className="text-txt-mute"> → {r.end.slice(11) || r.end}</span></div>
+              {isActiveBooking(r) && (
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <button onClick={() => setEditing(r)} className="rounded-[9px] border px-3 py-2 text-[12.5px] font-semibold hover:border-primary">Edit</button>
+                  {r.status === "Booked" && <button onClick={() => checkIn(r.id)} className="rounded-[9px] bg-primary px-3 py-2 text-[12.5px] font-semibold text-primary-foreground">Check in</button>}
+                  {r.status === "Checked in" && <button onClick={() => checkOut(r.id)} className="rounded-[9px] border border-ok/50 px-3 py-2 text-[12.5px] font-semibold text-ok">Check out</button>}
+                  <button onClick={() => cancel(r.id)} className="rounded-[9px] border border-destructive/50 px-3 py-2 text-[12.5px] font-semibold text-destructive">Cancel</button>
+                </div>
+              )}
+            </div>
+          ))
+        )}
       </div>
 
       {editing && (
