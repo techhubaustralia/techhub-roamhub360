@@ -130,7 +130,7 @@
   --line: #1e2e4c;
   --txt: #edf3fc;
   --txt-dim: #93a5c7;
-  --txt-mute: #5e7099;
+  --txt-mute: #748bb0; /* WCAG: ≥4.5:1 on cards (was #5e7099 @ 3.5:1) */
 
   --background: var(--paper);
   --foreground: var(--txt);

@@ -39,7 +39,7 @@ export function NotificationsBell() {
         onClick={() => setOpen((o) => { if (!o) load().catch(() => {}); return !o; })}
         title="Notifications"
         aria-label={`Notifications${items.length ? ` — ${items.length} upcoming` : ""}`}
-        className="relative grid size-9 place-items-center rounded-[9px] border bg-panel-2 text-txt-dim hover:text-foreground"
+        className="relative grid size-11 shrink-0 place-items-center rounded-[9px] border bg-panel-2 text-txt-dim hover:text-foreground md:size-9"
       >
         <Bell className="size-4" />
         {items.length > 0 && (

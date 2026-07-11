@@ -49,7 +49,7 @@ export function MobileNav() {
       <button
         onClick={() => setOpen(true)}
         aria-label="Open menu"
-        className="grid size-9 place-items-center rounded-[9px] border bg-panel-2 text-txt-dim md:hidden"
+        className="grid size-11 shrink-0 place-items-center rounded-[9px] border bg-panel-2 text-txt-dim md:hidden"
       >
         <Menu className="size-4" />
       </button>

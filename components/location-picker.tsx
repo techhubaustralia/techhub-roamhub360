@@ -26,21 +26,23 @@ export function LocationPicker() {
     (groups[o.region][o.country] ??= []).push(o);
   }
 
-  const label = office
+  const full = office
     ? [office.flag, office.region, office.country, office.b].filter((s) => s && s !== "—").join(" › ")
     : "No buildings";
+  const short = office ? office.b : "No buildings"; // just the building name — compact for phones
 
   return (
-    <div className="relative" ref={ref}>
+    <div className="relative min-w-0" ref={ref}>
       <button
         onClick={(e) => {
           e.stopPropagation();
           setOpen((o) => !o);
         }}
-        className="flex items-center gap-2 rounded-lg border bg-panel-2 px-2.5 py-1.5 text-[12.5px] font-semibold text-foreground"
+        className="flex min-w-0 max-w-[52vw] items-center gap-2 rounded-lg border bg-panel-2 px-2.5 py-1.5 text-[12.5px] font-semibold text-foreground md:max-w-none"
       >
-        <span>{label}</span>
-        <ChevronDown className="size-3.5 opacity-60" />
+        <span className="truncate md:hidden">{short}</span>
+        <span className="hidden truncate md:inline">{full}</span>
+        <ChevronDown className="size-3.5 shrink-0 opacity-60" />
       </button>
 
       {open && (

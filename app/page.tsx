@@ -72,7 +72,7 @@ export default function HomePage() {
       <UpgradeNudge />
       <SetupChecklist />
 
-      <div className="mb-[15px] grid gap-[15px] sm:grid-cols-2 lg:grid-cols-4">
+      <div className="mb-[15px] grid grid-cols-2 gap-2.5 sm:gap-[15px] lg:grid-cols-4">
         <StatCard label="Active bookings" value={String(total)} delta="upcoming" deltaType="flat" />
         <StatCard label="Checked in" value={String(checkedIn)} delta="confirmed" />
         <StatCard label="Pending check-in" value={String(pending)} delta="awaiting" deltaType="flat" />
