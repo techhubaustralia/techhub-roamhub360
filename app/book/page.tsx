@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
-import { Search, Plus, Minus, Lock, Unlock, ShieldCheck, Upload, Trash2, Monitor, DoorClosed, Users } from "lucide-react";
+import { Search, Plus, Minus, Lock, Unlock, ShieldCheck, Upload, Trash2, Monitor, DoorClosed, Users, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLocation } from "@/components/location-context";
 import { usePlan, getFloors, type FloorRoom } from "@/lib/plan-store";
@@ -401,10 +401,30 @@ export default function BookPage() {
           />
         )}
 
-        {/* side */}
-        <div className="flex min-h-0 flex-col gap-3.5 overflow-auto">
-          <Legend />
-          <div className="flex-1 rounded-[14px] border bg-card p-[15px] shadow-sm">
+        {/* side — desktop: right column. mobile: a bottom sheet that slides up only when a space is
+            selected, so the floor plan owns the phone screen and the booking form is reachable
+            without scrolling. */}
+        <div
+          className={cn(
+            "flex min-h-0 flex-col gap-3.5",
+            selected
+              ? "fixed inset-x-0 bottom-0 z-50 max-h-[82vh] overflow-auto rounded-t-2xl border-t bg-card p-4 shadow-2xl lg:static lg:z-auto lg:max-h-none lg:overflow-auto lg:rounded-none lg:border-0 lg:bg-transparent lg:p-0 lg:shadow-none"
+              : "hidden lg:flex lg:overflow-auto",
+          )}
+          style={selected ? { paddingBottom: "calc(1rem + env(safe-area-inset-bottom))" } : undefined}
+        >
+          {selected && (
+            <div className="relative mb-1 flex items-center justify-center lg:hidden">
+              <span className="h-1 w-10 rounded-full bg-line" />
+              <button onClick={() => setSelected(null)} aria-label="Close" className="absolute -top-1 right-0 grid size-9 place-items-center rounded-lg text-txt-mute hover:bg-panel-2">
+                <X className="size-4" />
+              </button>
+            </div>
+          )}
+          <div className="hidden lg:block">
+            <Legend />
+          </div>
+          <div className="flex-1 rounded-[14px] lg:border lg:bg-card lg:p-[15px] lg:shadow-sm">
             {!selected ? (
               <div className="px-2.5 py-7 text-center text-[13px] text-txt-mute">
                 Select a {kind === "desk" ? "desk" : kind === "room" ? "meeting room" : kind === "parking" ? "parking bay" : "office"} on the
