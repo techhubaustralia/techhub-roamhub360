@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { apiAuth, apiUnauthorized } from "@/lib/server/api-v1";
+import { apiGuard } from "@/lib/server/api-v1";
 import { listCustomBuildings } from "@/lib/server/store";
 import { listSpaces } from "@/lib/server/availability";
 
@@ -8,7 +8,8 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET(req: Request) {
-  if (!(await apiAuth(req))) return apiUnauthorized();
+  const g = await apiGuard(req);
+  if ("res" in g) return g.res;
 
   const buildings = await listCustomBuildings();
   const data = await Promise.all(

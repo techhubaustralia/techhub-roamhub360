@@ -107,9 +107,27 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   callbacks: {
     ...authConfig.callbacks,
     async signIn({ user, account }) {
-      // Provision a local row for first-time SSO users (Entra or Google) — role: staff.
       if (account && account.provider !== "credentials" && user?.email) {
-        await upsertSsoUser(user.email.toLowerCase(), user.name ?? undefined, account.provider);
+        const email = user.email.toLowerCase();
+        // SECURITY: SSO must not be an open door. Previously ANY Microsoft/Google account was
+        // auto-provisioned as staff in the default workspace. Now: known users and platform
+        // operators sign in; unknown accounts are admitted only when their email domain is
+        // explicitly allowlisted (SSO_AUTO_JOIN_DOMAINS, comma-separated) — otherwise they must
+        // be invited by an admin first.
+        const existing = await findUserByEmail(email).catch(() => null);
+        if (existing || BOOTSTRAP_ADMINS.includes(email)) {
+          await upsertSsoUser(email, user.name ?? undefined, account.provider);
+          return true;
+        }
+        const domains = (process.env.SSO_AUTO_JOIN_DOMAINS || "")
+          .split(",")
+          .map((s) => s.trim().toLowerCase())
+          .filter(Boolean);
+        if (domains.includes(email.split("@")[1] ?? "")) {
+          await upsertSsoUser(email, user.name ?? undefined, account.provider);
+          return true;
+        }
+        return false; // unknown account — ask an admin for an invite
       }
       return true;
     },

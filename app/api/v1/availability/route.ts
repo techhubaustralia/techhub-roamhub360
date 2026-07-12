@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { apiAuth, apiUnauthorized, apiUser } from "@/lib/server/api-v1";
+import { apiGuard, apiUser } from "@/lib/server/api-v1";
 import { findAvailability } from "@/lib/server/availability";
 import type { SpaceKind } from "@/lib/types";
 
@@ -10,7 +10,8 @@ export const dynamic = "force-dynamic";
 const KINDS = new Set(["desk", "office", "room", "parking"]);
 
 export async function GET(req: Request) {
-  if (!(await apiAuth(req))) return apiUnauthorized();
+  const g = await apiGuard(req);
+  if ("res" in g) return g.res;
 
   const q = new URL(req.url).searchParams;
   const date = q.get("date") || "";

@@ -29,10 +29,18 @@ export function rateLimit(key: string, limit: number, windowMs: number): { ok: b
   return { ok: true, retryAfter: 0 };
 }
 
-/** Best-effort client IP from the ingress (Container Apps sets X-Forwarded-For). */
+/** Client IP from the ingress. SECURITY: use the LAST X-Forwarded-For entry — that's the one our
+ *  trusted reverse proxy (Caddy) appended from the real TCP peer. Earlier entries are supplied by
+ *  the client and trivially spoofable; keying limits off them lets an attacker mint unlimited
+ *  fresh "IPs" and bypass every IP-based rate limit. */
 export function clientIp(req: Request): string {
   const xff = req.headers.get("x-forwarded-for");
-  return xff?.split(",")[0]?.trim() || req.headers.get("x-real-ip") || "unknown";
+  if (xff) {
+    const parts = xff.split(",");
+    const last = parts[parts.length - 1]?.trim();
+    if (last) return last;
+  }
+  return req.headers.get("x-real-ip") || "unknown";
 }
 
 /** Standard 429 response with a Retry-After header. */

@@ -24,6 +24,26 @@ export interface IntegrationsConfig {
 
 const KEY = "webhooks";
 
+/** SECURITY (SSRF): webhook targets are fetched BY THE SERVER, so a tenant admin must not be able
+ *  to point one at internal services. Require https, and reject localhost, IP literals, and
+ *  internal-looking hostnames. (DNS-rebinding of a public hostname remains theoretically possible —
+ *  endpoints only ever receive booking metadata, never secrets.) Returns the normalised URL or null. */
+export function safeWebhookUrl(raw: string, opts: { requireHost?: string } = {}): string | null {
+  let u: URL;
+  try {
+    u = new URL(raw);
+  } catch {
+    return null;
+  }
+  if (u.protocol !== "https:") return null;
+  if (u.username || u.password) return null;
+  const h = u.hostname.toLowerCase();
+  if (opts.requireHost) return h === opts.requireHost ? u.toString() : null;
+  if (h === "localhost" || h.endsWith(".localhost") || h.endsWith(".local") || h.endsWith(".internal") || h.endsWith(".lan") || !h.includes(".")) return null;
+  if (/^\d+\.\d+\.\d+\.\d+$/.test(h) || h.includes(":") || (h.startsWith("[") && h.endsWith("]"))) return null; // no IP literals (v4/v6)
+  return u.toString();
+}
+
 export async function getIntegrations(): Promise<IntegrationsConfig> {
   return (await getTenantJson<IntegrationsConfig>(KEY)) ?? { endpoints: [] };
 }
@@ -32,10 +52,12 @@ async function save(cfg: IntegrationsConfig): Promise<void> {
 }
 
 export async function addWebhook(url: string, events: string[]): Promise<WebhookEndpoint> {
+  const safe = safeWebhookUrl(url);
+  if (!safe) throw new Error("Webhook URL must be a public https endpoint (no IPs or internal hosts).");
   const cfg = await getIntegrations();
   const ep: WebhookEndpoint = {
     id: crypto.randomUUID(),
-    url,
+    url: safe,
     secret: "whsec_" + crypto.randomBytes(18).toString("base64url"),
     events: events.length ? events : ["*"],
     createdAt: new Date().toISOString(),
@@ -53,7 +75,13 @@ export async function removeWebhook(id: string): Promise<void> {
 
 export async function setSlackUrl(url: string | null): Promise<void> {
   const cfg = await getIntegrations();
-  cfg.slackUrl = url || undefined;
+  if (url) {
+    const safe = safeWebhookUrl(url, { requireHost: "hooks.slack.com" }); // Slack incoming webhooks only
+    if (!safe) throw new Error("Use a Slack incoming-webhook URL (https://hooks.slack.com/…).");
+    cfg.slackUrl = safe;
+  } else {
+    cfg.slackUrl = undefined;
+  }
   await save(cfg);
 }
 
@@ -79,6 +107,7 @@ export async function dispatchEvent(event: WebhookEvent, data: Record<string, un
 
   for (const e of cfg.endpoints) {
     if (!(e.events.includes("*") || e.events.includes(event))) continue;
+    if (!safeWebhookUrl(e.url)) continue; // re-validate at send time (covers pre-fix configs)
     const sig = crypto.createHmac("sha256", e.secret).update(body).digest("hex");
     jobs.push(
       fetch(e.url, {
@@ -90,7 +119,7 @@ export async function dispatchEvent(event: WebhookEvent, data: Record<string, un
     );
   }
 
-  if (cfg.slackUrl) {
+  if (cfg.slackUrl && safeWebhookUrl(cfg.slackUrl, { requireHost: "hooks.slack.com" })) {
     jobs.push(
       fetch(cfg.slackUrl, {
         method: "POST",

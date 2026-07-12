@@ -25,9 +25,13 @@ export async function POST(req: Request) {
     .object({ url: z.string().url(), events: z.array(z.enum(WEBHOOK_EVENTS)).optional() })
     .safeParse(await req.json().catch(() => ({})));
   if (!parsed.success) return NextResponse.json({ error: "Provide a valid https URL." }, { status: 400 });
-  const ep = await addWebhook(parsed.data.url, parsed.data.events ?? []);
-  await audit(me.email, "webhook.add", parsed.data.url);
-  return NextResponse.json(ep, { status: 201 });
+  try {
+    const ep = await addWebhook(parsed.data.url, parsed.data.events ?? []);
+    await audit(me.email, "webhook.add", parsed.data.url);
+    return NextResponse.json(ep, { status: 201 });
+  } catch (e) {
+    return NextResponse.json({ error: e instanceof Error ? e.message : "Invalid webhook URL." }, { status: 400 });
+  }
 }
 
 export async function DELETE(req: Request) {
@@ -47,7 +51,11 @@ export async function PUT(req: Request) {
   if (!me) return forbidden();
   const parsed = z.object({ slackUrl: z.string().url().nullable().optional() }).safeParse(await req.json().catch(() => ({})));
   if (!parsed.success) return NextResponse.json({ error: "Provide a valid Slack webhook URL or null." }, { status: 400 });
-  await setSlackUrl(parsed.data.slackUrl ?? null);
+  try {
+    await setSlackUrl(parsed.data.slackUrl ?? null);
+  } catch (e) {
+    return NextResponse.json({ error: e instanceof Error ? e.message : "Invalid Slack URL." }, { status: 400 });
+  }
   await audit(me.email, "webhook.slack", parsed.data.slackUrl ? "set" : "cleared");
   return NextResponse.json({ ok: true });
 }

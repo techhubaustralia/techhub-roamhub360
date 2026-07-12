@@ -1,5 +1,5 @@
 import "server-only";
-import { signPwToken, requestOrigin } from "./account-token";
+import { signPwToken, pwFingerprint, requestOrigin } from "./account-token";
 import { workspaceOrigin } from "./tenant";
 import { sendMail } from "./graph";
 import { inviteEmail, emailBrand } from "./email";
@@ -14,7 +14,9 @@ export async function sendInvite(
   try {
     // Link to the user's OWN workspace subdomain (not wherever the admin happened to send it from).
     const origin = opts.tenantId ? workspaceOrigin(opts.tenantId) : requestOrigin(req);
-    const url = `${origin}/set-password?token=${encodeURIComponent(signPwToken(user.id))}`;
+    // Invited users are created passwordless — the fingerprint of "no password yet" means the link
+    // dies the moment they set one (single-use).
+    const url = `${origin}/set-password?token=${encodeURIComponent(signPwToken(user.id, pwFingerprint(null)))}`;
     const mail = inviteEmail(url, { workspaceName: opts.workspaceName, inviter: opts.inviter }, await emailBrand(opts.tenantId));
     return await sendMail(user.email, mail.subject, mail.html, opts.tenantId);
   } catch {

@@ -12,18 +12,27 @@ export interface PwToken {
   uid: string;
   purpose: "set-password";
   exp: number; // epoch ms
+  fp?: string; // fingerprint of the credential state the token was issued against
 }
 
-export function signPwToken(uid: string, ttlMs = 24 * 60 * 60 * 1000): string {
+/** SECURITY (single-use): the token embeds a fingerprint of the user's CURRENT password hash.
+ *  Setting a password changes the hash → the fingerprint no longer matches → every outstanding
+ *  reset/invite link is dead. Stateless replay protection, no token table needed. */
+export function pwFingerprint(passwordHash: string | null | undefined): string {
+  return crypto.createHash("sha256").update(`pwfp:${passwordHash ?? "unset"}`).digest("hex").slice(0, 16);
+}
+
+export function signPwToken(uid: string, fp: string, ttlMs = 24 * 60 * 60 * 1000): string {
   if (MISSING()) throw new Error("AUTH_SECRET is required in production.");
-  const payload: PwToken = { uid, purpose: "set-password", exp: Date.now() + ttlMs };
+  const payload: PwToken = { uid, purpose: "set-password", exp: Date.now() + ttlMs, fp };
   const data = Buffer.from(JSON.stringify(payload)).toString("base64url");
   const sig = crypto.createHmac("sha256", SECRET).update(data).digest("base64url");
   return `${data}.${sig}`;
 }
 
 export function verifyPwToken(token: string): PwToken | null {
-  return verifyPurpose(token, "set-password") as PwToken | null;
+  const p = verifyPurpose(token, "set-password") as PwToken | null;
+  return p?.fp ? p : null; // tokens without a fingerprint (pre-fix) are no longer accepted
 }
 
 // Email-verification tokens share the same HMAC scheme with a distinct purpose (a set-password

@@ -1,3 +1,4 @@
+import crypto from "crypto";
 import { NextResponse } from "next/server";
 import { listBookings, setBookingStatus, audit, type Booking } from "@/lib/server/db";
 import { sendMail } from "@/lib/server/graph";
@@ -135,7 +136,13 @@ async function runTask(task: Task, buildingRoot: string, localDate: string, loca
 }
 
 export async function GET(req: Request, { params }: { params: Promise<{ task: string }> }) {
-  if ((req.headers.get("x-jobs-secret") || "") !== (process.env.JOBS_SECRET || "")) {
+  // SECURITY: fail CLOSED — with no JOBS_SECRET configured the old check compared "" === "" and
+  // let anyone trigger jobs (mass emails, auto-cancellations). Also constant-time compare.
+  const secret = process.env.JOBS_SECRET || "";
+  const given = req.headers.get("x-jobs-secret") || "";
+  const a = Buffer.from(given);
+  const b = Buffer.from(secret);
+  if (!secret || a.length !== b.length || !crypto.timingSafeEqual(a, b)) {
     return NextResponse.json({ error: "forbidden" }, { status: 403 });
   }
   const { task } = await params;

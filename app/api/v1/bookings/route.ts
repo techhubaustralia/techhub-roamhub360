@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { apiAuth, apiUnauthorized } from "@/lib/server/api-v1";
+import { apiGuard } from "@/lib/server/api-v1";
 import { listBookings } from "@/lib/server/db";
 
 // GET /api/v1/bookings — list bookings for the authenticated tenant.
@@ -8,7 +8,8 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET(req: Request) {
-  if (!(await apiAuth(req))) return apiUnauthorized();
+  const g = await apiGuard(req);
+  if ("res" in g) return g.res;
 
   const q = new URL(req.url).searchParams;
   const from = q.get("from") || undefined;

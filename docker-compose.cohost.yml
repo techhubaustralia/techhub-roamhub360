@@ -82,6 +82,9 @@ services:
       VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
       VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-}
       VAPID_SUBJECT: ${VAPID_SUBJECT:-}
+      # SSO: unknown Microsoft/Google accounts may auto-join ONLY these email domains (comma-
+      # separated, e.g. "techhubaustralia.com.au"). Blank = invite-only (safe default).
+      SSO_AUTO_JOIN_DOMAINS: ${SSO_AUTO_JOIN_DOMAINS:-}
       # Transactional email via Resend (recommended). If set, ALL app email goes through it instead
       # of Microsoft 365. RESEND_FROM must be a verified sender, e.g. "RoamHub360 <noreply@roamhub360.com>".
       RESEND_API_KEY: ${RESEND_API_KEY:-}
