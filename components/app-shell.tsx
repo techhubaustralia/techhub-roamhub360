@@ -6,6 +6,7 @@ import { Sidebar } from "@/components/sidebar";
 import { Topbar } from "@/components/topbar";
 import { AssistantWidget } from "@/components/assistant-widget";
 import { MobileTabBar } from "@/components/mobile-tab-bar";
+import { InstallPrompt } from "@/components/install-prompt";
 
 // Decides the app chrome at the top level. On standalone/full-screen routes (sign-in, password
 // reset, SSO handoff, legal, QR check-in) it renders ONLY the page — no sidebar/topbar — so those
@@ -40,6 +41,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </div>
       </div>
       <MobileTabBar />
+      <InstallPrompt />
       <div className="no-print">
         <AssistantWidget />
       </div>
