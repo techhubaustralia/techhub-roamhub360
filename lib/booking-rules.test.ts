@@ -51,9 +51,12 @@ describe("validateBooking — policy", () => {
   it("blocks a non-bookable weekday", () => {
     // allow only Monday (index 1)
     const allowed = [false, true, false, false, false, false, false];
-    // find a near non-Monday weekday-or-any day
+    // Find a near non-Monday. IMPORTANT: derive the weekday from the SAME UTC date string we
+    // submit (validateBooking computes getUTCDay() of the date string) — using local getDay()
+    // made this flaky in non-UTC timezones, where local and UTC dates differ for part of the day.
+    const utcDow = (n: number) => new Date(`${day(n)}T00:00:00Z`).getUTCDay();
     let off = 1;
-    for (let i = 1; i <= 7; i++) { if (new Date(Date.now() + i * 864e5).getDay() !== 1) { off = i; break; } }
+    for (let i = 1; i <= 7; i++) { if (utcDow(i) !== 1) { off = i; break; } }
     const r = validateBooking("desk", `${day(off)}T08:00`, `${day(off)}T17:30`, { allowedWeekdays: allowed, allowPast: true });
     expect(r).toMatch(/not bookable/i);
   });

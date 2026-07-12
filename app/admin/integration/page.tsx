@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Plug, CheckCircle2, XCircle, KeyRound } from "lucide-react";
+import { Plug, CheckCircle2, XCircle, KeyRound, Building2, ShieldCheck } from "lucide-react";
 import { getIntegration, saveIntegrationApi, testIntegrationApi, type IntegrationStatus } from "@/lib/api";
 import { PageHeader } from "@/components/page-header";
 
@@ -17,8 +17,17 @@ function relTime(iso: string | null): string {
   return hrs < 24 ? `${hrs} h ago` : `${Math.round(hrs / 24)} d ago`;
 }
 
+interface OrgSso {
+  connected: boolean;
+  entraTenantId: string | null;
+  connectedAt: string | null;
+  connectedBy: string | null;
+  platformReady: boolean;
+}
+
 export default function IntegrationPage() {
   const [status, setStatus] = useState<IntegrationStatus | null>(null);
+  const [orgSso, setOrgSso] = useState<OrgSso | null>(null);
   const [encOk, setEncOk] = useState(true);
   const [azureTenantId, setAzureTenantId] = useState("");
   const [graphClientId, setGraphClientId] = useState("");
@@ -38,9 +47,30 @@ export default function IntegrationPage() {
     }
     setLoading(false);
   }
+  async function loadOrgSso() {
+    const r = await fetch("/api/admin/entra").then((x) => (x.ok ? x.json() : null)).catch(() => null);
+    if (r) setOrgSso(r);
+  }
+
   useEffect(() => {
     load();
+    loadOrgSso();
+    // Landing back from the Microsoft consent screen (?sso=connected / ?sso=error&msg=…)
+    const q = new URLSearchParams(window.location.search);
+    const sso = q.get("sso");
+    if (sso === "connected") toast.success("Organisation connected", { description: "Your team can now sign in with Microsoft — no invites needed." });
+    else if (sso === "error") toast.error("Connection failed", { description: q.get("msg") ?? "Consent was not granted." });
+    if (sso) window.history.replaceState(null, "", window.location.pathname);
   }, []);
+
+  async function disconnectOrgSso() {
+    if (!confirm("Disconnect organisation sign-in? New colleagues will need an invite to join.")) return;
+    const r = await fetch("/api/admin/entra", { method: "DELETE" }).catch(() => null);
+    if (r?.ok) {
+      toast.success("Disconnected");
+      loadOrgSso();
+    } else toast.error("Could not disconnect");
+  }
 
   async function save() {
     if (azureTenantId && !GUIDISH.test(azureTenantId)) return toast.error("Directory (tenant) ID doesn't look right");
@@ -77,6 +107,48 @@ export default function IntegrationPage() {
           Secret storage isn&apos;t configured on the server (<code>CREDENTIAL_KEY</code> missing), so credentials can&apos;t be saved securely. Ask your administrator to set it.
         </div>
       )}
+
+      {/* Org sign-in (Entra admin consent) — the one-click path */}
+      <div className="mb-4 rounded-[14px] border bg-card p-5 shadow-sm">
+        <div className="flex items-start gap-3">
+          <span className="grid size-10 shrink-0 place-items-center rounded-[11px] bg-primary/12 text-primary"><Building2 className="size-5" /></span>
+          <div className="min-w-0 flex-1">
+            <div className="text-[14.5px] font-bold">Company sign-in with Microsoft</div>
+            <p className="mt-0.5 text-[12.5px] leading-relaxed text-txt-mute">
+              One click for your IT admin: approve RoamHub360 for your organisation, and everyone in your company can
+              sign in with their Microsoft account — no invites, no passwords.
+            </p>
+            {orgSso?.connected ? (
+              <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12.5px]">
+                <span className="inline-flex items-center gap-1.5 font-semibold text-ok"><ShieldCheck className="size-4" /> Connected to your organisation</span>
+                <span className="text-txt-mute">directory <code className="text-[11.5px]">{orgSso.entraTenantId?.slice(0, 8)}…</code>{orgSso.connectedBy ? ` · by ${orgSso.connectedBy}` : ""}{orgSso.connectedAt ? ` · ${relTime(orgSso.connectedAt)}` : ""}</span>
+              </div>
+            ) : null}
+            <div className="mt-3 flex flex-wrap gap-2">
+              {orgSso?.connected ? (
+                <button onClick={disconnectOrgSso} className="rounded-[10px] border border-destructive/50 px-3 py-2 text-[12.5px] font-semibold text-destructive hover:bg-destructive/10">
+                  Disconnect organisation
+                </button>
+              ) : (
+                <a
+                  href="/api/admin/entra/connect"
+                  aria-disabled={orgSso ? !orgSso.platformReady : false}
+                  className={`rounded-[10px] bg-primary px-4 py-2.5 text-[13.5px] font-semibold text-primary-foreground hover:bg-orange-soft ${orgSso && !orgSso.platformReady ? "pointer-events-none opacity-50" : ""}`}
+                >
+                  Connect your organisation
+                </a>
+              )}
+            </div>
+            {orgSso && !orgSso.platformReady && !orgSso.connected && (
+              <p className="mt-2 text-[11.5px] text-txt-mute">Microsoft sign-in isn&apos;t enabled on this platform yet — contact support.</p>
+            )}
+            <p className="mt-2 text-[11.5px] text-txt-mute">
+              Requires a Microsoft 365 admin. They&apos;ll see Microsoft&apos;s &quot;Permissions requested — consent on behalf of your
+              organization&quot; screen; after approving, staff sign-in is automatic.
+            </p>
+          </div>
+        </div>
+      </div>
 
       {/* Connection status */}
       <div className="mb-4 flex items-center gap-3 rounded-[12px] border bg-card px-4 py-3">

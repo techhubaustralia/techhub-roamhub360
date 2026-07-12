@@ -81,12 +81,14 @@ export async function findUserByEmail(email: string): Promise<UserRow | null> {
 }
 
 /** Ensure a local row exists for an SSO sign-in (Entra or Google). Default role: staff. */
-export async function upsertSsoUser(email: string, name?: string, provider = "sso"): Promise<void> {
+export async function upsertSsoUser(email: string, name?: string, provider = "sso", tenantId?: string): Promise<void> {
   const p = await prisma();
   const e = email.toLowerCase();
   await p.user.upsert({
     where: { email: e },
-    create: { email: e, name: name ?? null, provider, role: "staff", tenantId: await currentTenantId() },
+    // tenantId override: org sign-in (Entra admin consent) provisions the user into the workspace
+    // their directory is connected to — NOT the host the OAuth round-trip happened on.
+    create: { email: e, name: name ?? null, provider, role: "staff", tenantId: tenantId ?? (await currentTenantId()) },
     update: name ? { name } : {},
   });
 }

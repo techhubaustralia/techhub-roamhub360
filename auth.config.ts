@@ -8,7 +8,9 @@ import { NextResponse } from "next/server";
 // Paths reachable without a session. Everything else requires auth.
 // (checkin/checkout/jobs are self-secured by HMAC / JOBS_SECRET; /teams is the SSO bridge;
 //  /api/v1 is the public REST API, self-secured by per-tenant API keys.)
-const PUBLIC = ["/signin", "/signup", "/forgot", "/set-password", "/verify-email", "/sso", "/privacy", "/terms", "/api/auth", "/api/account", "/api/signup", "/api/checkin", "/api/checkout", "/api/jobs", "/api/v1", "/api/health", "/api/billing/webhook", "/teams", "/api/tenants/verify"];
+// /api/admin/entra/callback is the Entra admin-consent return URL — the consenting IT admin may
+// have no session on the main host; it is self-secured by an HMAC-signed state parameter.
+const PUBLIC = ["/signin", "/signup", "/forgot", "/set-password", "/verify-email", "/sso", "/privacy", "/terms", "/api/auth", "/api/account", "/api/signup", "/api/checkin", "/api/checkout", "/api/jobs", "/api/v1", "/api/health", "/api/billing/webhook", "/teams", "/api/tenants/verify", "/api/admin/entra/callback"];
 
 function isPublic(pathname: string): boolean {
   return PUBLIC.some((p) => pathname === p || pathname.startsWith(p + "/"));

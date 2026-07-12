@@ -111,6 +111,12 @@ model TenantIntegration {
   graphClientId String? // their app registration's client id
   secretEnc     String? // AES-256-GCM ciphertext of the client secret (iv.tag.ct); never exposed
   mailFrom      String? // mailbox notifications are sent from, in the customer's tenant (CP5)
+  // Org sign-in (Entra admin consent): once a customer's IT admin consents for their organisation,
+  // anyone from that directory who signs in with Microsoft auto-joins THIS workspace. @unique — an
+  // Entra org can be linked to only one workspace.
+  ssoEntraTenantId String?   @unique
+  ssoConnectedAt   DateTime?
+  ssoConnectedBy   String? // email of the admin who connected it
   lastTestOk    Boolean? // result of the last connection test
   lastTestAt    DateTime?
   lastTestError String?

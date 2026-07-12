@@ -6,6 +6,7 @@ import Credentials from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import { authConfig } from "@/auth.config";
 import { findUserByEmail, upsertSsoUser } from "@/lib/server/users";
+import { findTenantByEntraTid } from "@/lib/server/entra-sso";
 import { verifyTeamsSsoToken } from "@/lib/server/teams-token";
 import { rateLimit } from "@/lib/server/rate-limit";
 
@@ -106,18 +107,26 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   providers,
   callbacks: {
     ...authConfig.callbacks,
-    async signIn({ user, account }) {
+    async signIn({ user, account, profile }) {
       if (account && account.provider !== "credentials" && user?.email) {
         const email = user.email.toLowerCase();
-        // SECURITY: SSO must not be an open door. Previously ANY Microsoft/Google account was
-        // auto-provisioned as staff in the default workspace. Now: known users and platform
-        // operators sign in; unknown accounts are admitted only when their email domain is
-        // explicitly allowlisted (SSO_AUTO_JOIN_DOMAINS, comma-separated) — otherwise they must
-        // be invited by an admin first.
+        // SECURITY: SSO must not be an open door. Known users and platform operators sign in;
+        // unknown accounts are admitted only via (a) ORG SIGN-IN — their Entra directory (`tid`
+        // claim from Microsoft's signed id_token) was admin-consent connected to a workspace, so
+        // they auto-join THAT workspace — or (b) the SSO_AUTO_JOIN_DOMAINS allowlist. Everyone
+        // else must be invited by an admin first.
         const existing = await findUserByEmail(email).catch(() => null);
         if (existing || BOOTSTRAP_ADMINS.includes(email)) {
           await upsertSsoUser(email, user.name ?? undefined, account.provider);
           return true;
+        }
+        const tid = typeof (profile as { tid?: unknown } | undefined)?.tid === "string" ? (profile as { tid: string }).tid : null;
+        if (tid) {
+          const orgTenant = await findTenantByEntraTid(tid).catch(() => null);
+          if (orgTenant) {
+            await upsertSsoUser(email, user.name ?? undefined, account.provider, orgTenant);
+            return true;
+          }
         }
         const domains = (process.env.SSO_AUTO_JOIN_DOMAINS || "")
           .split(",")
