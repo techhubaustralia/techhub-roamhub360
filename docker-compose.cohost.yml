@@ -46,9 +46,13 @@ services:
     environment:
       DATABASE_URL: ${DATABASE_URL}
       APP_URL: ${APP_URL}
-      # NOTE: do NOT set AUTH_URL — it pins every auth redirect to one host and breaks per-tenant
-      # subdomains (<slug>.roamhub360.com would bounce to the main host). trustHost:true (auth.config)
-      # makes Auth.js use the real request host, which Caddy forwards. AUTH_TRUST_HOST makes it explicit.
+      # AUTH_URL is REQUIRED: Next standalone reports the bind address (0.0.0.0:3000) as the request
+      # origin to route handlers, so without it Auth.js builds OAuth redirect_uris against
+      # 0.0.0.0:3000 (AADSTS50011). Pinning it to the main host is safe for per-tenant subdomains
+      # because every server-redirect auth flow runs on the main host by design (OAuth via
+      # /sso/start, admin consent via APP_URL), while subdomain credential sign-in/out use
+      # redirect:false + client-side navigation and never consume server-built URLs.
+      AUTH_URL: ${APP_URL}
       AUTH_TRUST_HOST: "true"
       CHECKIN_SECRET: ${CHECKIN_SECRET:?required — the app refuses to boot without it}
       JOBS_SECRET: ${JOBS_SECRET}
