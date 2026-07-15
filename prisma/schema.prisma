@@ -169,3 +169,52 @@ model User {
 
   @@index([tenantId])
 }
+
+// Help centre article (Knowledge Base module). tenantId is NULLABLE and this is deliberate:
+//   null   → a GLOBAL/platform article authored by TechHub — shown in every workspace's Help panel.
+//   "<id>" → a workspace-specific article authored by that workspace's Global Admin.
+// The in-app viewer merges global + the current tenant's own published articles.
+model KbArticle {
+  id        String   @id @default(uuid())
+  tenantId  String? // null = global (platform-authored, visible to all workspaces)
+  slug      String // url-safe, unique within a scope (tenant or global)
+  title     String
+  summary   String? // one-line blurb for the list
+  category  String   @default("General")
+  body      String // markdown source
+  published Boolean  @default(false)
+  pinned    Boolean  @default(false) // surface at the top of its category
+  sort      Int      @default(0) // manual ordering within a category (lower = first)
+  views     Int      @default(0)
+  createdBy String? // author email
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([tenantId])
+  @@index([published])
+}
+
+// A support request raised from the Help panel. Emailed to OPS_EMAIL (with any attachment) AND kept
+// here so admins get an in-app open/closed queue. The attachment itself lives in blob/disk storage
+// (lib/server/store.ts), not the DB — only its metadata + storage key are recorded here.
+model SupportRequest {
+  id             String   @id @default(uuid())
+  tenantId       String   @default("default")
+  userEmail      String // who raised it
+  userName       String?
+  category       String   @default("Question") // Question | Bug | Feature request | Billing | Other
+  subject        String
+  message        String
+  status         String   @default("open") // open | closed
+  priority       String   @default("normal") // low | normal | high (admin-set)
+  attachmentName String? // original filename (display only)
+  attachmentType String? // MIME type
+  attachmentKey  String? // storage key in lib/server/store.ts (null = no attachment)
+  attachmentSize Int? // bytes
+  adminNote      String? // internal note added when triaging/closing
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([tenantId])
+  @@index([status])
+}

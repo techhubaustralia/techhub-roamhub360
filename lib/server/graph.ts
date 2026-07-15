@@ -2,7 +2,7 @@ import "server-only";
 import { brand } from "../brand";
 import { DEFAULT_TENANT, currentTenantId } from "./tenant";
 import { getIntegrationCreds } from "./tenant-integration";
-import { sendViaEsp } from "./mailer";
+import { sendViaEsp, type MailAttachment } from "./mailer";
 
 // Microsoft Graph (app-only / client credentials). Sends mail from the brand mailbox, reserves
 // room mailboxes, and reads the directory. Credentials are resolved PER TENANT (Commercial SaaS
@@ -95,10 +95,10 @@ export async function graphPhotoDataUrl(userKey: string, tenantId?: string): Pro
   }
 }
 
-export async function sendMail(to: string, subject: string, html: string, tenantId?: string): Promise<boolean> {
+export async function sendMail(to: string, subject: string, html: string, tenantId?: string, attachments?: MailAttachment[]): Promise<boolean> {
   // Prefer the dedicated ESP (Resend) when configured — reliable, no dependency on any customer's
   // Microsoft 365. Falls through to the Graph mailbox only if the ESP is off or the send failed.
-  if (await sendViaEsp(to, subject, html)) {
+  if (await sendViaEsp(to, subject, html, undefined, attachments)) {
     console.log(`[mail] sent via ESP to ${to}`);
     return true;
   }
@@ -119,7 +119,21 @@ export async function sendMail(to: string, subject: string, html: string, tenant
       {
         method: "POST",
         body: JSON.stringify({
-          message: { subject, body: { contentType: "HTML", content: html }, toRecipients: [{ emailAddress: { address: to } }] },
+          message: {
+            subject,
+            body: { contentType: "HTML", content: html },
+            toRecipients: [{ emailAddress: { address: to } }],
+            ...(attachments?.length
+              ? {
+                  attachments: attachments.map((a) => ({
+                    "@odata.type": "#microsoft.graph.fileAttachment",
+                    name: a.filename,
+                    contentType: a.contentType,
+                    contentBytes: a.content.toString("base64"),
+                  })),
+                }
+              : {}),
+          },
           saveToSentItems: false,
         }),
       },

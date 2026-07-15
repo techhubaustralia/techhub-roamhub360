@@ -15,6 +15,8 @@ import {
   Terminal,
   BadgeCheck,
   Settings,
+  BookOpen,
+  LifeBuoy,
   type LucideIcon,
 } from "lucide-react";
 
@@ -49,6 +51,8 @@ export const NAV_ADMIN: NavItem[] = [
   { href: "/admin/integration", label: "Microsoft 365", icon: Plug, roles: ["global-admin"] },
   { href: "/admin/license", label: "Plan & licence", icon: BadgeCheck, roles: ["global-admin"] },
   { href: "/admin/audit", label: "Activity log", icon: ScrollText, roles: ["global-admin"] },
+  { href: "/admin/knowledge", label: "Knowledge base", icon: BookOpen, roles: ["global-admin"] },
+  { href: "/admin/support", label: "Support requests", icon: LifeBuoy, roles: ["global-admin"] },
   { href: "/admin/developer", label: "Developer & API", icon: Terminal, roles: ["global-admin"] },
   { href: "/admin/tenants", label: "Tenants", icon: Boxes, platform: true },
 ];

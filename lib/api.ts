@@ -419,3 +419,137 @@ export async function setBookingStatusApi(id: string, status: string, reason?: s
   const b = await r.json().catch(() => ({}));
   return { ok: false, error: b.error ?? "Update failed" };
 }
+
+// ---- Knowledge base + support (Help centre) ------------------------------------------------------
+export interface KbListItem {
+  id: string;
+  slug: string;
+  title: string;
+  summary: string | null;
+  category: string;
+  pinned: boolean;
+  scope: "global" | "tenant";
+}
+export interface KbArticleFull extends KbListItem {
+  body: string;
+  html: string;
+  published: boolean;
+  sort: number;
+  views: number;
+  createdBy: string | null;
+  updatedAt: string;
+  tenantId: string | null;
+}
+export interface SupportRequestRow {
+  id: string;
+  tenantId: string;
+  userEmail: string;
+  userName: string | null;
+  category: string;
+  subject: string;
+  message: string;
+  status: string;
+  priority: string;
+  attachmentName: string | null;
+  attachmentType: string | null;
+  attachmentSize: number | null;
+  adminNote: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** Published articles for the Help panel (global + this workspace). */
+export async function getKbArticles(): Promise<KbListItem[]> {
+  try {
+    const r = await fetch("/api/kb", { cache: "no-store" });
+    const b = await r.json().catch(() => ({}));
+    return Array.isArray(b.articles) ? b.articles : [];
+  } catch {
+    return [];
+  }
+}
+
+export async function getKbArticle(id: string): Promise<KbArticleFull | null> {
+  try {
+    const r = await fetch(`/api/kb/${id}`, { cache: "no-store" });
+    if (!r.ok) return null;
+    const b = await r.json().catch(() => ({}));
+    return b.article ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/** Submit a support request (multipart, optional file). */
+export async function submitSupport(form: FormData): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const r = await fetch("/api/support", { method: "POST", body: form });
+    const b = await r.json().catch(() => ({}));
+    return r.ok ? { ok: true } : { ok: false, error: b.error ?? "Could not send your request." };
+  } catch {
+    return { ok: false, error: "Network error — please try again." };
+  }
+}
+
+// ---- Admin: knowledge base ----
+export async function getAdminKb(scope: "global" | "tenant"): Promise<KbArticleFull[]> {
+  try {
+    const r = await fetch(`/api/admin/kb?scope=${scope}`, { cache: "no-store" });
+    const b = await r.json().catch(() => ({}));
+    return Array.isArray(b.articles) ? b.articles : [];
+  } catch {
+    return [];
+  }
+}
+
+export interface KbInputApi {
+  scope?: "global" | "tenant";
+  title?: string;
+  summary?: string | null;
+  category?: string;
+  body?: string;
+  published?: boolean;
+  pinned?: boolean;
+  sort?: number;
+}
+
+export async function createKbArticle(input: KbInputApi): Promise<{ ok: boolean; error?: string; article?: KbArticleFull }> {
+  const r = await fetch("/api/admin/kb", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(input) });
+  const b = await r.json().catch(() => ({}));
+  return r.ok ? { ok: true, article: b.article } : { ok: false, error: b.error ?? "Could not save." };
+}
+
+export async function updateKbArticle(id: string, input: KbInputApi): Promise<{ ok: boolean; error?: string; article?: KbArticleFull }> {
+  const r = await fetch(`/api/admin/kb/${id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(input) });
+  const b = await r.json().catch(() => ({}));
+  return r.ok ? { ok: true, article: b.article } : { ok: false, error: b.error ?? "Could not save." };
+}
+
+export async function deleteKbArticle(id: string): Promise<{ ok: boolean; error?: string }> {
+  const r = await fetch(`/api/admin/kb/${id}`, { method: "DELETE" });
+  const b = await r.json().catch(() => ({}));
+  return r.ok ? { ok: true } : { ok: false, error: b.error ?? "Could not delete." };
+}
+
+export async function seedKbArticles(): Promise<{ ok: boolean; added?: number; error?: string }> {
+  const r = await fetch("/api/admin/kb/seed", { method: "POST" });
+  const b = await r.json().catch(() => ({}));
+  return r.ok ? { ok: true, added: b.added } : { ok: false, error: b.error ?? "Could not seed." };
+}
+
+// ---- Admin: support queue ----
+export async function getSupportQueue(status?: "open" | "closed"): Promise<{ requests: SupportRequestRow[]; openCount: number }> {
+  try {
+    const r = await fetch(`/api/admin/support${status ? `?status=${status}` : ""}`, { cache: "no-store" });
+    const b = await r.json().catch(() => ({}));
+    return { requests: Array.isArray(b.requests) ? b.requests : [], openCount: b.openCount ?? 0 };
+  } catch {
+    return { requests: [], openCount: 0 };
+  }
+}
+
+export async function updateSupportRequestApi(id: string, patch: { status?: string; priority?: string; adminNote?: string | null }): Promise<{ ok: boolean; error?: string; request?: SupportRequestRow }> {
+  const r = await fetch(`/api/admin/support/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(patch) });
+  const b = await r.json().catch(() => ({}));
+  return r.ok ? { ok: true, request: b.request } : { ok: false, error: b.error ?? "Could not update." };
+}

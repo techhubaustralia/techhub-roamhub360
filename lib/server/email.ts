@@ -236,6 +236,62 @@ export function checkInEmail(b: Booking, day: string, eb: EmailBrand = DEFAULT_E
   };
 }
 
+// ---- Support requests (Help centre) --------------------------------------------------------------
+export interface SupportEmailFields {
+  category: string;
+  subject: string;
+  message: string;
+  userName?: string | null;
+  userEmail: string;
+  workspace: string; // tenant slug/name for context
+  attachmentName?: string | null;
+  ticketUrl?: string; // admin deep-link into the queue
+}
+
+/** Sent to the ops inbox (OPS_EMAIL) when a user raises a support request. */
+export function supportRequestEmail(f: SupportEmailFields, eb: EmailBrand = DEFAULT_EMAIL_BRAND) {
+  const rows = [
+    ["Workspace", f.workspace],
+    ["From", `${f.userName ? esc(f.userName) + " " : ""}&lt;${esc(f.userEmail)}&gt;`],
+    ["Category", esc(f.category)],
+    ["Attachment", f.attachmentName ? esc(f.attachmentName) : "—"],
+  ]
+    .map(([k, v]) => `<tr><td style="padding:3px 12px 3px 0;color:#7491a0;font-size:12px;white-space:nowrap;vertical-align:top">${k}</td><td style="padding:3px 0;font-size:13px">${v}</td></tr>`)
+    .join("");
+  return {
+    subject: `[Support] ${f.subject}`,
+    html: shell(
+      "New support request",
+      `<table style="border-collapse:collapse;margin-bottom:12px">${rows}</table>
+       <div style="border-top:1px solid #e3ebf0;padding-top:12px">
+         <div style="font-weight:600;font-size:14px;margin-bottom:4px">${esc(f.subject)}</div>
+         <div style="white-space:pre-wrap;font-size:13px;color:#334;line-height:1.6">${esc(f.message)}</div>
+       </div>
+       ${f.attachmentName ? `<p style="color:#7491a0;font-size:12px;margin-top:12px">📎 ${esc(f.attachmentName)} attached to this email.</p>` : ""}
+       ${f.ticketUrl ? `<p style="margin-top:16px">${btn(f.ticketUrl, "Open in support queue", undefined, eb)}</p>` : ""}
+       <p style="color:#7491a0;font-size:12px;margin-top:14px">Reply directly to <a href="mailto:${esc(f.userEmail)}" style="color:${eb.accent}">${esc(f.userEmail)}</a> to respond to the requester.</p>`,
+      eb,
+    ),
+  };
+}
+
+/** Confirmation sent to the person who raised the request. */
+export function supportAckEmail(f: { subject: string; message: string }, eb: EmailBrand = DEFAULT_EMAIL_BRAND) {
+  return {
+    subject: `We received your request — ${f.subject}`,
+    html: shell(
+      "Thanks — we've got your request",
+      `<p>Our team has received your message and will get back to you by email as soon as we can.</p>
+       <div style="border:1px solid #e3ebf0;border-radius:10px;padding:12px 14px;margin:14px 0;background:#f7fafc">
+         <div style="font-weight:600;font-size:14px;margin-bottom:4px">${esc(f.subject)}</div>
+         <div style="white-space:pre-wrap;font-size:13px;color:#334;line-height:1.6">${esc(f.message)}</div>
+       </div>
+       <p style="color:#7491a0;font-size:12px">You don't need to do anything further — just reply to this email if you'd like to add more detail.</p>`,
+      eb,
+    ),
+  };
+}
+
 export function checkOutEmail(b: Booking, day: string, eb: EmailBrand = DEFAULT_EMAIL_BRAND) {
   const url = `${APP_URL}/api/checkout?token=${sign({ bookingId: b.id, action: "checkout", date: day })}`;
   return {

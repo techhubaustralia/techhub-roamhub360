@@ -207,6 +207,54 @@ export async function deletePlanImage(id: string): Promise<void> {
   }
 }
 
+// Generic tenant-scoped binary asset (e.g. support-request attachments). Same dual backend as
+// plan images (Azure Blob / DATA_DIR). `key` must be a caller-sanitised slug — it becomes part of
+// the blob name / filename, so never pass raw user input (we prefix with a uuid at the call site).
+export async function putAsset(key: string, buf: Buffer, contentType: string): Promise<void> {
+  const t = await currentTenantId();
+  if (useBlob) {
+    const c = await container();
+    await c.getBlockBlobClient(`${t}/asset-${key}`).uploadData(buf, { blobHTTPHeaders: { blobContentType: contentType } });
+  } else {
+    const dir = path.join(DATA_DIR, t);
+    await fs.mkdir(dir, { recursive: true });
+    await fs.writeFile(path.join(dir, `asset-${key}.bin`), buf);
+    await fs.writeFile(path.join(dir, `asset-${key}.type`), contentType, "utf8");
+  }
+}
+
+export async function getAsset(key: string): Promise<{ buffer: Buffer; contentType: string } | null> {
+  const t = await currentTenantId();
+  if (useBlob) {
+    const c = await container();
+    const b = c.getBlockBlobClient(`${t}/asset-${key}`);
+    if (await b.exists()) {
+      const buffer = await b.downloadToBuffer();
+      const props = await b.getProperties();
+      return { buffer, contentType: props.contentType || "application/octet-stream" };
+    }
+    return null;
+  }
+  try {
+    const buffer = await fs.readFile(path.join(DATA_DIR, t, `asset-${key}.bin`));
+    const contentType = await fs.readFile(path.join(DATA_DIR, t, `asset-${key}.type`), "utf8").catch(() => "application/octet-stream");
+    return { buffer, contentType };
+  } catch {
+    return null;
+  }
+}
+
+export async function deleteAsset(key: string): Promise<void> {
+  const t = await currentTenantId();
+  if (useBlob) {
+    const c = await container();
+    await c.getBlockBlobClient(`${t}/asset-${key}`).deleteIfExists();
+  } else {
+    await fs.rm(path.join(DATA_DIR, t, `asset-${key}.bin`), { force: true });
+    await fs.rm(path.join(DATA_DIR, t, `asset-${key}.type`), { force: true });
+  }
+}
+
 export async function getPlanImage(id: string): Promise<{ buffer: Buffer; contentType: string } | null> {
   const t = await currentTenantId();
   if (useBlob) {

@@ -11,16 +11,32 @@ const RESEND_FROM = process.env.RESEND_FROM?.trim() || process.env.MAIL_FROM?.tr
 
 export const espConfigured = Boolean(RESEND_KEY && RESEND_FROM);
 
+// A file to attach to an outgoing email (e.g. a support-request screenshot). `content` is raw bytes;
+// each transport base64-encodes it as required.
+export interface MailAttachment {
+  filename: string;
+  contentType: string;
+  content: Buffer;
+}
+
 /** Send via the ESP. Returns false (never throws) when unconfigured or on failure, so callers can
  *  fall back to Graph. */
-export async function sendViaEsp(to: string, subject: string, html: string, from?: string): Promise<boolean> {
+export async function sendViaEsp(to: string, subject: string, html: string, from?: string, attachments?: MailAttachment[]): Promise<boolean> {
   if (!RESEND_KEY || !RESEND_FROM) return false;
   try {
     const r = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: { Authorization: `Bearer ${RESEND_KEY}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ from: from || RESEND_FROM, to, subject, html }),
-      signal: AbortSignal.timeout(10_000),
+      body: JSON.stringify({
+        from: from || RESEND_FROM,
+        to,
+        subject,
+        html,
+        ...(attachments?.length
+          ? { attachments: attachments.map((a) => ({ filename: a.filename, content: a.content.toString("base64") })) }
+          : {}),
+      }),
+      signal: AbortSignal.timeout(15_000),
     });
     return r.ok;
   } catch {

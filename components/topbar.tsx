@@ -3,6 +3,7 @@ import { ThemeToggle } from "./theme-toggle";
 import { TeamsBadge } from "./teams-badge";
 import { MobileNav } from "./mobile-nav";
 import { NotificationsBell } from "./notifications-bell";
+import { HelpButton } from "./help-button";
 
 export function Topbar() {
   return (
@@ -15,6 +16,7 @@ export function Topbar() {
       <div className="flex-1" />
       <TeamsBadge />
       <ThemeToggle />
+      <HelpButton />
       <NotificationsBell />
     </header>
   );
