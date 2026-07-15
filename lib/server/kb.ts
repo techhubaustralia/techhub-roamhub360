@@ -1,4 +1,5 @@
 import "server-only";
+import { markdownExcerpt } from "../markdown";
 
 // Knowledge Base data access. Articles are either GLOBAL (tenantId = null; authored by the platform
 // team, visible in every workspace) or TENANT-SCOPED (authored by a workspace's Global Admin). The
@@ -24,6 +25,7 @@ export interface KbListItem {
   category: string;
   pinned: boolean;
   scope: "global" | "tenant";
+  text: string; // plaintext excerpt of the body — powers in-panel search (not shown directly)
 }
 
 export interface KbArticle extends KbListItem {
@@ -37,7 +39,7 @@ export interface KbArticle extends KbListItem {
 }
 
 function toItem(r: any): KbListItem {
-  return { id: r.id, slug: r.slug, title: r.title, summary: r.summary ?? null, category: r.category, pinned: r.pinned, scope: r.tenantId ? "tenant" : "global" };
+  return { id: r.id, slug: r.slug, title: r.title, summary: r.summary ?? null, category: r.category, pinned: r.pinned, scope: r.tenantId ? "tenant" : "global", text: markdownExcerpt(r.body ?? "", 1200) };
 }
 function toFull(r: any): KbArticle {
   return { ...toItem(r), body: r.body, published: r.published, sort: r.sort, views: r.views, createdBy: r.createdBy ?? null, updatedAt: (r.updatedAt as Date).toISOString(), tenantId: r.tenantId ?? null };

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { LifeBuoy, X, Search, ChevronRight, ArrowLeft, Paperclip, Send, LoaderCircle, BookOpen, MessageCircleQuestion, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 import { getKbArticles, getKbArticle, submitSupport, type KbListItem, type KbArticleFull } from "@/lib/api";
+import { searchArticles } from "@/lib/kb-search";
 
 type View = "list" | "article" | "support" | "sent";
 const CATEGORIES = ["Question", "Bug", "Feature request", "Billing", "Other"];
@@ -48,15 +49,20 @@ export function HelpButton() {
     };
   }, [open]);
 
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    const list = q ? articles.filter((a) => a.title.toLowerCase().includes(q) || (a.summary ?? "").toLowerCase().includes(q) || a.category.toLowerCase().includes(q)) : articles;
+  // Searching → a single flat, relevance-ranked list (no category headers). Browsing → grouped by
+  // category. Sections carry a nullable label so the render can hide the header when searching.
+  const sections = useMemo<{ label: string | null; items: KbListItem[] }[]>(() => {
+    const q = query.trim();
+    if (q) {
+      const results = searchArticles(articles, q);
+      return results.length ? [{ label: null, items: results }] : [];
+    }
     const groups = new Map<string, KbListItem[]>();
-    for (const a of list) {
+    for (const a of articles) {
       if (!groups.has(a.category)) groups.set(a.category, []);
       groups.get(a.category)!.push(a);
     }
-    return [...groups.entries()];
+    return [...groups.entries()].map(([label, items]) => ({ label, items }));
   }, [articles, query]);
 
   async function openArticle(id: string) {
@@ -160,18 +166,18 @@ export function HelpButton() {
                   <div className="flex-1 overflow-auto p-3">
                     {loading ? (
                       <div className="grid place-items-center py-16 text-txt-mute"><LoaderCircle className="size-5 animate-spin" /></div>
-                    ) : filtered.length === 0 ? (
+                    ) : sections.length === 0 ? (
                       <div className="px-2 py-10 text-center text-[13px] text-txt-mute">
                         <BookOpen className="mx-auto mb-2 size-6 opacity-50" />
-                        {query ? "No articles match your search." : "No help articles yet."}
+                        {articles.length === 0 ? "No help articles yet." : `No articles match "${query.trim()}".`}
                         <div className="mt-1">Still stuck? Contact support below.</div>
                       </div>
                     ) : (
-                      filtered.map(([category, items]) => (
-                        <div key={category} className="mb-4">
-                          <div className="mb-1.5 px-1 text-[11px] font-semibold uppercase tracking-[0.05em] text-txt-mute">{category}</div>
+                      sections.map((section, si) => (
+                        <div key={section.label ?? `results-${si}`} className="mb-4">
+                          {section.label && <div className="mb-1.5 px-1 text-[11px] font-semibold uppercase tracking-[0.05em] text-txt-mute">{section.label}</div>}
                           <div className="flex flex-col gap-1">
-                            {items.map((a) => (
+                            {section.items.map((a) => (
                               <button
                                 key={a.id}
                                 onClick={() => openArticle(a.id)}

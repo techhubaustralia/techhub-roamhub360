@@ -429,6 +429,7 @@ export interface KbListItem {
   category: string;
   pinned: boolean;
   scope: "global" | "tenant";
+  text?: string; // plaintext body excerpt used for in-panel search
 }
 export interface KbArticleFull extends KbListItem {
   body: string;
