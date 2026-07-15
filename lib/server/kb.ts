@@ -501,17 +501,264 @@ You'll need your organisation's **Directory (tenant) ID**, an **app registration
 
 Use it to right-size your space, spot underused areas, and plan office days. Reports can be exported for sharing.`,
   },
+  {
+    title: "Admin: designing a floor plan in the editor",
+    category: "For administrators",
+    summary: "Place desks, rooms, offices, and parking on your plan.",
+    published: true,
+    body: `The floor-plan editor turns a picture of your floor into a bookable map.
+
+1. Open **Buildings**, choose a building/floor, and open its **editor**.
+2. **Upload a background** image of the floor (a PDF export or photo works).
+3. Drop on the spaces you need — **desks**, **meeting rooms**, **offices**, and **parking bays** — and drag them into position.
+4. Name and number them, then **save**.
+
+Staff then see this exact layout in **Book a space** and can tap any spot to book it. You can come back and rearrange at any time.`,
+  },
+  {
+    title: "Admin: locking or taking a space out of service",
+    category: "For administrators",
+    summary: "Temporarily block a desk or room from being booked.",
+    published: true,
+    body: `Need to take a desk out of action (broken chair, maintenance, a reserved area)? You can lock it.
+
+1. Open **Book a space** as an admin.
+2. Select the space on the floor plan.
+3. Tap **Lock** to make it unbookable. Tap **Unlock** to release it again.
+
+Locked spaces stay visible on the plan but can't be booked until you unlock them. (Permanently assigned desks show as locked automatically — see *Assigning permanent desks*.)`,
+  },
+  {
+    title: "Admin: printing QR check-in labels",
+    category: "For administrators",
+    summary: "Print a scannable code for every desk and room.",
+    published: true,
+    body: `QR labels let people check in by scanning the code at their space.
+
+1. Open **QR labels** in the sidebar.
+2. Choose a **building**.
+3. Print the sheet — you get one QR card per desk/room.
+
+Cut them out and stick each on its space. When someone scans a card, they're checked in to that space instantly. Re-print any time you add or rename spaces.`,
+  },
+  {
+    title: "Admin: syncing your staff directory",
+    category: "For administrators",
+    summary: "Pull names, photos, and departments from Microsoft 365.",
+    published: true,
+    body: `Directory sync makes **Who's in** richer — real names, photos, departments, and job titles instead of just email addresses.
+
+1. First connect **Microsoft 365** (see *Connect Microsoft 365 and company sign-in*).
+2. Open **Directory** in the sidebar.
+3. Tap **Sync** to pull your organisation's people from Microsoft.
+
+Run it again whenever your team changes. Directory sync needs the **User.Read.All** permission granted on your Microsoft app.
+
+> If you don't see **Directory**, the feature may be turned off for your workspace.`,
+  },
+  {
+    title: "Admin: your plan, licence and renewal",
+    category: "For administrators",
+    summary: "Check your subscription, usage, and renewal date.",
+    published: true,
+    body: `Open **Plan & licence** in the sidebar (Global Admins only) to see:
+
+- your current **plan**,
+- **usage** against it, and
+- your **renewal date**.
+
+## What happens at renewal
+- **Before expiry** you'll see a reminder with the date.
+- **After expiry** there's a short grace period, then the workspace becomes **read-only** — existing bookings stay visible but no new ones can be made until you renew.
+
+To renew or change plan, contact your RoamHub360 provider (use the **Help → Contact support** button).`,
+  },
+  {
+    title: "Admin: automating with the API, webhooks and Slack",
+    category: "For administrators",
+    summary: "Connect RoamHub360 to your own tools.",
+    published: true,
+    body: `Open **Developer & API** in the sidebar (Global Admins only).
+
+## API keys
+Create a key to use the RoamHub360 **REST API** from your own scripts or systems. Keep keys secret; revoke and re-create them any time.
+
+## Webhooks
+Add a webhook URL to get a live callback when bookings are created, changed, or cancelled — handy for dashboards or automations. You choose which events to receive.
+
+## Slack
+Paste a Slack **Incoming Webhook** URL to post booking activity straight into a channel.
+
+> For security, webhook and Slack URLs must be public **https** addresses.`,
+  },
+  {
+    title: "Admin: viewing the activity log",
+    category: "For administrators",
+    summary: "See who did what, and when.",
+    published: true,
+    body: `The **Activity log** (sidebar, Global Admins only) records key actions in your workspace — bookings, cancellations, user and role changes, integration updates, and more.
+
+Use it to answer "who changed this?" and to keep an audit trail. Entries show the person, the action, and the time.`,
+  },
+
+  // ---- Access & features -------------------------------------------------------------------------
+  {
+    title: "Booking on behalf of someone else",
+    category: "Booking a space",
+    summary: "Admins and office managers can book for colleagues or visitors.",
+    published: true,
+    body: `If you're an **admin** or marked as an **Office Manager**, you can book a space for someone else.
+
+1. Open **Book a space** and select a space as usual.
+2. In the booking panel, enter the **email address** of the person you're booking for.
+3. Confirm the booking.
+
+They'll get a confirmation and the booking shows under their **My bookings**. Leave the email blank to book for yourself.`,
+  },
+  {
+    title: "Ask Hubbi to find and book a space",
+    category: "Booking a space",
+    summary: "Book in plain English with the AI assistant.",
+    published: true,
+    body: `**Hubbi** is the built-in assistant. Tap **Ask Hubbi** (bottom of the screen) and type what you need, for example:
+
+- "Book me a desk tomorrow"
+- "Find a meeting room for 4 this afternoon"
+- "Who's in on Friday?"
+- "What are my bookings?"
+
+Hubbi finds a suitable space and books it for you after you confirm.
+
+> If you don't see **Ask Hubbi**, the assistant isn't enabled for your workspace — you can still book normally from **Book a space**.`,
+  },
+  {
+    title: "Finding your way around RoamHub360",
+    category: "Getting started",
+    summary: "A quick tour of the menu and toolbar.",
+    published: true,
+    body: `Here's where everything lives.
+
+## Sidebar (left)
+- **Home** — your dashboard and today's activity.
+- **Book a space** — reserve desks, rooms, offices, parking.
+- **My bookings** — everything you've reserved.
+- **Who's in** — who's in the office on a given day.
+- **Settings** — your privacy, notifications, and account.
+
+Admins also see management pages (Buildings, Users & roles, Insights, and more).
+
+## Top bar (right)
+- **Theme** — switch light/dark.
+- **Help** (life-buoy) — search these articles or contact support.
+- **Bell** — your upcoming bookings.
+
+## Ask Hubbi
+If enabled, the **Ask Hubbi** button lets you book in plain English.`,
+  },
+  {
+    title: "Why can't I see a certain feature?",
+    category: "Your account",
+    summary: "Some features are switched on per workspace.",
+    published: true,
+    body: `RoamHub360 has optional features your provider can turn on or off per workspace, including:
+
+- **Who's in** (team presence),
+- **Directory sync** (names/photos from Microsoft),
+- the **daily digest** email, and
+- the **Hubbi** AI assistant.
+
+If a page or button in this help centre isn't showing for you, it's likely switched off for your workspace, or your role doesn't include it. Ask your workspace's Global Admin, or use **Help → Contact support**.`,
+  },
+  {
+    title: "Using RoamHub360 in Microsoft Teams",
+    category: "Mobile app",
+    summary: "Book without leaving Microsoft Teams.",
+    published: true,
+    body: `RoamHub360 can run as a tab inside **Microsoft Teams**, so your team books where they already work.
+
+Once your administrator adds the RoamHub360 app to Teams:
+1. Open the **RoamHub360** tab in Teams.
+2. You're signed in automatically with your Microsoft account.
+3. Book desks, rooms, and more — just like the web app.
+
+> Adding the app to Teams is done once by an administrator. Ask yours if you don't see it yet.`,
+  },
 ];
 
-export async function seedGlobalArticles(byEmail: string): Promise<number> {
-  const p = await prisma();
-  const existing = await p.kbArticle.findMany({ where: { tenantId: null }, select: { title: true } });
+// PLATFORM-OPERATOR articles (TechHub Australia). Scoped to the DEFAULT workspace so they appear in
+// the operator's own Help panel (app.roamhub360.com) but NOT in customer workspaces — those show
+// only global + their own tenant articles.
+const PLATFORM: KbInput[] = [
+  {
+    title: "Platform: creating a customer workspace",
+    category: "Platform operations",
+    summary: "Provision a new customer on their own subdomain.",
+    published: true,
+    body: `Open **Tenants** (platform operators only).
+
+1. Under **Add a customer workspace**, enter a **workspace name** and a **slug** (3–32 lowercase letters, numbers, or hyphens).
+2. Create it — the customer is live at \`<slug>.roamhub360.com\`.
+3. Add their first Global Admin under that workspace's **Users & roles**, or connect their Microsoft org for company sign-in.
+
+Remember to point DNS / the reverse proxy at the new subdomain if it isn't covered by the wildcard.`,
+  },
+  {
+    title: "Platform: white-labelling a workspace",
+    category: "Platform operations",
+    summary: "Set a customer's product name, accent colour, and logo.",
+    published: true,
+    body: `Each customer workspace can be white-labelled.
+
+1. Open **Tenants** and select the workspace.
+2. Set the **brand name** (product name shown in-app and in emails), the **accent colour** (hex), and upload a **logo**.
+3. Save — the app and its emails recolour to match.
+
+Leave any field blank to fall back to the stock RoamHub360 branding.`,
+  },
+  {
+    title: "Platform: managing licences and feature flags",
+    category: "Platform operations",
+    summary: "Set a customer's plan, expiry, and enabled features.",
+    published: true,
+    body: `From **Tenants**, select a workspace to manage its commercials and capabilities.
+
+## Licence
+Set the **plan tier** and **expiry date**. After expiry the workspace enters a grace period, then goes **read-only** until renewed.
+
+## Feature flags
+Turn optional features on or off per workspace: **Who's in**, **Directory sync**, the **daily digest**, and **Hubbi** (AI assistant). Disabled features disappear from that customer's app entirely.`,
+  },
+  {
+    title: "Platform: exporting or removing a workspace's data",
+    category: "Platform operations",
+    summary: "Data export and deletion for a customer workspace.",
+    published: true,
+    body: `From **Tenants**, select a workspace.
+
+- **Export** produces a copy of that workspace's data (users, bookings, and settings) for portability or compliance requests.
+- **Delete** permanently removes the workspace and its data.
+
+> Deletion is irreversible. Export first if there's any chance the data will be needed.`,
+  },
+];
+
+async function seedScope(p: any, scope: "global" | "tenant", tenantId: string, items: KbInput[], byEmail: string): Promise<number> {
+  const where = scope === "global" ? { tenantId: null } : { tenantId };
+  const existing = await p.kbArticle.findMany({ where, select: { title: true } });
   const have = new Set(existing.map((e: { title: string }) => e.title.toLowerCase().trim()));
   let n = 0;
-  for (const a of STARTER) {
-    if (have.has(a.title.toLowerCase().trim())) continue; // additive: skip ones already present
-    await createArticle("global", "default", a, byEmail);
+  for (const a of items) {
+    if (have.has(a.title.toLowerCase().trim())) continue; // additive: skip titles already present in this scope
+    await createArticle(scope, tenantId, a, byEmail);
     n++;
   }
   return n;
+}
+
+export async function seedGlobalArticles(byEmail: string): Promise<number> {
+  const p = await prisma();
+  // Customer-facing library → global (all workspaces). Operator playbook → default workspace only.
+  const g = await seedScope(p, "global", "default", STARTER, byEmail);
+  const pl = await seedScope(p, "tenant", "default", PLATFORM, byEmail);
+  return g + pl;
 }
