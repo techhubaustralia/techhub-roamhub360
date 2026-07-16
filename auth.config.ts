@@ -1,5 +1,8 @@
 import type { NextAuthConfig } from "next-auth";
 import { NextResponse } from "next/server";
+import { tenantFromHost, requestHost } from "@/lib/tenant-host";
+
+export { tenantFromHost, requestHost } from "@/lib/tenant-host";
 
 // Edge-safe base config, shared with middleware. NO database, bcrypt, or provider
 // secrets here (middleware runs on the edge runtime). The full provider list +
@@ -16,15 +19,12 @@ function isPublic(pathname: string): boolean {
   return PUBLIC.some((p) => pathname === p || pathname.startsWith(p + "/"));
 }
 
-// Tenant slug from the request host — mirrors currentTenantId() (kept inline; tenant.ts is
-// server-only and can't be imported into the edge middleware).
-const RESERVED = new Set(["", "app", "www", "admin", "api", "auth", "localhost"]);
-function tenantFromHost(host: string): string {
-  const h = (host || "").split(":")[0].toLowerCase();
-  if (!h || h === "localhost" || /^\d+\.\d+\.\d+\.\d+$/.test(h)) return "default";
-  const parts = h.split(".");
-  const sub = parts.length > 2 ? parts[0] : "";
-  return sub && !RESERVED.has(sub) ? sub : "default";
+// A redirect to /signin ON THE SAME SUBDOMAIN the user is visiting. Built from the forwarded host so
+// AUTH_URL (pinned to the main host for OAuth) can NEVER bounce a tenant visitor to another workspace.
+function signinOnSameHost(request: { headers: Headers }): NextResponse {
+  const host = requestHost(request);
+  const proto = request.headers.get("x-forwarded-proto") || "https";
+  return NextResponse.redirect(`${proto}://${host}/signin`);
 }
 
 export const authConfig = {
@@ -49,20 +49,21 @@ export const authConfig = {
       if (process.env.NODE_ENV !== "production") return true;
       const { pathname } = request.nextUrl;
       if (isPublic(pathname)) return true;
-      if (!auth?.user) return false; // signed-in session required
+      // Not signed in: API routes self-enforce (getUser → 401); page routes go to THIS subdomain's
+      // sign-in. We never `return false` for pages, because that lets Auth.js build the redirect from
+      // AUTH_URL (the main host) and bounce a tenant visitor off their own subdomain.
+      if (!auth?.user) return pathname.startsWith("/api") ? false : signinOnSameHost(request);
       // Tenant isolation: a user may ONLY use their own workspace's subdomain. Platform admins may
-      // access any workspace (support/impersonation). API routes self-enforce via getUser, so we
-      // only redirect page navigations here.
+      // access any workspace (support). API routes self-enforce via getUser, so only pages redirect.
       const u = auth.user as { homeTenant?: string; platformAdmin?: boolean };
       if (u.platformAdmin || pathname.startsWith("/api")) return true;
-      const host = request.headers.get("x-forwarded-host") || request.headers.get("host") || "";
-      const sub = tenantFromHost(host);
+      const sub = tenantFromHost(requestHost(request));
       const home = u.homeTenant ?? "default";
       if (home === sub) return true;
-      // Wrong workspace → send them to their OWN workspace's sign-in.
-      const apex = host.split(":")[0].split(".").slice(1).join(".") || "roamhub360.com";
-      const target = home === "default" ? `https://app.${apex}/signin` : `https://${home}.${apex}/signin`;
-      return NextResponse.redirect(target);
+      // Session belongs to a DIFFERENT workspace. Never bounce across tenancies — deny here and show
+      // THIS subdomain's sign-in. (With host-only cookies + tenant-locked login this is effectively
+      // unreachable for normal users, but it's the safe fallback.)
+      return signinOnSameHost(request);
     },
   },
 } satisfies NextAuthConfig;

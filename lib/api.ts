@@ -532,11 +532,6 @@ export async function deleteKbArticle(id: string): Promise<{ ok: boolean; error?
   return r.ok ? { ok: true } : { ok: false, error: b.error ?? "Could not delete." };
 }
 
-export async function seedKbArticles(): Promise<{ ok: boolean; added?: number; error?: string }> {
-  const r = await fetch("/api/admin/kb/seed", { method: "POST" });
-  const b = await r.json().catch(() => ({}));
-  return r.ok ? { ok: true, added: b.added } : { ok: false, error: b.error ?? "Could not seed." };
-}
 
 // ---- Admin: support queue ----
 export async function getSupportQueue(status?: "open" | "closed"): Promise<{ requests: SupportRequestRow[]; openCount: number }> {

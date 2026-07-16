@@ -2,10 +2,10 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
-import { BookOpen, Plus, Pencil, Trash2, Eye, EyeOff, Pin, Globe, Building2, Sparkles, LoaderCircle } from "lucide-react";
+import { BookOpen, Plus, Pencil, Trash2, Eye, EyeOff, Pin, Globe, Building2, LoaderCircle } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { renderMarkdown } from "@/lib/markdown";
-import { getAdminKb, createKbArticle, updateKbArticle, deleteKbArticle, seedKbArticles, type KbArticleFull } from "@/lib/api";
+import { getAdminKb, createKbArticle, updateKbArticle, deleteKbArticle, type KbArticleFull } from "@/lib/api";
 
 type Scope = "tenant" | "global";
 type Editing = (Partial<KbArticleFull> & { isNew?: boolean }) | null;
@@ -50,7 +50,7 @@ export default function KnowledgePage() {
     <div className="animate-fade-up max-w-3xl">
       <PageHeader
         title="Knowledge base"
-        subtitle="Help articles shown in the in-app Help panel. Write in Markdown."
+        subtitle="A built-in help library is always shown in the Help panel. Add your own extra articles here (Markdown)."
         action={<button onClick={() => setEditing({ isNew: true, category: "General", body: "", published: false })} className="flex items-center gap-1.5 rounded-[10px] bg-primary px-3.5 py-2 text-[13px] font-semibold text-primary-foreground hover:bg-orange-soft"><Plus className="size-4" /> New article</button>}
       />
 
@@ -67,13 +67,10 @@ export default function KnowledgePage() {
       ) : articles.length === 0 ? (
         <div className="rounded-[14px] border border-dashed bg-card p-8 text-center">
           <BookOpen className="mx-auto mb-2 size-7 text-txt-mute" />
-          <div className="text-[14px] font-semibold">No articles yet</div>
-          <p className="mx-auto mt-1 max-w-sm text-[13px] text-txt-mute">{scope === "global" ? "Create shared articles every workspace sees, or drop in a starter set." : "Write help articles just for this workspace."}</p>
+          <div className="text-[14px] font-semibold">No custom articles</div>
+          <p className="mx-auto mt-1 max-w-md text-[13px] text-txt-mute">The full built-in help library already shows in everyone's Help panel — you don't need to add anything. {scope === "global" ? "Use this to add shared articles on top of the built-ins." : "Add articles just for this workspace."}</p>
           <div className="mt-4 flex justify-center gap-2">
             <button onClick={() => setEditing({ isNew: true, category: "General", body: "", published: false })} className="rounded-[10px] bg-primary px-4 py-2 text-[13px] font-semibold text-primary-foreground hover:bg-orange-soft">New article</button>
-            {scope === "global" && platformAdmin && (
-              <button onClick={async () => { const r = await seedKbArticles(); if (r.ok) { toast.success(r.added ? `Added ${r.added} starter articles` : "Starter articles already exist"); load("global"); } else toast.error(r.error); }} className="flex items-center gap-1.5 rounded-[10px] border bg-panel-2 px-4 py-2 text-[13px] font-semibold hover:border-primary"><Sparkles className="size-4" /> Add starter articles</button>
-            )}
           </div>
         </div>
       ) : (

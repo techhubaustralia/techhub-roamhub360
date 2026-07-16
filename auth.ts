@@ -5,6 +5,7 @@ import Google from "next-auth/providers/google";
 import Credentials from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import { authConfig } from "@/auth.config";
+import { tenantFromHost, requestHost } from "@/lib/tenant-host";
 import { findUserByEmail, upsertSsoUser } from "@/lib/server/users";
 import { findTenantByEntraTid } from "@/lib/server/entra-sso";
 import { verifyTeamsSsoToken } from "@/lib/server/teams-token";
@@ -13,6 +14,17 @@ import { rateLimit } from "@/lib/server/rate-limit";
 // Break-glass platform operators (comma-separated env). They may access any workspace.
 const BOOTSTRAP_ADMINS = (process.env.BOOTSTRAP_ADMINS || "").split(",").map((s) => s.trim().toLowerCase()).filter(Boolean);
 
+// Tenant lock: a sign-in is only valid on the workspace subdomain the account belongs to. This is
+// what keeps each tenancy's login SEPARATE — a default/app account can't authenticate on
+// test123.roamhub360.com (and vice versa). Platform operators are exempt (support/impersonation).
+// Returns true when the account may sign in on the host of `request`.
+function accountMatchesHost(userTenantId: string | null | undefined, email: string, request?: Request): boolean {
+  if (BOOTSTRAP_ADMINS.includes(email.toLowerCase())) return true;
+  const sub = tenantFromHost(request ? requestHost(request) : "");
+  const home = userTenantId ?? "default";
+  return home === sub;
+}
+
 // Full auth (Node runtime). Local email/password is always available; Microsoft
 // Entra SSO is enabled only when configured — so organisations without Microsoft
 // can still use RoamHub360 with local accounts.
@@ -20,7 +32,7 @@ const providers: Provider[] = [
   Credentials({
     name: "Email & password",
     credentials: { email: {}, password: {}, totp: {} },
-    async authorize(creds) {
+    async authorize(creds, request) {
       const email = String(creds?.email ?? "").toLowerCase().trim();
       const password = String(creds?.password ?? "");
       if (!email || !password) return null;
@@ -31,6 +43,9 @@ const providers: Provider[] = [
       if (!u?.passwordHash) return null; // no local password (SSO-only or unknown)
       const ok = await bcrypt.compare(password, u.passwordHash);
       if (!ok) return null;
+      // TENANT LOCK: this account may only sign in on its own workspace's subdomain. Without this,
+      // a valid account authenticates on ANY subdomain and then gets bounced — the cross-tenancy bug.
+      if (!accountMatchesHost(u.tenantId, email, request)) return null;
       // Self-serve signups must confirm their email before the first sign-in.
       if (u.mustVerify) return null;
       // Two-factor: if enabled, a valid current TOTP code is also required.
@@ -49,12 +64,15 @@ const providers: Provider[] = [
     id: "sso-handoff",
     name: "SSO",
     credentials: { token: {} },
-    async authorize(creds) {
+    async authorize(creds, request) {
       const { verifyHandoffToken } = await import("@/lib/server/account-token");
       const h = verifyHandoffToken(String(creds?.token ?? ""));
       if (!h?.email) return null;
       const u = await findUserByEmail(h.email).catch(() => null);
       if (!u) return null; // not provisioned in this workspace → refuse
+      // Same tenant lock as password login: the relayed SSO session only lands on the account's own
+      // workspace subdomain (platform operators excepted).
+      if (!accountMatchesHost(u.tenantId, h.email, request)) return null;
       return { id: u.id, email: u.email, name: u.name ?? h.email };
     },
   }),

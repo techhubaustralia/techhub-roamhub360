@@ -3,8 +3,30 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { LifeBuoy, X, Search, ChevronRight, ArrowLeft, Paperclip, Send, LoaderCircle, BookOpen, MessageCircleQuestion, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
-import { getKbArticles, getKbArticle, submitSupport, type KbListItem, type KbArticleFull } from "@/lib/api";
+import { getKbArticles, getKbArticle, submitSupport, type KbListItem } from "@/lib/api";
 import { searchArticles } from "@/lib/kb-search";
+import { BUILTIN_ARTICLES } from "@/lib/kb-content";
+import { renderMarkdown, markdownExcerpt } from "@/lib/markdown";
+
+// The built-in library, always available (no DB/seeding). Shaped like a KbListItem for the list +
+// search; `text` lets search reach the body.
+const BUILTIN_ITEMS: KbListItem[] = BUILTIN_ARTICLES.map((a) => ({
+  id: a.id,
+  slug: a.slug,
+  title: a.title,
+  summary: a.summary,
+  category: a.category,
+  pinned: a.pinned,
+  scope: "global" as const,
+  text: markdownExcerpt(a.body, 1200),
+}));
+
+// What the article view needs — satisfied by both a built-in (rendered locally) and a DB article.
+interface ViewArticle {
+  title: string;
+  category: string;
+  html: string;
+}
 
 type View = "list" | "article" | "support" | "sent";
 const CATEGORIES = ["Question", "Bug", "Feature request", "Billing", "Other"];
@@ -12,11 +34,13 @@ const CATEGORIES = ["Question", "Bug", "Feature request", "Billing", "Other"];
 export function HelpButton() {
   const [open, setOpen] = useState(false);
   const [view, setView] = useState<View>("list");
-  const [articles, setArticles] = useState<KbListItem[]>([]);
+  // Start with the built-in library so the panel is populated instantly (before any fetch).
+  const [articles, setArticles] = useState<KbListItem[]>(BUILTIN_ITEMS);
   const [loading, setLoading] = useState(false);
   const [query, setQuery] = useState("");
-  const [current, setCurrent] = useState<KbArticleFull | null>(null);
+  const [current, setCurrent] = useState<ViewArticle | null>(null);
   const [articleLoading, setArticleLoading] = useState(false);
+  const [loadedDb, setLoadedDb] = useState(false);
 
   // support form
   const [cat, setCat] = useState("Question");
@@ -26,15 +50,21 @@ export function HelpButton() {
   const [sending, setSending] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
+  // Merge the built-in library with any custom DB articles. A custom article with the same title as
+  // a built-in overrides it (lets an admin tailor the wording); otherwise it's added.
   const load = useCallback(async () => {
     setLoading(true);
-    setArticles(await getKbArticles());
+    const db = await getKbArticles();
+    const byTitle = new Map(BUILTIN_ITEMS.map((a) => [a.title.toLowerCase(), a]));
+    for (const d of db) byTitle.set(d.title.toLowerCase(), d);
+    setArticles([...byTitle.values()]);
+    setLoadedDb(true);
     setLoading(false);
   }, []);
 
   useEffect(() => {
-    if (open && articles.length === 0) load().catch(() => {});
-  }, [open, articles.length, load]);
+    if (open && !loadedDb) load().catch(() => {});
+  }, [open, loadedDb, load]);
 
   // Esc closes; lock body scroll while the panel is open.
   useEffect(() => {
@@ -66,9 +96,16 @@ export function HelpButton() {
   }, [articles, query]);
 
   async function openArticle(id: string) {
-    setArticleLoading(true);
     setView("article");
-    setCurrent(await getKbArticle(id));
+    // Built-in articles render instantly from bundled content (no round-trip); DB articles fetch.
+    if (id.startsWith("builtin:")) {
+      const a = BUILTIN_ARTICLES.find((x) => x.id === id);
+      setCurrent(a ? { title: a.title, category: a.category, html: renderMarkdown(a.body) } : null);
+      return;
+    }
+    setArticleLoading(true);
+    const a = await getKbArticle(id);
+    setCurrent(a ? { title: a.title, category: a.category, html: a.html } : null);
     setArticleLoading(false);
   }
 
