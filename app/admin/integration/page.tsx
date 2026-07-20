@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Plug, CheckCircle2, XCircle, KeyRound, Building2, ShieldCheck } from "lucide-react";
+import { Plug, CheckCircle2, XCircle, KeyRound, Building2, ShieldCheck, ChevronDown, ChevronRight } from "lucide-react";
 import { getIntegration, saveIntegrationApi, testIntegrationApi, type IntegrationStatus } from "@/lib/api";
 import { PageHeader } from "@/components/page-header";
 
@@ -28,6 +28,7 @@ interface OrgSso {
 export default function IntegrationPage() {
   const [status, setStatus] = useState<IntegrationStatus | null>(null);
   const [orgSso, setOrgSso] = useState<OrgSso | null>(null);
+  const [showAdvanced, setShowAdvanced] = useState(false);
   const [encOk, setEncOk] = useState(true);
   const [azureTenantId, setAzureTenantId] = useState("");
   const [graphClientId, setGraphClientId] = useState("");
@@ -150,7 +151,29 @@ export default function IntegrationPage() {
         </div>
       </div>
 
-      {/* Connection status */}
+      {/* OPTIONAL extras. Previously this sat bare under the sign-in card showing "Not connected",
+          which read as though the integration had failed even when company sign-in was connected.
+          It's a SEPARATE, optional capability — collapsed and labelled as such. */}
+      <button
+        onClick={() => setShowAdvanced((s) => !s)}
+        className="mb-4 flex w-full items-center gap-3 rounded-[12px] border bg-card px-4 py-3 text-left"
+      >
+        <span className="grid size-9 shrink-0 place-items-center rounded-[10px] bg-panel-2 text-txt-dim"><Plug className="size-4" /></span>
+        <span className="min-w-0 flex-1">
+          <span className="block text-[13.5px] font-semibold">
+            Directory sync &amp; calendar invites <span className="ml-1 rounded-full bg-panel-2 px-2 py-0.5 text-[10.5px] font-semibold uppercase tracking-wide text-txt-mute">Optional</span>
+          </span>
+          <span className="mt-0.5 block text-[12px] text-txt-mute">
+            {S?.configured
+              ? S.lastTestOk ? "Set up and working." : "Set up — not yet tested."
+              : "Not set up. Everything above still works without this — it only adds staff photos/departments on Who's in, and Outlook calendar invites."}
+          </span>
+        </span>
+        {showAdvanced ? <ChevronDown className="size-4 shrink-0 text-txt-mute" /> : <ChevronRight className="size-4 shrink-0 text-txt-mute" />}
+      </button>
+
+      {showAdvanced && (
+      <>
       <div className="mb-4 flex items-center gap-3 rounded-[12px] border bg-card px-4 py-3">
         {S?.configured ? (
           S.lastTestOk ? <CheckCircle2 className="size-5 text-ok" /> : <Plug className="size-5 text-amber" />
@@ -159,7 +182,7 @@ export default function IntegrationPage() {
         )}
         <div className="flex-1 text-[13px]">
           <div className="font-semibold">
-            {S?.configured ? (S.lastTestOk ? "Connected" : "Configured — not yet tested") : "Not connected"}
+            {S?.configured ? (S.lastTestOk ? "Connected" : "Configured — not yet tested") : "Not set up"}
           </div>
           <div className="text-[12px] text-txt-mute">
             {S?.lastTestAt ? `Last test: ${relTime(S.lastTestAt)}${S.lastTestOk === false && S.lastTestError ? ` — ${S.lastTestError}` : ""}` : "Enter your app details below, then Test connection."}
@@ -206,7 +229,14 @@ export default function IntegrationPage() {
         Register an app in <b>Microsoft Entra ID → App registrations</b>, add the <b>application</b> permissions
         <code> User.Read.All</code> (directory sync) and, for calendar invites, <code>Calendars.ReadWrite</code> +
         <code> Mail.Send</code>, then <b>Grant admin consent</b> and create a <b>client secret</b>. Paste the three values above.
+        <div className="mt-2 text-[11.5px]">
+          Why separate from the one-click above? Sign-in consent is <b>delegated</b> (acts as the signed-in person).
+          Directory sync and calendar invites run in the background, which Microsoft requires <b>application</b>
+          permissions for — those can only be granted on your own app registration.
+        </div>
       </div>
+      </>
+      )}
     </div>
   );
 }

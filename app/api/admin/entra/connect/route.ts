@@ -29,10 +29,17 @@ export async function GET() {
   url.searchParams.set("state", signConnectState(tenantId, me.email));
   // REQUIRED by the v2.0 adminconsent endpoint — omitting it fails with
   // "AADSTS900144: The request body must contain the following parameter: 'scope'".
-  // Microsoft expects FULLY-QUALIFIED resource scopes here. We deliberately ask for the single
-  // delegated permission sign-in needs (User.Read) rather than `.default`, which would consent the
-  // customer's tenant to EVERY permission this app declares (including our app-only mail
-  // permissions) — over-permissioned and alarming on the consent screen a client's IT admin sees.
+  // Microsoft expects FULLY-QUALIFIED resource scopes here.
+  //
+  // Exactly one scope, and no more: User.Read — sign in and read the signed-in user's profile.
+  // Deliberately NOT `.default`, which would consent the customer's tenant to EVERY permission this
+  // app declares (including our app-only mail permissions) — over-permissioned, and an alarming
+  // consent screen for a client's IT admin.
+  //
+  // NOTE: this grants DELEGATED access only, which is all sign-in needs. Directory sync is a
+  // background job and therefore needs APPLICATION permissions (an app-only token), which this
+  // endpoint cannot grant without `.default` — so directory sync stays on the customer's own Entra
+  // app (the Advanced section of the integration page). Do not conflate the two on the UI.
   url.searchParams.set("scope", "https://graph.microsoft.com/User.Read");
   return NextResponse.redirect(url);
 }
