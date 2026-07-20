@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
-import { BookOpen, Plus, Pencil, Trash2, Eye, EyeOff, Pin, Globe, Building2, LoaderCircle, ChevronDown, ChevronRight } from "lucide-react";
+import { BookOpen, Plus, Pencil, Trash2, Eye, EyeOff, Pin, Globe, Building2, LoaderCircle, ChevronDown, ChevronRight, X } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { renderMarkdown } from "@/lib/markdown";
 import { BUILTIN_ARTICLES } from "@/lib/kb-content";
@@ -18,6 +18,7 @@ export default function KnowledgePage() {
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<Editing>(null);
   const [showBuiltin, setShowBuiltin] = useState(false);
+  const [preview, setPreview] = useState<{ title: string; category: string; html: string } | null>(null);
 
   useEffect(() => {
     fetch("/api/me", { cache: "no-store" }).then((r) => r.json()).then((me) => setPlatformAdmin(!!me?.platformAdmin)).catch(() => {});
@@ -82,11 +83,16 @@ export default function KnowledgePage() {
                 <div className="mb-1 text-[11px] font-semibold uppercase tracking-[0.05em] text-txt-mute">{cat}</div>
                 <ul className="flex flex-col gap-0.5">
                   {BUILTIN_ARTICLES.filter((a) => a.category === cat).map((a) => (
-                    <li key={a.id} className="flex items-center gap-2 text-[13px]">
-                      {/* An EYE, not a padlock: these are published and readable by everyone. A lock
-                          icon read as "restricted/unavailable", which is the opposite of the truth. */}
-                      <Eye className="size-3.5 shrink-0 text-ok" aria-hidden />
-                      <span className="truncate">{a.title}</span>
+                    <li key={a.id}>
+                      {/* Clickable: an admin listing articles should be able to READ them. Built-in
+                          content is bundled client-side, so this opens instantly with no fetch. */}
+                      <button
+                        onClick={() => setPreview({ title: a.title, category: a.category, html: renderMarkdown(a.body) })}
+                        className="flex w-full items-center gap-2 rounded-[6px] px-1 py-0.5 text-left text-[13px] hover:bg-panel-2"
+                      >
+                        <Eye className="size-3.5 shrink-0 text-ok" aria-hidden />
+                        <span className="truncate underline-offset-2 hover:underline">{a.title}</span>
+                      </button>
                     </li>
                   ))}
                 </ul>
@@ -124,6 +130,25 @@ export default function KnowledgePage() {
               <button onClick={() => remove(a)} title="Delete" className="grid size-8 place-items-center rounded-[8px] hover:bg-panel-2 hover:text-destructive"><Trash2 className="size-4" /></button>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Read-only preview of a built-in article — exactly what a user sees in the Help panel. */}
+      {preview && (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4" onClick={() => setPreview(null)}>
+          <div className="flex max-h-[85vh] w-full max-w-lg flex-col overflow-hidden rounded-[14px] border bg-card shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-start gap-2 border-b px-5 py-4">
+              <div className="min-w-0 flex-1">
+                <div className="text-[11px] font-semibold uppercase tracking-[0.05em] text-primary">{preview.category}</div>
+                <h2 className="mt-1 font-heading text-[17px] font-bold leading-snug">{preview.title}</h2>
+              </div>
+              <button onClick={() => setPreview(null)} className="grid size-8 place-items-center rounded-[8px] hover:bg-panel-2" aria-label="Close"><X className="size-4" /></button>
+            </div>
+            <div className="min-h-0 flex-1 overflow-auto px-5 py-4">
+              <div className="kb-prose text-[13.5px]" dangerouslySetInnerHTML={{ __html: preview.html }} />
+            </div>
+            <div className="border-t px-5 py-3 text-[11.5px] text-txt-mute">Built-in article — shown to everyone in this workspace.</div>
+          </div>
         </div>
       )}
     </div>

@@ -36,6 +36,7 @@ export const NAV_MAIN: NavItem[] = [
   { href: "/book", label: "Book a space", icon: LayoutGrid },
   { href: "/mine", label: "My bookings", icon: CalendarCheck },
   { href: "/team", label: "Who's in", icon: UserCheck, flag: "presence" },
+  { href: "/support", label: "Support", icon: LifeBuoy }, // everyone: raise + track their own requests
   { href: "/settings", label: "Settings", icon: Settings },
 ];
 
