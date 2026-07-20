@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
-import { BookOpen, Plus, Pencil, Trash2, Eye, EyeOff, Pin, Globe, Building2, LoaderCircle, Lock, ChevronDown, ChevronRight } from "lucide-react";
+import { BookOpen, Plus, Pencil, Trash2, Eye, EyeOff, Pin, Globe, Building2, LoaderCircle, ChevronDown, ChevronRight } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { renderMarkdown } from "@/lib/markdown";
 import { BUILTIN_ARTICLES } from "@/lib/kb-content";
@@ -71,7 +71,7 @@ export default function KnowledgePage() {
           <span className="grid size-9 shrink-0 place-items-center rounded-[10px] bg-ok/12 text-ok"><BookOpen className="size-4" /></span>
           <span className="min-w-0 flex-1">
             <span className="block text-[13.5px] font-semibold">{BUILTIN_ARTICLES.length} built-in help articles — already live</span>
-            <span className="mt-0.5 block text-[12px] text-txt-mute">Everyone in this workspace can read these from the Help (life-buoy) button. Maintained by {"TechHub Australia"} — not editable here.</span>
+            <span className="mt-0.5 block text-[12px] text-txt-mute">Everyone in this workspace can read these from the Help (life-buoy) button. Written and kept up to date by TechHub Australia — add your own below.</span>
           </span>
           {showBuiltin ? <ChevronDown className="size-4 shrink-0 text-txt-mute" /> : <ChevronRight className="size-4 shrink-0 text-txt-mute" />}
         </button>
@@ -83,7 +83,9 @@ export default function KnowledgePage() {
                 <ul className="flex flex-col gap-0.5">
                   {BUILTIN_ARTICLES.filter((a) => a.category === cat).map((a) => (
                     <li key={a.id} className="flex items-center gap-2 text-[13px]">
-                      <Lock className="size-3 shrink-0 text-txt-mute" />
+                      {/* An EYE, not a padlock: these are published and readable by everyone. A lock
+                          icon read as "restricted/unavailable", which is the opposite of the truth. */}
+                      <Eye className="size-3.5 shrink-0 text-ok" aria-hidden />
                       <span className="truncate">{a.title}</span>
                     </li>
                   ))}
