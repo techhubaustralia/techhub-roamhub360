@@ -63,11 +63,11 @@ services:
       BOOTSTRAP_ADMINS: ${BOOTSTRAP_ADMINS:-}
       AUTH_MICROSOFT_ENTRA_ID_ID: ${AUTH_MICROSOFT_ENTRA_ID_ID:-}
       AUTH_MICROSOFT_ENTRA_ID_SECRET: ${AUTH_MICROSOFT_ENTRA_ID_SECRET:-}
-      # Multi-tenant by default: "organizations" lets ANY customer's Microsoft org sign in. Set to a
-      # specific directory (tenant) GUID only if you deliberately want single-org sign-in.
-      AUTH_MICROSOFT_ENTRA_ID_TENANT: ${AUTH_MICROSOFT_ENTRA_ID_TENANT:-organizations}
-      # Deprecated — no longer used. Pinning an OIDC issuer cannot work multi-tenant (see auth.ts).
-      AUTH_MICROSOFT_ENTRA_ID_ISSUER: ${AUTH_MICROSOFT_ENTRA_ID_ISSUER:-}
+      # MUST stay ".../common/v2.0" for multi-tenant: Auth.js rewrites this per signing-in tenant
+      # (see auth.ts). Pinning it to one directory refuses every OTHER company; an EMPTY value
+      # crashes sign-in with `"as.issuer" must not be empty`. Leave it alone unless you deliberately
+      # want single-organisation sign-in.
+      AUTH_MICROSOFT_ENTRA_ID_ISSUER: ${AUTH_MICROSOFT_ENTRA_ID_ISSUER:-https://login.microsoftonline.com/common/v2.0}
       AUTH_GOOGLE_ID: ${AUTH_GOOGLE_ID:-}
       AUTH_GOOGLE_SECRET: ${AUTH_GOOGLE_SECRET:-}
       AZURE_TENANT_ID: ${AZURE_TENANT_ID:-}

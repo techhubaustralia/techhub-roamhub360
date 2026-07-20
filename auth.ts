@@ -1,5 +1,6 @@
 import NextAuth, { CredentialsSignin } from "next-auth";
 import type { Provider } from "next-auth/providers";
+import MicrosoftEntraID from "next-auth/providers/microsoft-entra-id";
 import Google from "next-auth/providers/google";
 import Credentials from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
@@ -15,45 +16,29 @@ const BOOTSTRAP_ADMINS = (process.env.BOOTSTRAP_ADMINS || "").split(",").map((s)
 
 // ---- Microsoft sign-in (MULTI-TENANT) ------------------------------------------------------------
 //
-// WHY NOT the built-in MicrosoftEntraID (OIDC) provider: it validates the returned id_token against
-// ONE expected issuer derived from AUTH_MICROSOFT_ENTRA_ID_ISSUER. Microsoft issues every id_token
-// from the tenant the user actually signed in FROM, so `iss` is
-// https://login.microsoftonline.com/<that-tenant-guid>/v2.0 — a different value for every customer.
-// A single expected issuer therefore CANNOT match all of them:
-//   • pinned to one tenant  → every other company is refused at Microsoft with
-//     "Selected user account does not exist in tenant '<yours>'"
-//   • left as "common"      → the issuer check fails → ?error=OAuthCallbackError
+// Use the BUILT-IN MicrosoftEntraID provider. It already handles multi-tenant correctly: after the
+// code exchange, @auth/core decodes the id_token, reads its real `tid` claim, rewrites the
+// authorization-server issuer to that tenant and re-runs discovery — so an id_token issued by ANY
+// customer's directory validates. (See @auth/core .../callback/oauth/callback.js, the
+// `case "microsoft-entra-id"` branch, which is gated on the provider's internal `conformInternal`
+// flag — a hand-rolled provider does NOT get that behaviour.)
 //
-// So we use plain OAuth 2.0 against /organizations/ (any work/school account; personal Microsoft
-// accounts excluded, which is right for a B2B product) and read the profile from Microsoft Graph.
-// Nothing is pinned to a tenant, so ANY customer's Microsoft org can sign in.
-//
-// SECURITY: this is not a downgrade. The code is exchanged server-side over TLS at Microsoft's token
-// endpoint using our client secret (confidential client) with PKCE + state, and the profile is read
-// from Graph with that access token. WHO is actually allowed in is still enforced by the signIn
-// callback below (must be an existing user, or their Entra directory must be admin-consent linked to
-// a workspace, or their email domain must be allowlisted) — SSO is not an open door.
-const ENTRA_TENANT = process.env.AUTH_MICROSOFT_ENTRA_ID_TENANT?.trim() || "organizations";
-const ENTRA_BASE = `https://login.microsoftonline.com/${ENTRA_TENANT}`;
+// Therefore:
+//   • The issuer MUST stay ".../common/v2.0" — that's the template Auth.js rewrites per tenant.
+//     Pinning it to one directory makes sign-in single-org and refuses every other company with
+//     "Selected user account does not exist in tenant '<yours>'".
+//   • It must never be an EMPTY string. Auth.js populates provider.issuer from the
+//     AUTH_MICROSOFT_ENTRA_ID_ISSUER env var, and its internal fallback uses `??`, which does NOT
+//     catch "" — an empty value yields `TypeError: "as.issuer" must not be empty`. Hence `||` below,
+//     so a blank env var still falls back to the working default.
+const ENTRA_ISSUER = process.env.AUTH_MICROSOFT_ENTRA_ID_ISSUER?.trim() || "https://login.microsoftonline.com/common/v2.0";
 
-function EntraMultiTenant(): Provider {
-  return {
-    // Keep this id: the redirect URI registered in Entra ends /api/auth/callback/microsoft-entra-id.
-    id: "microsoft-entra-id",
-    name: "Microsoft",
-    type: "oauth",
-    clientId: process.env.AUTH_MICROSOFT_ENTRA_ID_ID,
-    clientSecret: process.env.AUTH_MICROSOFT_ENTRA_ID_SECRET,
-    authorization: { url: `${ENTRA_BASE}/oauth2/v2.0/authorize`, params: { scope: "openid profile email User.Read" } },
-    token: `${ENTRA_BASE}/oauth2/v2.0/token`,
-    userinfo: "https://graph.microsoft.com/v1.0/me",
-    checks: ["pkce", "state"],
-    profile(p: Record<string, unknown>) {
-      const email = String(p.mail || p.userPrincipalName || "").toLowerCase();
-      return { id: String(p.id ?? email), name: String(p.displayName ?? email), email };
-    },
-    style: { text: "#fff", bg: "#0072c6" },
-  };
+// Auth.js reads AUTH_MICROSOFT_ENTRA_ID_ISSUER straight from the environment in several places and
+// merges it with `??`, which does NOT treat "" as missing — so a present-but-blank variable wins over
+// anything we pass in code and sign-in dies with `"as.issuer" must not be empty`. Normalise the
+// variable itself, once, so every consumer sees a valid issuer no matter how the app was launched.
+if (!process.env.AUTH_MICROSOFT_ENTRA_ID_ISSUER?.trim()) {
+  process.env.AUTH_MICROSOFT_ENTRA_ID_ISSUER = ENTRA_ISSUER;
 }
 
 /** Decode a JWT payload WITHOUT verifying the signature. Only ever used on an id_token fetched
@@ -172,7 +157,11 @@ const providers: Provider[] = [
 
 if (process.env.AUTH_MICROSOFT_ENTRA_ID_ID) {
   providers.unshift(
-    EntraMultiTenant(),
+    MicrosoftEntraID({
+      clientId: process.env.AUTH_MICROSOFT_ENTRA_ID_ID,
+      clientSecret: process.env.AUTH_MICROSOFT_ENTRA_ID_SECRET,
+      issuer: ENTRA_ISSUER,
+    }),
   );
 
   // Teams SSO: a user inside a Teams tab hands us the token from teams-js getAuthToken();

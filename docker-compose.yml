@@ -58,9 +58,9 @@ services:
       AUTH_SECRET: ${AUTH_SECRET:?required for login sessions}
       AUTH_MICROSOFT_ENTRA_ID_ID: ${AUTH_MICROSOFT_ENTRA_ID_ID:-}
       AUTH_MICROSOFT_ENTRA_ID_SECRET: ${AUTH_MICROSOFT_ENTRA_ID_SECRET:-}
-      # "organizations" = multi-tenant (any customer's Microsoft org). A tenant GUID = single-org.
-      AUTH_MICROSOFT_ENTRA_ID_TENANT: ${AUTH_MICROSOFT_ENTRA_ID_TENANT:-organizations}
-      AUTH_MICROSOFT_ENTRA_ID_ISSUER: ${AUTH_MICROSOFT_ENTRA_ID_ISSUER:-} # deprecated, unused
+      # Keep ".../common/v2.0" for multi-tenant — Auth.js rewrites it per signing-in tenant.
+      # Pinning it = single-org only; an EMPTY value breaks sign-in ("as.issuer" must not be empty).
+      AUTH_MICROSOFT_ENTRA_ID_ISSUER: ${AUTH_MICROSOFT_ENTRA_ID_ISSUER:-https://login.microsoftonline.com/common/v2.0}
       AUTH_GOOGLE_ID: ${AUTH_GOOGLE_ID:-}
       AUTH_GOOGLE_SECRET: ${AUTH_GOOGLE_SECRET:-}
       BOOTSTRAP_ADMINS: ${BOOTSTRAP_ADMINS:-}
