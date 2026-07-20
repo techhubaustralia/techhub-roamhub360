@@ -591,3 +591,26 @@ export async function postSupportReply(id: string, body: string): Promise<{ ok: 
   const b = await r.json().catch(() => ({}));
   return r.ok ? { ok: true } : { ok: false, error: b.error ?? "Could not send." };
 }
+
+// ---- Directory sync scope (which Entra groups to sync) -------------------------------------------
+export interface EntraGroupRow { id: string; name: string; description?: string | null }
+
+export async function getDirectoryGroups(q?: string): Promise<{ ok: boolean; groups: EntraGroupRow[]; selected: string[]; error?: string }> {
+  try {
+    const r = await fetch(`/api/admin/directory/groups${q ? `?q=${encodeURIComponent(q)}` : ""}`, { cache: "no-store" });
+    const b = await r.json().catch(() => ({}));
+    return { ok: !!b.ok, groups: b.groups ?? [], selected: b.selected ?? [], error: b.error };
+  } catch {
+    return { ok: false, groups: [], selected: [], error: "Network error" };
+  }
+}
+
+export async function saveDirectoryGroups(groupIds: string[]): Promise<{ ok: boolean; error?: string }> {
+  const r = await fetch("/api/admin/directory/groups", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ groupIds }),
+  });
+  const b = await r.json().catch(() => ({}));
+  return r.ok ? { ok: true } : { ok: false, error: b.error ?? "Could not save." };
+}

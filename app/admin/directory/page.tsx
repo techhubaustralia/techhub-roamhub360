@@ -2,8 +2,16 @@
 
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { RefreshCw, Building2 } from "lucide-react";
-import { getDirectory, syncDirectoryApi, type DirectoryEntry, type DirectoryStatus } from "@/lib/api";
+import { RefreshCw, Building2, Users, ChevronDown, ChevronRight } from "lucide-react";
+import {
+  getDirectory,
+  syncDirectoryApi,
+  getDirectoryGroups,
+  saveDirectoryGroups,
+  type DirectoryEntry,
+  type DirectoryStatus,
+  type EntraGroupRow,
+} from "@/lib/api";
 import { PageHeader } from "@/components/page-header";
 
 const initials = (name: string) =>
@@ -25,6 +33,35 @@ export default function DirectoryPage() {
   const [rows, setRows] = useState<DirectoryEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
+
+  // Sync scope — which Entra groups to pull (empty = whole directory).
+  const [showGroups, setShowGroups] = useState(false);
+  const [loadedGroups, setLoadedGroups] = useState(false);
+  const [groups, setGroups] = useState<EntraGroupRow[]>([]);
+  const [selected, setSelected] = useState<string[]>([]);
+  const [groupQuery, setGroupQuery] = useState("");
+  const [groupsLoading, setGroupsLoading] = useState(false);
+  const [groupsError, setGroupsError] = useState<string | null>(null);
+  const [savingGroups, setSavingGroups] = useState(false);
+
+  async function loadGroups(q?: string) {
+    setGroupsLoading(true);
+    setGroupsError(null);
+    const res = await getDirectoryGroups(q);
+    setGroups(res.groups);
+    if (!loadedGroups) setSelected(res.selected); // keep the admin's in-progress ticks on re-search
+    setLoadedGroups(true);
+    setGroupsError(res.ok ? null : (res.error ?? "Couldn't list groups."));
+    setGroupsLoading(false);
+  }
+
+  async function saveGroups() {
+    setSavingGroups(true);
+    const res = await saveDirectoryGroups(selected);
+    setSavingGroups(false);
+    if (res.ok) toast.success(selected.length ? `Scope set to ${selected.length} group${selected.length === 1 ? "" : "s"}` : "Syncing everyone");
+    else toast.error("Could not save", { description: res.error });
+  }
 
   async function load() {
     const { status, entries } = await getDirectory();
@@ -69,7 +106,75 @@ export default function DirectoryPage() {
       <div className="mb-4 flex flex-wrap items-center gap-3 text-[13px] text-txt-dim">
         <span className="rounded-full bg-panel-2 px-3 py-1"><b>{status?.count ?? 0}</b> people</span>
         <span className="rounded-full bg-panel-2 px-3 py-1">Last synced: <b>{relTime(status?.lastSync ?? null)}</b></span>
+        <span className="rounded-full bg-panel-2 px-3 py-1">Scope: <b>{selected.length ? `${selected.length} group${selected.length === 1 ? "" : "s"}` : "whole directory"}</b></span>
       </div>
+
+      {/* Sync scope. Pulling an entire enterprise directory into a booking app is noisy and a privacy
+          concern — most customers want a few groups (e.g. "Sydney Office", "Hybrid Staff"). */}
+      {status?.configured && (
+        <div className="mb-4 rounded-[14px] border bg-card shadow-sm">
+          <button onClick={() => { setShowGroups((s) => !s); if (!loadedGroups) loadGroups(); }} className="flex w-full items-center gap-3 px-4 py-3 text-left">
+            <span className="grid size-9 shrink-0 place-items-center rounded-[10px] bg-primary/12 text-primary"><Users className="size-4" /></span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-[13.5px] font-semibold">Which people should sync?</span>
+              <span className="mt-0.5 block text-[12px] text-txt-mute">
+                {selected.length ? `Only members of ${selected.length} selected group${selected.length === 1 ? "" : "s"}.` : "Currently syncing everyone in your Microsoft directory. Choose groups to narrow it."}
+              </span>
+            </span>
+            {showGroups ? <ChevronDown className="size-4 shrink-0 text-txt-mute" /> : <ChevronRight className="size-4 shrink-0 text-txt-mute" />}
+          </button>
+
+          {showGroups && (
+            <div className="border-t px-4 py-3">
+              <div className="flex gap-2">
+                <input
+                  value={groupQuery}
+                  onChange={(e) => setGroupQuery(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && loadGroups(groupQuery)}
+                  placeholder="Search groups by name…"
+                  className="ed-input text-[13px]"
+                />
+                <button onClick={() => loadGroups(groupQuery)} disabled={groupsLoading} className="shrink-0 rounded-[10px] border bg-panel-2 px-3 py-2 text-[13px] font-semibold hover:border-primary disabled:opacity-50">
+                  {groupsLoading ? "…" : "Search"}
+                </button>
+              </div>
+
+              {groupsError && <p className="mt-2 text-[12.5px] text-destructive">{groupsError}</p>}
+
+              <div className="mt-3 max-h-[260px] overflow-auto">
+                {groups.length === 0 && !groupsLoading ? (
+                  <p className="py-4 text-center text-[12.5px] text-txt-mute">No groups found. Your Entra app also needs <b>Group.Read.All</b> to list groups.</p>
+                ) : (
+                  groups.map((g) => (
+                    <label key={g.id} className="flex cursor-pointer items-start gap-2.5 rounded-[8px] px-2 py-1.5 hover:bg-panel-2">
+                      <input
+                        type="checkbox"
+                        checked={selected.includes(g.id)}
+                        onChange={(e) => setSelected((s) => (e.target.checked ? [...s, g.id] : s.filter((x) => x !== g.id)))}
+                        className="mt-0.5 size-4 accent-[var(--primary)]"
+                      />
+                      <span className="min-w-0">
+                        <span className="block text-[13px] font-medium">{g.name}</span>
+                        {g.description && <span className="block truncate text-[11.5px] text-txt-mute">{g.description}</span>}
+                      </span>
+                    </label>
+                  ))
+                )}
+              </div>
+
+              <div className="mt-3 flex flex-wrap items-center gap-2 border-t pt-3">
+                <button onClick={saveGroups} disabled={savingGroups} className="rounded-[10px] bg-primary px-4 py-2 text-[13px] font-semibold text-primary-foreground hover:bg-orange-soft disabled:opacity-50">
+                  {savingGroups ? "Saving…" : "Save scope"}
+                </button>
+                <button onClick={() => setSelected([])} className="rounded-[10px] border bg-panel-2 px-3 py-2 text-[13px] font-semibold hover:border-primary">
+                  Clear (sync everyone)
+                </button>
+                <span className="text-[11.5px] text-txt-mute">Nested groups are included. Run a sync after saving.</span>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {!loading && !status?.configured && (
         <div className="mb-4 rounded-[12px] border border-amber/40 bg-amber/10 px-4 py-3 text-[13px]">

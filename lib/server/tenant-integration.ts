@@ -87,6 +87,24 @@ export async function getIntegrationCreds(tenantId: string): Promise<Integration
   }
 }
 
+/** Entra group ids whose members should be synced. Empty = whole directory (legacy). */
+export async function getDirectoryGroups(tenantId: string): Promise<string[]> {
+  if (!useSql) return [];
+  const p = await prisma();
+  const row = await p.tenantIntegration.findUnique({ where: { tenantId } });
+  return (row?.directoryGroups as string[] | undefined) ?? [];
+}
+
+export async function setDirectoryGroups(tenantId: string, groupIds: string[]): Promise<void> {
+  const p = await prisma();
+  const clean = [...new Set(groupIds.map((g) => g.trim()).filter(Boolean))].slice(0, 50);
+  await p.tenantIntegration.upsert({
+    where: { tenantId },
+    create: { tenantId, directoryGroups: clean },
+    update: { directoryGroups: clean },
+  });
+}
+
 export async function recordTest(tenantId: string, ok: boolean, error?: string): Promise<void> {
   if (!useSql) return;
   const p = await prisma();

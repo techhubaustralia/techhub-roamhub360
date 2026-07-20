@@ -1,6 +1,7 @@
 import "server-only";
 import { currentTenantId } from "./tenant";
 import { graphConfiguredFor, graphJson, graphPhotoDataUrl } from "./graph";
+import { getDirectoryGroups } from "./tenant-integration";
 
 // Team Build-Up B — Microsoft Entra directory sync. Pulls real profiles (name, title,
 // department, manager, photo) from Graph /users into a per-tenant DirectoryUser cache, so
@@ -52,6 +53,36 @@ export function stripGraphBase(next: string | undefined): string | null {
 
 const SELECT = "id,displayName,givenName,surname,mail,userPrincipalName,jobTitle,department,officeLocation,accountEnabled";
 
+export interface EntraGroup {
+  id: string;
+  name: string;
+  description?: string | null;
+}
+
+/** The customer's Entra groups, so an admin can choose which ones to sync instead of the whole
+ *  directory. Needs the same User.Read.All/Group.Read.All app permission the sync already uses. */
+export async function listEntraGroups(search?: string): Promise<{ ok: boolean; groups: EntraGroup[]; error?: string }> {
+  const tenantId = await currentTenantId();
+  if (!(await graphConfiguredFor(tenantId))) {
+    return { ok: false, groups: [], error: "Microsoft isn't connected for this workspace yet." };
+  }
+  try {
+    const q = search?.trim();
+    // startswith() keeps it usable on big directories; without a search we just take the first page.
+    const filter = q ? `&$filter=${encodeURIComponent(`startswith(displayName,'${q.replace(/'/g, "''")}')`)}` : "";
+    const page = (await graphJson(`/groups?$select=id,displayName,description&$top=100${filter}`, tenantId)) as {
+      value?: { id: string; displayName?: string; description?: string }[];
+    };
+    const groups = (page.value ?? [])
+      .filter((g) => g.id && g.displayName)
+      .map((g) => ({ id: g.id, name: g.displayName as string, description: g.description ?? null }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+    return { ok: true, groups };
+  } catch (e) {
+    return { ok: false, groups: [], error: e instanceof Error ? e.message : String(e) };
+  }
+}
+
 /** Page through the Entra directory and upsert every enabled member for the current tenant.
  *  Photos are fetched per-user (best-effort) unless opts.photos === false. */
 export async function syncDirectory(opts?: { photos?: boolean }): Promise<SyncResult> {
@@ -66,12 +97,25 @@ export async function syncDirectory(opts?: { photos?: boolean }): Promise<SyncRe
   let synced = 0;
   let photos = 0;
 
+  // SCOPE: when the workspace has chosen Entra groups, sync ONLY those groups' members (transitive,
+  // so nested groups are included). Otherwise fall back to the whole directory. Syncing an entire
+  // enterprise directory into a booking app is noisy and a privacy concern, so groups are preferred.
+  const groups = await getDirectoryGroups(tenantId).catch(() => [] as string[]);
+  const seen = new Set<string>(); // a person in two selected groups must only be counted once
+
   try {
-    let path: string | null = `/users?$select=${SELECT}&$expand=manager($select=mail,userPrincipalName)&$top=200`;
+    const startPaths = groups.length
+      ? groups.map((g) => `/groups/${encodeURIComponent(g)}/transitiveMembers/microsoft.graph.user?$select=${SELECT}&$top=200`)
+      : [`/users?$select=${SELECT}&$expand=manager($select=mail,userPrincipalName)&$top=200`];
+
+    for (const start of startPaths) {
+    let path: string | null = start;
     while (path) {
       const page = (await graphJson(path, tenantId)) as { value?: any[]; ["@odata.nextLink"]?: string };
       for (const u of page.value ?? []) {
         if (u.accountEnabled === false) continue; // skip disabled accounts
+        if (u.id && seen.has(u.id)) continue;
+        if (u.id) seen.add(u.id);
         const email = graphUserEmail(u);
         if (!email) continue;
         const managerEmail = graphUserEmail(u.manager);
@@ -99,6 +143,7 @@ export async function syncDirectory(opts?: { photos?: boolean }): Promise<SyncRe
         synced++;
       }
       path = stripGraphBase(page["@odata.nextLink"]);
+    }
     }
     return { ok: true, synced, photos };
   } catch (e) {

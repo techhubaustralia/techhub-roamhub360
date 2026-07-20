@@ -117,6 +117,10 @@ model TenantIntegration {
   ssoEntraTenantId String?   @unique
   ssoConnectedAt   DateTime?
   ssoConnectedBy   String? // email of the admin who connected it
+  // Directory sync scope. EMPTY = sync the whole tenant (legacy behaviour). Non-empty = sync only
+  // the members of these Entra group ids — what an enterprise customer actually wants, rather than
+  // pulling every account in their directory into a booking app.
+  directoryGroups String[] @default([])
   lastTestOk    Boolean? // result of the last connection test
   lastTestAt    DateTime?
   lastTestError String?
