@@ -54,6 +54,9 @@ services:
       # redirect:false + client-side navigation and never consume server-built URLs.
       AUTH_URL: ${APP_URL}
       AUTH_TRUST_HOST: "true"
+      # Set AUTH_DEBUG=true in .env to log the underlying cause of an OAuth failure (issuer
+      # mismatch, invalid_client…) instead of a bare ?error=OAuthCallbackError. Off by default.
+      AUTH_DEBUG: ${AUTH_DEBUG:-}
       CHECKIN_SECRET: ${CHECKIN_SECRET:?required — the app refuses to boot without it}
       JOBS_SECRET: ${JOBS_SECRET}
       AUTH_SECRET: ${AUTH_SECRET:?required for login sessions}

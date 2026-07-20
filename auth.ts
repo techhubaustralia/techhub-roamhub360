@@ -1,4 +1,4 @@
-import NextAuth from "next-auth";
+import NextAuth, { CredentialsSignin } from "next-auth";
 import type { Provider } from "next-auth/providers";
 import MicrosoftEntraID from "next-auth/providers/microsoft-entra-id";
 import Google from "next-auth/providers/google";
@@ -13,6 +13,23 @@ import { rateLimit } from "@/lib/server/rate-limit";
 
 // Break-glass platform operators (comma-separated env). They may access any workspace.
 const BOOTSTRAP_ADMINS = (process.env.BOOTSTRAP_ADMINS || "").split(",").map((s) => s.trim().toLowerCase()).filter(Boolean);
+
+// Sign-in rejections carry a machine-readable `code` so the sign-in form can tell the user WHAT
+// went wrong (wrong password vs 2FA needed vs wrong workspace) instead of silently revealing a
+// "code" field on every failure. Every rejection is also logged server-side with its real reason.
+//
+// ENUMERATION SAFETY: only `bad_credentials` is reachable before the password is verified — every
+// other code is emitted AFTER a correct password, so none of them reveal whether an account exists.
+class SignInRejected extends CredentialsSignin {
+  constructor(public code: string) {
+    super(code);
+  }
+}
+
+function rejectSignIn(code: string, email: string, detail?: string): never {
+  console.warn(`[auth] sign-in rejected (${code}) for ${email}${detail ? ` — ${detail}` : ""}`);
+  throw new SignInRejected(code);
+}
 
 // Tenant lock: a sign-in is only valid on the workspace subdomain the account belongs to. This is
 // what keeps each tenancy's login SEPARATE — a default/app account can't authenticate on
@@ -35,24 +52,34 @@ const providers: Provider[] = [
     async authorize(creds, request) {
       const email = String(creds?.email ?? "").toLowerCase().trim();
       const password = String(creds?.password ?? "");
-      if (!email || !password) return null;
+      if (!email || !password) rejectSignIn("bad_credentials", email || "(blank)", "email or password missing");
       // Brute-force throttle: cap failed attempts per account (20 / 15 min). A correct login
       // still succeeds within the window; only guessing is slowed.
-      if (!rateLimit(`login:${email}`, 20, 15 * 60 * 1000).ok) return null;
-      const u = await findUserByEmail(email);
-      if (!u?.passwordHash) return null; // no local password (SSO-only or unknown)
+      if (!rateLimit(`login:${email}`, 20, 15 * 60 * 1000).ok) rejectSignIn("rate_limited", email, "too many attempts");
+      const u = await findUserByEmail(email).catch((e) => {
+        console.error(`[auth] DB lookup failed for ${email}: ${e instanceof Error ? e.message : String(e)}`);
+        return null;
+      });
+      // No local password = SSO-only or unknown account. Reported generically (this is the ONLY
+      // pre-password branch, so it must not distinguish "no such user" from "SSO-only").
+      if (!u?.passwordHash) rejectSignIn("bad_credentials", email, u ? "account has no password (SSO-only or invite not completed)" : "no such user");
       const ok = await bcrypt.compare(password, u.passwordHash);
-      if (!ok) return null;
+      if (!ok) rejectSignIn("bad_credentials", email, "wrong password");
       // TENANT LOCK: this account may only sign in on its own workspace's subdomain. Without this,
       // a valid account authenticates on ANY subdomain and then gets bounced — the cross-tenancy bug.
-      if (!accountMatchesHost(u.tenantId, email, request)) return null;
+      if (!accountMatchesHost(u.tenantId, email, request)) {
+        rejectSignIn("wrong_workspace", email, `account belongs to "${u.tenantId ?? "default"}" but signed in on "${tenantFromHost(request ? requestHost(request) : "")}"`);
+      }
       // Self-serve signups must confirm their email before the first sign-in.
-      if (u.mustVerify) return null;
+      if (u.mustVerify) rejectSignIn("unverified", email, "email not verified yet");
       // Two-factor: if enabled, a valid current TOTP code is also required.
       if (u.totpEnabled && u.totpSecret) {
+        const code = String(creds?.totp ?? "").trim();
+        if (!code) rejectSignIn("totp_required", email, "2FA enabled, no code supplied");
         const { verifyTotp } = await import("@/lib/server/totp");
-        if (!verifyTotp(u.totpSecret, String(creds?.totp ?? ""))) return null;
+        if (!verifyTotp(u.totpSecret, code)) rejectSignIn("totp_invalid", email, "2FA code incorrect");
       }
+      console.log(`[auth] sign-in OK for ${email} (workspace "${u.tenantId ?? "default"}")`);
       return { id: u.id, email: u.email, name: u.name ?? email };
     },
   }),
@@ -67,12 +94,22 @@ const providers: Provider[] = [
     async authorize(creds, request) {
       const { verifyHandoffToken } = await import("@/lib/server/account-token");
       const h = verifyHandoffToken(String(creds?.token ?? ""));
-      if (!h?.email) return null;
+      if (!h?.email) {
+        console.warn("[auth] SSO handoff rejected: invalid or expired handoff token");
+        return null;
+      }
       const u = await findUserByEmail(h.email).catch(() => null);
-      if (!u) return null; // not provisioned in this workspace → refuse
+      if (!u) {
+        console.warn(`[auth] SSO handoff rejected: ${h.email} is not provisioned in this workspace`);
+        return null;
+      }
       // Same tenant lock as password login: the relayed SSO session only lands on the account's own
       // workspace subdomain (platform operators excepted).
-      if (!accountMatchesHost(u.tenantId, h.email, request)) return null;
+      if (!accountMatchesHost(u.tenantId, h.email, request)) {
+        console.warn(`[auth] SSO handoff rejected: ${h.email} belongs to "${u.tenantId ?? "default"}", relayed to "${tenantFromHost(request ? requestHost(request) : "")}"`);
+        return null;
+      }
+      console.log(`[auth] SSO handoff OK for ${h.email}`);
       return { id: u.id, email: u.email, name: u.name ?? h.email };
     },
   }),
@@ -123,6 +160,19 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   ...authConfig,
   secret: process.env.AUTH_SECRET,
   providers,
+  // Set AUTH_DEBUG=true in .env to make Auth.js print the UNDERLYING cause of an OAuth failure
+  // (issuer mismatch, invalid_client, etc.) instead of just "?error=OAuthCallbackError" in the URL.
+  // Leave it off in normal operation — debug logs are verbose and include token metadata.
+  debug: process.env.AUTH_DEBUG === "true",
+  logger: {
+    error(error) {
+      // Always surface the real reason server-side, even with debug off.
+      console.error(`[auth][error] ${error.name}: ${error.message}`, (error as { cause?: unknown }).cause ?? "");
+    },
+    warn(code) {
+      console.warn(`[auth][warn] ${code}`);
+    },
+  },
   callbacks: {
     ...authConfig.callbacks,
     async signIn({ user, account, profile }) {
@@ -133,28 +183,42 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         // claim from Microsoft's signed id_token) was admin-consent connected to a workspace, so
         // they auto-join THAT workspace — or (b) the SSO_AUTO_JOIN_DOMAINS allowlist. Everyone
         // else must be invited by an admin first.
-        const existing = await findUserByEmail(email).catch(() => null);
-        if (existing || BOOTSTRAP_ADMINS.includes(email)) {
-          await upsertSsoUser(email, user.name ?? undefined, account.provider);
-          return true;
-        }
+        // Any THROW in this callback surfaces to the browser as a generic ?error=OAuthCallbackError,
+        // so every DB write here is guarded and logged — a failure must name itself in the log.
+        const provision = async (tenantId?: string): Promise<boolean> => {
+          try {
+            await upsertSsoUser(email, user.name ?? undefined, account.provider, tenantId);
+            console.log(`[auth] SSO sign-in OK for ${email} via ${account.provider}${tenantId ? ` → workspace "${tenantId}"` : ""}`);
+            return true;
+          } catch (e) {
+            console.error(`[auth] SSO provisioning FAILED for ${email}: ${e instanceof Error ? e.message : String(e)}`);
+            return false; // fail closed, but the log names the real cause
+          }
+        };
+
+        const existing = await findUserByEmail(email).catch((e) => {
+          console.error(`[auth] SSO user lookup failed for ${email}: ${e instanceof Error ? e.message : String(e)}`);
+          return null;
+        });
+        if (existing || BOOTSTRAP_ADMINS.includes(email)) return provision();
+
         const tid = typeof (profile as { tid?: unknown } | undefined)?.tid === "string" ? (profile as { tid: string }).tid : null;
         if (tid) {
-          const orgTenant = await findTenantByEntraTid(tid).catch(() => null);
-          if (orgTenant) {
-            await upsertSsoUser(email, user.name ?? undefined, account.provider, orgTenant);
-            return true;
-          }
+          const orgTenant = await findTenantByEntraTid(tid).catch((e) => {
+            console.error(`[auth] org-SSO lookup failed for tid ${tid}: ${e instanceof Error ? e.message : String(e)}`);
+            return null;
+          });
+          if (orgTenant) return provision(orgTenant);
         }
         const domains = (process.env.SSO_AUTO_JOIN_DOMAINS || "")
           .split(",")
           .map((s) => s.trim().toLowerCase())
           .filter(Boolean);
-        if (domains.includes(email.split("@")[1] ?? "")) {
-          await upsertSsoUser(email, user.name ?? undefined, account.provider);
-          return true;
-        }
-        return false; // unknown account — ask an admin for an invite
+        if (domains.includes(email.split("@")[1] ?? "")) return provision();
+
+        // Unknown account — needs an invite, an org-SSO connection, or an allowlisted domain.
+        console.warn(`[auth] SSO sign-in DENIED for ${email}: not provisioned, Entra tid ${tid ?? "(none)"} not linked to a workspace, and domain not in SSO_AUTO_JOIN_DOMAINS`);
+        return false;
       }
       return true;
     },

@@ -46,13 +46,36 @@ export function SignInForm({ entraEnabled, googleEnabled, bare = false }: { entr
     setLoading(true);
     const res = await signIn("credentials", { email, password, totp, redirect: false });
     setLoading(false);
-    if (res?.error) {
-      // Rejected: wrong password, an unverified new signup, or a missing/invalid 2FA code. We don't
-      // say which (no enumeration) — but reveal the 2FA field and offer to resend verification.
-      setShowTotp(true);
-      setFailed(true);
-      setError(showTotp ? "Incorrect email, password, or authentication code." : "Couldn't sign you in. If you just created a workspace, verify your email first — check your inbox.");
-    } else window.location.assign("/");
+    if (!res?.error) {
+      window.location.assign("/");
+      return;
+    }
+    // The server returns a specific reason (auth.ts). Only the 2FA codes reveal the code field —
+    // previously EVERY failure did, which made a wrong password look like it needed a code.
+    const code = res.code ?? "";
+    setFailed(true);
+    switch (code) {
+      case "totp_required":
+        setShowTotp(true);
+        setError("Enter the 6-digit code from your authenticator app.");
+        break;
+      case "totp_invalid":
+        setShowTotp(true);
+        setError("That authentication code isn't right — check the current code and try again.");
+        break;
+      case "unverified":
+        setError("Verify your email address before signing in — check your inbox for the link.");
+        break;
+      case "wrong_workspace":
+        setError("This account belongs to a different workspace. Sign in from your own workspace's web address.");
+        break;
+      case "rate_limited":
+        setError("Too many sign-in attempts. Wait a few minutes and try again.");
+        break;
+      default:
+        // bad_credentials (or anything unmapped) — deliberately generic, no account enumeration.
+        setError("Incorrect email or password. If you were invited, use the link in your invite email to set a password first.");
+    }
   }
 
   const inner = (

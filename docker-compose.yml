@@ -51,6 +51,8 @@ services:
       # client-side navigation.
       AUTH_URL: ${APP_URL}
       AUTH_TRUST_HOST: "true"
+      # AUTH_DEBUG=true logs the underlying cause of OAuth failures. Off by default.
+      AUTH_DEBUG: ${AUTH_DEBUG:-}
       CHECKIN_SECRET: ${CHECKIN_SECRET:?required — the app refuses to boot without it}
       JOBS_SECRET: ${JOBS_SECRET}
       AUTH_SECRET: ${AUTH_SECRET:?required for login sessions}
