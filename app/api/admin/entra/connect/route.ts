@@ -27,5 +27,12 @@ export async function GET() {
   url.searchParams.set("client_id", clientId);
   url.searchParams.set("redirect_uri", `${appUrl.replace(/\/$/, "")}/api/admin/entra/callback`);
   url.searchParams.set("state", signConnectState(tenantId, me.email));
+  // REQUIRED by the v2.0 adminconsent endpoint — omitting it fails with
+  // "AADSTS900144: The request body must contain the following parameter: 'scope'".
+  // Microsoft expects FULLY-QUALIFIED resource scopes here. We deliberately ask for the single
+  // delegated permission sign-in needs (User.Read) rather than `.default`, which would consent the
+  // customer's tenant to EVERY permission this app declares (including our app-only mail
+  // permissions) — over-permissioned and alarming on the consent screen a client's IT admin sees.
+  url.searchParams.set("scope", "https://graph.microsoft.com/User.Read");
   return NextResponse.redirect(url);
 }
