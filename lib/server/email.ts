@@ -292,6 +292,35 @@ export function supportAckEmail(f: { subject: string; message: string }, eb: Ema
   };
 }
 
+/** Sent to the REQUESTER when a member of staff answers their support request. */
+export function supportReplyEmail(f: { subject: string; body: string; fromName?: string | null; url?: string }, eb: EmailBrand = DEFAULT_EMAIL_BRAND) {
+  return {
+    subject: `Re: ${f.subject}`,
+    html: shell(
+      "There's a reply to your request",
+      `<p>${f.fromName ? `${esc(f.fromName)} replied` : "Our team replied"} to <b>${esc(f.subject)}</b>:</p>
+       <div style="border-left:3px solid ${eb.accent};padding:4px 0 4px 12px;margin:14px 0;white-space:pre-wrap;font-size:13px;color:#334;line-height:1.6">${esc(f.body)}</div>
+       ${f.url ? `<p style="margin-top:16px">${btn(f.url, "View in " + esc(eb.productName), undefined, eb)}</p>` : ""}
+       <p style="color:#7491a0;font-size:12px;margin-top:14px">You can reply to this email, or open the Help panel in ${esc(eb.productName)} to continue the conversation.</p>`,
+      eb,
+    ),
+  };
+}
+
+/** Sent to the ops inbox when the requester adds a follow-up to an existing request. */
+export function supportFollowUpEmail(f: { subject: string; body: string; userEmail: string; workspace: string; ticketUrl?: string }, eb: EmailBrand = DEFAULT_EMAIL_BRAND) {
+  return {
+    subject: `[Support] Re: ${f.subject}`,
+    html: shell(
+      "Follow-up on a support request",
+      `<p><b>${esc(f.userEmail)}</b> (workspace ${esc(f.workspace)}) added to <b>${esc(f.subject)}</b>:</p>
+       <div style="border-left:3px solid ${eb.accent};padding:4px 0 4px 12px;margin:14px 0;white-space:pre-wrap;font-size:13px;color:#334;line-height:1.6">${esc(f.body)}</div>
+       ${f.ticketUrl ? `<p style="margin-top:16px">${btn(f.ticketUrl, "Open in support queue", undefined, eb)}</p>` : ""}`,
+      eb,
+    ),
+  };
+}
+
 export function checkOutEmail(b: Booking, day: string, eb: EmailBrand = DEFAULT_EMAIL_BRAND) {
   const url = `${APP_URL}/api/checkout?token=${sign({ bookingId: b.id, action: "checkout", date: day })}`;
   return {

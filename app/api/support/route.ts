@@ -4,7 +4,7 @@ import { getUser } from "@/lib/server/auth";
 import { currentTenantId, workspaceOrigin } from "@/lib/server/tenant";
 import { rateLimit } from "@/lib/server/rate-limit";
 import { putAsset } from "@/lib/server/store";
-import { createSupportRequest } from "@/lib/server/support";
+import { createSupportRequest, listMySupportRequests, replyCounts } from "@/lib/server/support";
 import { sendMail } from "@/lib/server/graph";
 import { emailBrand, supportRequestEmail, supportAckEmail } from "@/lib/server/email";
 import { audit } from "@/lib/server/db";
@@ -24,6 +24,17 @@ function opsInbox(): string | null {
     .map((s) => s.trim())
     .filter(Boolean);
   return list[0] ?? null;
+}
+
+// The signed-in user's OWN requests + their replies. This is what lets a requester see the status of
+// something they raised, instead of the request vanishing into an inbox they can't see.
+export async function GET() {
+  const me = await getUser();
+  if (!me.email) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
+  if (!process.env.DATABASE_URL) return NextResponse.json({ requests: [] });
+  const requests = await listMySupportRequests(await currentTenantId(), me.email);
+  const counts = await replyCounts(requests.map((r) => r.id));
+  return NextResponse.json({ requests: requests.map((r) => ({ ...r, replyCount: counts[r.id] ?? 0 })) });
 }
 
 export async function POST(req: Request) {

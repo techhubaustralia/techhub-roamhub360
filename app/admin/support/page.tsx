@@ -2,9 +2,9 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
-import { LifeBuoy, Paperclip, X, LoaderCircle, CircleDot, CheckCircle2, AlertTriangle } from "lucide-react";
+import { LifeBuoy, Paperclip, X, LoaderCircle, CircleDot, CheckCircle2, AlertTriangle, Send } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
-import { getSupportQueue, updateSupportRequestApi, type SupportRequestRow } from "@/lib/api";
+import { getSupportQueue, updateSupportRequestApi, getSupportThread, postSupportReply, type SupportRequestRow, type SupportReplyRow } from "@/lib/api";
 
 type Filter = "open" | "closed" | "all";
 
@@ -95,6 +95,27 @@ export default function SupportQueuePage() {
 
 function Detail({ row, onClose, onPatch }: { row: SupportRequestRow; onClose: () => void; onPatch: (id: string, p: { status?: string; priority?: string; adminNote?: string | null }) => void }) {
   const [note, setNote] = useState(row.adminNote ?? "");
+  const [replies, setReplies] = useState<SupportReplyRow[]>([]);
+  const [reply, setReply] = useState("");
+  const [sending, setSending] = useState(false);
+
+  const loadThread = useCallback(async () => {
+    const t = await getSupportThread(row.id);
+    if (t) setReplies(t.replies);
+  }, [row.id]);
+  useEffect(() => { loadThread().catch(() => {}); }, [loadThread]);
+
+  async function send() {
+    if (!reply.trim()) return;
+    setSending(true);
+    const res = await postSupportReply(row.id, reply.trim());
+    setSending(false);
+    if (res.ok) {
+      setReply("");
+      loadThread();
+      toast.success("Reply sent", { description: `Emailed to ${row.userEmail}` });
+    } else toast.error("Could not send", { description: res.error });
+  }
 
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4" onClick={onClose}>
@@ -121,6 +142,27 @@ function Detail({ row, onClose, onPatch }: { row: SupportRequestRow; onClose: ()
               {row.attachmentSize ? <span className="text-txt-mute">· {(row.attachmentSize / 1024).toFixed(0)} KB</span> : null}
             </a>
           )}
+
+          {/* Conversation — the requester sees these in their Help panel and by email. */}
+          <div className="mt-5 border-t pt-4">
+            <span className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.05em] text-txt-mute">Conversation</span>
+            {replies.length === 0 ? (
+              <p className="text-[12.5px] text-txt-mute">No replies yet. Your reply is emailed to the requester and shown in their Help panel.</p>
+            ) : (
+              <div className="flex flex-col gap-2">
+                {replies.map((r) => (
+                  <div key={r.id} className={`rounded-[10px] border px-3 py-2 text-[13px] ${r.fromAdmin ? "bg-primary/8 border-primary/25" : "bg-panel-2/50"}`}>
+                    <div className="mb-0.5 text-[11.5px] text-txt-mute">{r.fromAdmin ? (r.authorName || "Support") : (r.authorName || r.authorEmail)} · {new Date(r.createdAt).toLocaleString()}</div>
+                    <div className="whitespace-pre-wrap leading-relaxed">{r.body}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+            <textarea value={reply} onChange={(e) => setReply(e.target.value)} rows={3} maxLength={5000} placeholder={`Reply to ${row.userName || row.userEmail}…`} className="ed-input mt-2 text-[13px]" />
+            <button onClick={send} disabled={sending || !reply.trim()} className="mt-2 flex items-center gap-1.5 rounded-[10px] bg-primary px-4 py-2 text-[13px] font-semibold text-primary-foreground hover:bg-orange-soft disabled:opacity-50">
+              <Send className="size-3.5" /> {sending ? "Sending…" : "Send reply"}
+            </button>
+          </div>
 
           <div className="mt-5 border-t pt-4">
             <span className="mb-1 block text-[11px] font-semibold uppercase tracking-[0.05em] text-txt-mute">Priority</span>

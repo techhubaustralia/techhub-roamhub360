@@ -116,6 +116,74 @@ export async function updateSupportRequest(id: string, patch: { status?: string;
   return toRow(row);
 }
 
+// ---- Replies (closing the loop) ------------------------------------------------------------------
+export interface SupportReply {
+  id: string;
+  requestId: string;
+  authorEmail: string;
+  authorName: string | null;
+  fromAdmin: boolean;
+  body: string;
+  createdAt: string;
+}
+
+function toReply(r: any): SupportReply {
+  return {
+    id: r.id,
+    requestId: r.requestId,
+    authorEmail: r.authorEmail,
+    authorName: r.authorName ?? null,
+    fromAdmin: r.fromAdmin,
+    body: r.body,
+    createdAt: (r.createdAt as Date).toISOString(),
+  };
+}
+
+export async function listReplies(requestId: string): Promise<SupportReply[]> {
+  if (!useSql) return [];
+  const p = await prisma();
+  const rows = await p.supportReply.findMany({ where: { requestId }, orderBy: { createdAt: "asc" } });
+  return rows.map(toReply);
+}
+
+export async function addReply(input: { requestId: string; authorEmail: string; authorName?: string | null; fromAdmin: boolean; body: string }): Promise<SupportReply> {
+  const p = await prisma();
+  const row = await p.supportReply.create({
+    data: {
+      requestId: input.requestId,
+      authorEmail: input.authorEmail,
+      authorName: input.authorName ?? null,
+      fromAdmin: input.fromAdmin,
+      body: input.body,
+    },
+  });
+  // Touch the parent so the queue re-sorts and "updated" reflects the conversation.
+  await p.supportRequest.update({ where: { id: input.requestId }, data: { updatedAt: new Date() } }).catch(() => {});
+  return toReply(row);
+}
+
+/** A user's OWN requests (any status), newest first — powers "My requests" in the Help panel. */
+export async function listMySupportRequests(tenantId: string, userEmail: string): Promise<SupportRequest[]> {
+  if (!useSql) return [];
+  const p = await prisma();
+  const rows = await p.supportRequest.findMany({
+    where: { tenantId, userEmail: userEmail.toLowerCase() },
+    orderBy: { createdAt: "desc" },
+    take: 50,
+  });
+  return rows.map(toRow);
+}
+
+/** Reply counts for a set of requests, so lists can show "2 replies" without N queries. */
+export async function replyCounts(requestIds: string[]): Promise<Record<string, number>> {
+  if (!useSql || requestIds.length === 0) return {};
+  const p = await prisma();
+  const rows = await p.supportReply.groupBy({ by: ["requestId"], where: { requestId: { in: requestIds } }, _count: { _all: true } });
+  const out: Record<string, number> = {};
+  for (const r of rows) out[r.requestId] = r._count._all;
+  return out;
+}
+
 export async function openSupportCount(tenantId: string): Promise<number> {
   if (!useSql) return 0;
   const p = await prisma();

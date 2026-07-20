@@ -197,6 +197,21 @@ model KbArticle {
 // A support request raised from the Help panel. Emailed to OPS_EMAIL (with any attachment) AND kept
 // here so admins get an in-app open/closed queue. The attachment itself lives in blob/disk storage
 // (lib/server/store.ts), not the DB — only its metadata + storage key are recorded here.
+// A message on a support request — either the admin answering, or the requester following up.
+// This is what closes the loop: previously an admin could only reply via a mailto: link, so the
+// person who raised the request never saw anything back inside the app.
+model SupportReply {
+  id          String   @id @default(uuid())
+  requestId   String
+  authorEmail String
+  authorName  String?
+  fromAdmin   Boolean  @default(false) // true = staff answering, false = requester following up
+  body        String
+  createdAt   DateTime @default(now())
+
+  @@index([requestId])
+}
+
 model SupportRequest {
   id             String   @id @default(uuid())
   tenantId       String   @default("default")

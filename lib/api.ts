@@ -549,3 +549,45 @@ export async function updateSupportRequestApi(id: string, patch: { status?: stri
   const b = await r.json().catch(() => ({}));
   return r.ok ? { ok: true, request: b.request } : { ok: false, error: b.error ?? "Could not update." };
 }
+
+// ---- Support conversation (closing the loop) -----------------------------------------------------
+export interface SupportReplyRow {
+  id: string;
+  requestId: string;
+  authorEmail: string;
+  authorName: string | null;
+  fromAdmin: boolean;
+  body: string;
+  createdAt: string;
+}
+
+/** The signed-in user's own requests (with reply counts) — powers "My requests" in Help. */
+export async function getMySupportRequests(): Promise<(SupportRequestRow & { replyCount?: number })[]> {
+  try {
+    const r = await fetch("/api/support", { cache: "no-store" });
+    const b = await r.json().catch(() => ({}));
+    return Array.isArray(b.requests) ? b.requests : [];
+  } catch {
+    return [];
+  }
+}
+
+export async function getSupportThread(id: string): Promise<{ request: SupportRequestRow; replies: SupportReplyRow[] } | null> {
+  try {
+    const r = await fetch(`/api/support/${id}/reply`, { cache: "no-store" });
+    if (!r.ok) return null;
+    return await r.json();
+  } catch {
+    return null;
+  }
+}
+
+export async function postSupportReply(id: string, body: string): Promise<{ ok: boolean; error?: string }> {
+  const r = await fetch(`/api/support/${id}/reply`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ body }),
+  });
+  const b = await r.json().catch(() => ({}));
+  return r.ok ? { ok: true } : { ok: false, error: b.error ?? "Could not send." };
+}
