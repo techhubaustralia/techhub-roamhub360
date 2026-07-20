@@ -21,10 +21,13 @@ function isPublic(pathname: string): boolean {
 
 // A redirect to /signin ON THE SAME SUBDOMAIN the user is visiting. Built from the forwarded host so
 // AUTH_URL (pinned to the main host for OAuth) can NEVER bounce a tenant visitor to another workspace.
-function signinOnSameHost(request: { headers: Headers }): NextResponse {
+function signinOnSameHost(request: { headers: Headers }, workspace?: string): NextResponse {
   const host = requestHost(request);
   const proto = request.headers.get("x-forwarded-proto") || "https";
-  return NextResponse.redirect(`${proto}://${host}/signin`);
+  // `workspace` = the workspace this session actually belongs to. We do NOT auto-redirect there
+  // (that was the cross-tenancy bouncing); the sign-in page just offers it as a link the user clicks.
+  const q = workspace ? `?workspace=${encodeURIComponent(workspace)}` : "";
+  return NextResponse.redirect(`${proto}://${host}/signin${q}`);
 }
 
 export const authConfig = {
@@ -61,9 +64,9 @@ export const authConfig = {
       const home = u.homeTenant ?? "default";
       if (home === sub) return true;
       // Session belongs to a DIFFERENT workspace. Never bounce across tenancies — deny here and show
-      // THIS subdomain's sign-in. (With host-only cookies + tenant-locked login this is effectively
-      // unreachable for normal users, but it's the safe fallback.)
-      return signinOnSameHost(request);
+      // THIS subdomain's sign-in, telling them which workspace they actually belong to so they can
+      // click through instead of hitting an apparent "signed in but stuck at sign-in" loop.
+      return signinOnSameHost(request, home);
     },
   },
 } satisfies NextAuthConfig;

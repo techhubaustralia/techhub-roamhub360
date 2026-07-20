@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { CalendarCheck, Users, ShieldCheck, PlugZap } from "lucide-react";
+import { CalendarCheck, Users, ShieldCheck, PlugZap, Building2 } from "lucide-react";
 import { SignInForm } from "@/components/signin-form";
 import { RoamHubMark } from "@/components/roamhub-mark";
 import { brand } from "@/lib/brand";
+import { workspaceOrigin } from "@/lib/server/tenant";
 
 export const metadata: Metadata = {
   title: `Sign in · ${brand.productName}`,
@@ -17,10 +18,17 @@ const FEATURES = [
   { icon: ShieldCheck, title: "Isolated & encrypted", body: "Every organisation's data is fully separated, and your credentials are encrypted at rest." },
 ];
 
+const SLUG_OK = /^[a-z0-9][a-z0-9-]{1,30}[a-z0-9]$/;
+
 // Public page (allowed in auth.config). Full-screen landing that covers the app chrome behind it.
-export default function SignInPage() {
+// `?workspace=<slug>` is set by the middleware when a signed-in session belongs to a DIFFERENT
+// workspace — we show a link to theirs rather than auto-bouncing them across tenancies.
+export default async function SignInPage({ searchParams }: { searchParams: Promise<{ workspace?: string }> }) {
   const entraEnabled = Boolean(process.env.AUTH_MICROSOFT_ENTRA_ID_ID);
   const googleEnabled = Boolean(process.env.AUTH_GOOGLE_ID);
+  const raw = (await searchParams)?.workspace;
+  // Validate before echoing into the page (never render an unvalidated query param as a link).
+  const otherWorkspace = raw && SLUG_OK.test(raw) && raw !== "default" ? raw : null;
   return (
     <div className="fixed inset-0 z-[100] overflow-auto bg-background">
       <div className="mx-auto flex min-h-full w-full max-w-6xl flex-col lg:flex-row">
@@ -62,6 +70,23 @@ export default function SignInPage() {
 
         {/* Sign-in */}
         <div className="flex flex-1 flex-col items-center justify-center border-t p-8 lg:border-l lg:border-t-0">
+          {otherWorkspace && (
+            <div className="mb-4 w-full max-w-[380px] rounded-[12px] border border-primary/40 bg-primary/10 px-4 py-3 text-[13px]">
+              <div className="flex items-start gap-2">
+                <Building2 className="mt-0.5 size-4 shrink-0 text-primary" />
+                <div>
+                  <div className="font-semibold">You&apos;re signing in to the wrong workspace</div>
+                  <p className="mt-0.5 text-txt-dim">
+                    That account belongs to <b>{otherWorkspace}</b>. Continue at{" "}
+                    <a href={workspaceOrigin(otherWorkspace)} className="font-semibold text-primary underline underline-offset-2">
+                      {new URL(workspaceOrigin(otherWorkspace)).host}
+                    </a>
+                    .
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
           <SignInForm entraEnabled={entraEnabled} googleEnabled={googleEnabled} bare />
           <p className="mt-4 text-center text-[12.5px] text-txt-mute">
             New to {brand.productName}? <Link href="/signup" className="font-semibold text-primary">Start a free trial</Link>
