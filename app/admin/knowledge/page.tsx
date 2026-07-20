@@ -2,9 +2,10 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
-import { BookOpen, Plus, Pencil, Trash2, Eye, EyeOff, Pin, Globe, Building2, LoaderCircle } from "lucide-react";
+import { BookOpen, Plus, Pencil, Trash2, Eye, EyeOff, Pin, Globe, Building2, LoaderCircle, Lock, ChevronDown, ChevronRight } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { renderMarkdown } from "@/lib/markdown";
+import { BUILTIN_ARTICLES } from "@/lib/kb-content";
 import { getAdminKb, createKbArticle, updateKbArticle, deleteKbArticle, type KbArticleFull } from "@/lib/api";
 
 type Scope = "tenant" | "global";
@@ -16,6 +17,7 @@ export default function KnowledgePage() {
   const [articles, setArticles] = useState<KbArticleFull[]>([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<Editing>(null);
+  const [showBuiltin, setShowBuiltin] = useState(false);
 
   useEffect(() => {
     fetch("/api/me", { cache: "no-store" }).then((r) => r.json()).then((me) => setPlatformAdmin(!!me?.platformAdmin)).catch(() => {});
@@ -62,13 +64,43 @@ export default function KnowledgePage() {
         </div>
       )}
 
+      {/* The shipped library. Without this the page looks empty and it seems there's no help for
+          customers at all — when in fact these are already live behind the Help button. */}
+      <div className="mb-4 rounded-[14px] border bg-card shadow-sm">
+        <button onClick={() => setShowBuiltin((s) => !s)} className="flex w-full items-center gap-3 px-4 py-3 text-left">
+          <span className="grid size-9 shrink-0 place-items-center rounded-[10px] bg-ok/12 text-ok"><BookOpen className="size-4" /></span>
+          <span className="min-w-0 flex-1">
+            <span className="block text-[13.5px] font-semibold">{BUILTIN_ARTICLES.length} built-in help articles — already live</span>
+            <span className="mt-0.5 block text-[12px] text-txt-mute">Everyone in this workspace can read these from the Help (life-buoy) button. Maintained by {"TechHub Australia"} — not editable here.</span>
+          </span>
+          {showBuiltin ? <ChevronDown className="size-4 shrink-0 text-txt-mute" /> : <ChevronRight className="size-4 shrink-0 text-txt-mute" />}
+        </button>
+        {showBuiltin && (
+          <div className="max-h-[320px] overflow-auto border-t px-4 py-3">
+            {[...new Set(BUILTIN_ARTICLES.map((a) => a.category))].map((cat) => (
+              <div key={cat} className="mb-3 last:mb-0">
+                <div className="mb-1 text-[11px] font-semibold uppercase tracking-[0.05em] text-txt-mute">{cat}</div>
+                <ul className="flex flex-col gap-0.5">
+                  {BUILTIN_ARTICLES.filter((a) => a.category === cat).map((a) => (
+                    <li key={a.id} className="flex items-center gap-2 text-[13px]">
+                      <Lock className="size-3 shrink-0 text-txt-mute" />
+                      <span className="truncate">{a.title}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
       {loading ? (
         <div className="grid place-items-center py-16 text-txt-mute"><LoaderCircle className="size-5 animate-spin" /></div>
       ) : articles.length === 0 ? (
         <div className="rounded-[14px] border border-dashed bg-card p-8 text-center">
           <BookOpen className="mx-auto mb-2 size-7 text-txt-mute" />
-          <div className="text-[14px] font-semibold">No custom articles</div>
-          <p className="mx-auto mt-1 max-w-md text-[13px] text-txt-mute">The full built-in help library already shows in everyone's Help panel — you don't need to add anything. {scope === "global" ? "Use this to add shared articles on top of the built-ins." : "Add articles just for this workspace."}</p>
+          <div className="text-[14px] font-semibold">No articles of your own yet</div>
+          <p className="mx-auto mt-1 max-w-md text-[13px] text-txt-mute">Nothing is missing — the {BUILTIN_ARTICLES.length} built-in articles above are already available to everyone in this workspace. Add your own only for company-specific guidance, e.g. &quot;Where to park at Head Office&quot;.</p>
           <div className="mt-4 flex justify-center gap-2">
             <button onClick={() => setEditing({ isNew: true, category: "General", body: "", published: false })} className="rounded-[10px] bg-primary px-4 py-2 text-[13px] font-semibold text-primary-foreground hover:bg-orange-soft">New article</button>
           </div>
