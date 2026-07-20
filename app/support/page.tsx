@@ -8,6 +8,7 @@ import {
   getMySupportRequests,
   getSupportThread,
   postSupportReply,
+  setMyRequestStatus,
   submitSupport,
   type SupportRequestRow,
   type SupportReplyRow,
@@ -22,7 +23,7 @@ type View = "list" | "new" | "thread";
 
 export default function SupportPage() {
   const [view, setView] = useState<View>("list");
-  const [rows, setRows] = useState<(SupportRequestRow & { replyCount?: number })[]>([]);
+  const [rows, setRows] = useState<(SupportRequestRow & { replyCount?: number; unread?: boolean })[]>([]);
   const [loading, setLoading] = useState(true);
 
   // new request
@@ -35,6 +36,17 @@ export default function SupportPage() {
   // thread
   const [thread, setThread] = useState<{ request: SupportRequestRow; replies: SupportReplyRow[] } | null>(null);
   const [reply, setReply] = useState("");
+  const [replyFile, setReplyFile] = useState<File | null>(null);
+
+  async function setStatus(status: "open" | "closed") {
+    if (!thread) return;
+    const res = await setMyRequestStatus(thread.request.id, status);
+    if (res.ok) {
+      setThread(await getSupportThread(thread.request.id));
+      load();
+      toast.success(status === "closed" ? "Marked as resolved" : "Reopened");
+    } else toast.error("Could not update", { description: res.error });
+  }
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -71,11 +83,13 @@ export default function SupportPage() {
   async function send() {
     const body = reply.trim();
     if (!body || !thread) return;
+    if (replyFile && replyFile.size > 10 * 1024 * 1024) return toast.error("Attachment is larger than 10 MB.");
     setSending(true);
-    const res = await postSupportReply(thread.request.id, body);
+    const res = await postSupportReply(thread.request.id, body, replyFile);
     setSending(false);
     if (res.ok) {
       setReply("");
+      setReplyFile(null);
       setThread(await getSupportThread(thread.request.id));
       load();
     } else toast.error("Couldn't send", { description: res.error });
@@ -135,20 +149,48 @@ export default function SupportPage() {
             <h1 className="font-heading text-[20px] font-bold leading-snug">{thread.request.subject}</h1>
 
             <div className="mt-4 flex flex-col gap-2">
-              <Bubble who="You" when={thread.request.createdAt} body={thread.request.message} mine />
-              {thread.request.attachmentName && (
-                <div className="text-[12px] text-txt-mute"><Paperclip className="mr-1 inline size-3" />{thread.request.attachmentName}</div>
-              )}
+              <Bubble
+                who="You"
+                when={thread.request.createdAt}
+                body={thread.request.message}
+                mine
+                attachment={thread.request.attachmentName ? { name: thread.request.attachmentName, href: `/api/support/${thread.request.id}/attachment` } : null}
+              />
               {thread.replies.map((r) => (
-                <Bubble key={r.id} who={r.fromAdmin ? (r.authorName || "Support") : "You"} when={r.createdAt} body={r.body} mine={!r.fromAdmin} />
+                <Bubble
+                  key={r.id}
+                  who={r.fromAdmin ? (r.authorName || "Support") : "You"}
+                  when={r.createdAt}
+                  body={r.body}
+                  mine={!r.fromAdmin}
+                  attachment={r.attachmentName ? { name: r.attachmentName, href: `/api/support/${thread.request.id}/attachment?reply=${r.id}` } : null}
+                />
               ))}
             </div>
 
             <div className="mt-4 rounded-[14px] border bg-card p-4 shadow-sm">
               <textarea value={reply} onChange={(e) => setReply(e.target.value)} rows={3} maxLength={5000} placeholder="Add a message…" className="ed-input text-[13.5px]" />
-              <button onClick={send} disabled={sending || !reply.trim()} className="mt-2 flex items-center gap-2 rounded-[10px] bg-primary px-4 py-2 text-[13px] font-semibold text-primary-foreground hover:bg-orange-soft disabled:opacity-50">
-                <Send className="size-3.5" /> {sending ? "Sending…" : "Send"}
-              </button>
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                <button onClick={send} disabled={sending || !reply.trim()} className="flex items-center gap-2 rounded-[10px] bg-primary px-4 py-2 text-[13px] font-semibold text-primary-foreground hover:bg-orange-soft disabled:opacity-50">
+                  <Send className="size-3.5" /> {sending ? "Sending…" : "Send"}
+                </button>
+                <label className="flex cursor-pointer items-center gap-1.5 rounded-[10px] border px-3 py-2 text-[12.5px] font-semibold text-txt-dim hover:border-primary hover:text-foreground">
+                  <Paperclip className="size-3.5" />
+                  {replyFile ? `${replyFile.name} · ${(replyFile.size / 1024).toFixed(0)} KB` : "Attach a file"}
+                  <input type="file" accept="image/png,image/jpeg,image/gif,image/webp,application/pdf,text/plain" onChange={(e) => setReplyFile(e.target.files?.[0] ?? null)} className="hidden" />
+                </label>
+                {replyFile && <button onClick={() => setReplyFile(null)} className="text-[12px] text-txt-mute hover:text-destructive">Remove</button>}
+
+                <span className="ml-auto">
+                  {thread.request.status === "open" ? (
+                    <button onClick={() => setStatus("closed")} className="flex items-center gap-1.5 rounded-[10px] border px-3 py-2 text-[12.5px] font-semibold hover:border-ok hover:text-ok">
+                      <CheckCircle2 className="size-3.5" /> Mark as resolved
+                    </button>
+                  ) : (
+                    <button onClick={() => setStatus("open")} className="rounded-[10px] border px-3 py-2 text-[12.5px] font-semibold hover:border-primary">Reopen</button>
+                  )}
+                </span>
+              </div>
             </div>
           </>
         )}
@@ -184,7 +226,11 @@ export default function SupportPage() {
             <button key={r.id} onClick={() => open(r.id)} className="flex items-center gap-3 rounded-[12px] border bg-card px-4 py-3 text-left hover:border-primary">
               <StatusIcon status={r.status} />
               <div className="min-w-0 flex-1">
-                <div className="truncate text-[14px] font-semibold">{r.subject}</div>
+                <div className="flex items-center gap-2">
+                  <span className="truncate text-[14px] font-semibold">{r.subject}</span>
+                  {/* Support has answered since you last opened it. */}
+                  {r.unread && <span className="shrink-0 rounded-full bg-primary px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-primary-foreground">New reply</span>}
+                </div>
                 <div className="mt-0.5 text-[12px] text-txt-mute">
                   {r.category} · {new Date(r.createdAt).toLocaleDateString()}
                   {r.replyCount ? ` · ${r.replyCount} repl${r.replyCount === 1 ? "y" : "ies"}` : " · no reply yet"}
@@ -210,11 +256,16 @@ function StatusPill({ status }: { status: string }) {
 function StatusIcon({ status }: { status: string }) {
   return status === "open" ? <CircleDot className="size-4 shrink-0 text-primary" /> : <CheckCircle2 className="size-4 shrink-0 text-ok" />;
 }
-function Bubble({ who, when, body, mine }: { who: string; when: string; body: string; mine?: boolean }) {
+function Bubble({ who, when, body, mine, attachment }: { who: string; when: string; body: string; mine?: boolean; attachment?: { name: string; href: string } | null }) {
   return (
     <div className={`rounded-[12px] px-3.5 py-2.5 text-[13.5px] ${mine ? "bg-panel-2/60" : "border border-primary/25 bg-primary/8"}`}>
       <div className="mb-0.5 text-[11.5px] text-txt-mute">{who} · {new Date(when).toLocaleString()}</div>
       <div className="whitespace-pre-wrap leading-relaxed">{body}</div>
+      {attachment && (
+        <a href={attachment.href} download className="mt-2 inline-flex items-center gap-1.5 rounded-[8px] border bg-card px-2.5 py-1.5 text-[12.5px] font-semibold hover:border-primary">
+          <Paperclip className="size-3.5 text-primary" /> {attachment.name}
+        </a>
+      )}
     </div>
   );
 }

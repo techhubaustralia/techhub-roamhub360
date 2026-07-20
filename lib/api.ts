@@ -442,6 +442,7 @@ export interface KbArticleFull extends KbListItem {
   tenantId: string | null;
 }
 export interface SupportRequestRow {
+  unread?: boolean;
   id: string;
   tenantId: string;
   userEmail: string;
@@ -552,6 +553,8 @@ export async function updateSupportRequestApi(id: string, patch: { status?: stri
 
 // ---- Support conversation (closing the loop) -----------------------------------------------------
 export interface SupportReplyRow {
+  attachmentName?: string | null;
+  attachmentSize?: number | null;
   id: string;
   requestId: string;
   authorEmail: string;
@@ -562,7 +565,7 @@ export interface SupportReplyRow {
 }
 
 /** The signed-in user's own requests (with reply counts) — powers "My requests" in Help. */
-export async function getMySupportRequests(): Promise<(SupportRequestRow & { replyCount?: number })[]> {
+export async function getMySupportRequests(): Promise<(SupportRequestRow & { replyCount?: number; unread?: boolean })[]> {
   try {
     const r = await fetch("/api/support", { cache: "no-store" });
     const b = await r.json().catch(() => ({}));
@@ -582,14 +585,25 @@ export async function getSupportThread(id: string): Promise<{ request: SupportRe
   }
 }
 
-export async function postSupportReply(id: string, body: string): Promise<{ ok: boolean; error?: string }> {
-  const r = await fetch(`/api/support/${id}/reply`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ body }),
-  });
+export async function postSupportReply(id: string, body: string, file?: File | null): Promise<{ ok: boolean; error?: string }> {
+  let res: Response;
+  if (file) {
+    const fd = new FormData();
+    fd.set('body', body);
+    fd.set('file', file);
+    res = await fetch(`/api/support/${id}/reply`, { method: "POST", body: fd });
+  } else {
+    res = await fetch(`/api/support/${id}/reply`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ body }) });
+  }
+  const b = await res.json().catch(() => ({}));
+  return res.ok ? { ok: true } : { ok: false, error: b.error ?? 'Could not send.' };
+}
+
+/** Requester resolving (or reopening) their OWN request. */
+export async function setMyRequestStatus(id: string, status: 'open' | 'closed'): Promise<{ ok: boolean; error?: string }> {
+  const r = await fetch(`/api/support/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status }) });
   const b = await r.json().catch(() => ({}));
-  return r.ok ? { ok: true } : { ok: false, error: b.error ?? "Could not send." };
+  return r.ok ? { ok: true } : { ok: false, error: b.error ?? 'Could not update.' };
 }
 
 // ---- Directory sync scope (which Entra groups to sync) -------------------------------------------

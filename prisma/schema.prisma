@@ -211,6 +211,12 @@ model SupportReply {
   authorName  String?
   fromAdmin   Boolean  @default(false) // true = staff answering, false = requester following up
   body        String
+  // Either side can attach a file to a reply (a screenshot is usually the fastest way to explain a
+  // problem). Same storage as the original request: bytes in lib/server/store.ts, metadata here.
+  attachmentName String?
+  attachmentType String?
+  attachmentKey  String?
+  attachmentSize Int?
   createdAt   DateTime @default(now())
 
   @@index([requestId])
@@ -231,6 +237,10 @@ model SupportRequest {
   attachmentKey  String? // storage key in lib/server/store.ts (null = no attachment)
   attachmentSize Int? // bytes
   adminNote      String? // internal note added when triaging/closing
+  // Read tracking per side, so each party can see when there's something NEW for them. Compared
+  // against reply timestamps rather than storing an unread flag that could drift.
+  requesterReadAt DateTime?
+  adminReadAt     DateTime?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 

@@ -25,7 +25,7 @@ function rel(iso: string): string {
 
 export default function SupportQueuePage() {
   const [filter, setFilter] = useState<Filter>("open");
-  const [rows, setRows] = useState<SupportRequestRow[]>([]);
+  const [rows, setRows] = useState<(SupportRequestRow & { unread?: boolean })[]>([]);
   const [openCount, setOpenCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<SupportRequestRow | null>(null);
@@ -52,7 +52,7 @@ export default function SupportQueuePage() {
 
   return (
     <div className="animate-fade-up max-w-3xl">
-      <PageHeader title="Support requests" subtitle="Messages raised from the in-app Help panel. Replies go out by email." />
+      <PageHeader title="Support requests" subtitle="Requests raised by your people. Reply here — they see it in Support and get an email." />
 
       <div className="mb-4 inline-flex rounded-[10px] border bg-panel-2 p-1 text-[13px]">
         {(["open", "closed", "all"] as Filter[]).map((f) => (
@@ -78,6 +78,8 @@ export default function SupportQueuePage() {
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-1.5">
                   <span className="truncate text-[14px] font-semibold">{r.subject}</span>
+                  {/* The customer has written since we last opened it — this one is waiting on US. */}
+                  {r.unread && <span className="shrink-0 rounded-full bg-primary px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-primary-foreground">Awaiting reply</span>}
                   {r.priority === "high" && <AlertTriangle className="size-3.5 shrink-0 text-destructive" />}
                   {r.attachmentName && <Paperclip className="size-3.5 shrink-0 text-txt-mute" />}
                 </div>
@@ -98,6 +100,7 @@ function Detail({ row, onClose, onPatch }: { row: SupportRequestRow; onClose: ()
   const [replies, setReplies] = useState<SupportReplyRow[]>([]);
   const [reply, setReply] = useState("");
   const [sending, setSending] = useState(false);
+  const [replyFile, setReplyFile] = useState<File | null>(null);
 
   const loadThread = useCallback(async () => {
     const t = await getSupportThread(row.id);
@@ -108,10 +111,11 @@ function Detail({ row, onClose, onPatch }: { row: SupportRequestRow; onClose: ()
   async function send() {
     if (!reply.trim()) return;
     setSending(true);
-    const res = await postSupportReply(row.id, reply.trim());
+    const res = await postSupportReply(row.id, reply.trim(), replyFile);
     setSending(false);
     if (res.ok) {
       setReply("");
+      setReplyFile(null);
       loadThread();
       toast.success("Reply sent", { description: `Emailed to ${row.userEmail}` });
     } else toast.error("Could not send", { description: res.error });
@@ -136,7 +140,7 @@ function Detail({ row, onClose, onPatch }: { row: SupportRequestRow; onClose: ()
           <div className="whitespace-pre-wrap text-[13.5px] leading-relaxed text-txt-dim">{row.message}</div>
 
           {row.attachmentName && (
-            <a href={`/api/admin/support/${row.id}/attachment`} className="mt-4 inline-flex items-center gap-2 rounded-[10px] border bg-panel-2 px-3 py-2 text-[13px] font-semibold hover:border-primary" download>
+            <a href={`/api/support/${row.id}/attachment`} className="mt-4 inline-flex items-center gap-2 rounded-[10px] border bg-panel-2 px-3 py-2 text-[13px] font-semibold hover:border-primary" download>
               <Paperclip className="size-4 text-primary" />
               <span className="truncate">{row.attachmentName}</span>
               {row.attachmentSize ? <span className="text-txt-mute">· {(row.attachmentSize / 1024).toFixed(0)} KB</span> : null}
@@ -154,14 +158,27 @@ function Detail({ row, onClose, onPatch }: { row: SupportRequestRow; onClose: ()
                   <div key={r.id} className={`rounded-[10px] border px-3 py-2 text-[13px] ${r.fromAdmin ? "bg-primary/8 border-primary/25" : "bg-panel-2/50"}`}>
                     <div className="mb-0.5 text-[11.5px] text-txt-mute">{r.fromAdmin ? (r.authorName || "Support") : (r.authorName || r.authorEmail)} · {new Date(r.createdAt).toLocaleString()}</div>
                     <div className="whitespace-pre-wrap leading-relaxed">{r.body}</div>
+                    {r.attachmentName && (
+                      <a href={`/api/support/${row.id}/attachment?reply=${r.id}`} download className="mt-1.5 inline-flex items-center gap-1.5 rounded-[8px] border bg-card px-2.5 py-1 text-[12px] font-semibold hover:border-primary">
+                        <Paperclip className="size-3 text-primary" /> {r.attachmentName}
+                      </a>
+                    )}
                   </div>
                 ))}
               </div>
             )}
             <textarea value={reply} onChange={(e) => setReply(e.target.value)} rows={3} maxLength={5000} placeholder={`Reply to ${row.userName || row.userEmail}…`} className="ed-input mt-2 text-[13px]" />
-            <button onClick={send} disabled={sending || !reply.trim()} className="mt-2 flex items-center gap-1.5 rounded-[10px] bg-primary px-4 py-2 text-[13px] font-semibold text-primary-foreground hover:bg-orange-soft disabled:opacity-50">
-              <Send className="size-3.5" /> {sending ? "Sending…" : "Send reply"}
-            </button>
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              <button onClick={send} disabled={sending || !reply.trim()} className="flex items-center gap-1.5 rounded-[10px] bg-primary px-4 py-2 text-[13px] font-semibold text-primary-foreground hover:bg-orange-soft disabled:opacity-50">
+                <Send className="size-3.5" /> {sending ? "Sending…" : "Send reply"}
+              </button>
+              <label className="flex cursor-pointer items-center gap-1.5 rounded-[10px] border px-3 py-2 text-[12.5px] font-semibold text-txt-dim hover:border-primary hover:text-foreground">
+                <Paperclip className="size-3.5" />
+                {replyFile ? `${replyFile.name} · ${(replyFile.size / 1024).toFixed(0)} KB` : "Attach a file"}
+                <input type="file" accept="image/png,image/jpeg,image/gif,image/webp,application/pdf,text/plain" onChange={(e) => setReplyFile(e.target.files?.[0] ?? null)} className="hidden" />
+              </label>
+              {replyFile && <button onClick={() => setReplyFile(null)} className="text-[12px] text-txt-mute hover:text-destructive">Remove</button>}
+            </div>
           </div>
 
           <div className="mt-5 border-t pt-4">

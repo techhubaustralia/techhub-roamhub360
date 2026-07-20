@@ -31,6 +31,8 @@ export interface SupportRequest {
   attachmentKey: string | null;
   attachmentSize: number | null;
   adminNote: string | null;
+  requesterReadAt: string | null;
+  adminReadAt: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -51,6 +53,8 @@ function toRow(r: any): SupportRequest {
     attachmentKey: r.attachmentKey ?? null,
     attachmentSize: r.attachmentSize ?? null,
     adminNote: r.adminNote ?? null,
+    requesterReadAt: r.requesterReadAt ? (r.requesterReadAt).toISOString() : null,
+    adminReadAt: r.adminReadAt ? (r.adminReadAt).toISOString() : null,
     createdAt: (r.createdAt as Date).toISOString(),
     updatedAt: (r.updatedAt as Date).toISOString(),
   };
@@ -124,6 +128,10 @@ export interface SupportReply {
   authorName: string | null;
   fromAdmin: boolean;
   body: string;
+  attachmentName: string | null;
+  attachmentType: string | null;
+  attachmentKey: string | null;
+  attachmentSize: number | null;
   createdAt: string;
 }
 
@@ -135,8 +143,45 @@ function toReply(r: any): SupportReply {
     authorName: r.authorName ?? null,
     fromAdmin: r.fromAdmin,
     body: r.body,
+    attachmentName: r.attachmentName ?? null,
+    attachmentType: r.attachmentType ?? null,
+    attachmentKey: r.attachmentKey ?? null,
+    attachmentSize: r.attachmentSize ?? null,
     createdAt: (r.createdAt as Date).toISOString(),
   };
+}
+
+export async function getReply(replyId: string): Promise<SupportReply | null> {
+  if (!useSql) return null;
+  const p = await prisma();
+  const row = await p.supportReply.findUnique({ where: { id: replyId } });
+  return row ? toReply(row) : null;
+}
+
+/** Stamp "I've seen everything up to now" for one side, so NEW badges clear. */
+export async function markSupportRead(requestId: string, side: "requester" | "admin"): Promise<void> {
+  if (!useSql) return;
+  const p = await prisma();
+  await p.supportRequest
+    .update({ where: { id: requestId }, data: side === "requester" ? { requesterReadAt: new Date() } : { adminReadAt: new Date() } })
+    .catch(() => {});
+}
+
+/** requestId -> true when the OTHER side has posted since this side last read it. */
+export async function unreadFlags(rows: SupportRequest[], side: "requester" | "admin"): Promise<Record<string, boolean>> {
+  if (!useSql || rows.length === 0) return {};
+  const p = await prisma();
+  const replies = await p.supportReply.findMany({
+    where: { requestId: { in: rows.map((r) => r.id) }, fromAdmin: side === "requester" },
+    select: { requestId: true, createdAt: true },
+  });
+  const readAt = new Map(rows.map((r) => [r.id, side === "requester" ? r.requesterReadAt : r.adminReadAt]));
+  const out: Record<string, boolean> = {};
+  for (const rep of replies) {
+    const seen = readAt.get(rep.requestId);
+    if (!seen || new Date(rep.createdAt) > new Date(seen)) out[rep.requestId] = true;
+  }
+  return out;
 }
 
 export async function listReplies(requestId: string): Promise<SupportReply[]> {
@@ -146,7 +191,17 @@ export async function listReplies(requestId: string): Promise<SupportReply[]> {
   return rows.map(toReply);
 }
 
-export async function addReply(input: { requestId: string; authorEmail: string; authorName?: string | null; fromAdmin: boolean; body: string }): Promise<SupportReply> {
+export async function addReply(input: {
+  requestId: string;
+  authorEmail: string;
+  authorName?: string | null;
+  fromAdmin: boolean;
+  body: string;
+  attachmentName?: string | null;
+  attachmentType?: string | null;
+  attachmentKey?: string | null;
+  attachmentSize?: number | null;
+}): Promise<SupportReply> {
   const p = await prisma();
   const row = await p.supportReply.create({
     data: {
@@ -155,6 +210,10 @@ export async function addReply(input: { requestId: string; authorEmail: string; 
       authorName: input.authorName ?? null,
       fromAdmin: input.fromAdmin,
       body: input.body,
+      attachmentName: input.attachmentName ?? null,
+      attachmentType: input.attachmentType ?? null,
+      attachmentKey: input.attachmentKey ?? null,
+      attachmentSize: input.attachmentSize ?? null,
     },
   });
   // Touch the parent so the queue re-sorts and "updated" reflects the conversation.

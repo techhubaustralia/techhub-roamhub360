@@ -1,10 +1,9 @@
 import { NextResponse } from "next/server";
-import crypto from "crypto";
 import { getUser } from "@/lib/server/auth";
 import { currentTenantId, workspaceOrigin } from "@/lib/server/tenant";
 import { rateLimit } from "@/lib/server/rate-limit";
-import { putAsset } from "@/lib/server/store";
-import { createSupportRequest, listMySupportRequests, replyCounts } from "@/lib/server/support";
+import { takeAttachment } from "@/lib/server/support-attachment";
+import { createSupportRequest, listMySupportRequests, replyCounts, unreadFlags } from "@/lib/server/support";
 import { sendMail } from "@/lib/server/graph";
 import { emailBrand, supportRequestEmail, supportAckEmail } from "@/lib/server/email";
 import { audit } from "@/lib/server/db";
@@ -14,8 +13,6 @@ import { audit } from "@/lib/server/db";
 // the requester an acknowledgement. Never fails the request just because email is down.
 export const runtime = "nodejs";
 
-const MAX_BYTES = 10 * 1024 * 1024; // 10 MB
-const ALLOWED = new Set(["image/png", "image/jpeg", "image/jpg", "image/gif", "image/webp", "application/pdf", "text/plain"]);
 const CATEGORIES = ["Question", "Bug", "Feature request", "Billing", "Other"];
 
 function opsInbox(): string | null {
@@ -33,8 +30,11 @@ export async function GET() {
   if (!me.email) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
   if (!process.env.DATABASE_URL) return NextResponse.json({ requests: [] });
   const requests = await listMySupportRequests(await currentTenantId(), me.email);
-  const counts = await replyCounts(requests.map((r) => r.id));
-  return NextResponse.json({ requests: requests.map((r) => ({ ...r, replyCount: counts[r.id] ?? 0 })) });
+  const [counts, unread] = await Promise.all([replyCounts(requests.map((r) => r.id)), unreadFlags(requests, "requester")]);
+  return NextResponse.json({
+    requests: requests.map((r) => ({ ...r, replyCount: counts[r.id] ?? 0, unread: Boolean(unread[r.id]) })),
+    unreadCount: Object.keys(unread).length,
+  });
 }
 
 export async function POST(req: Request) {
@@ -62,26 +62,13 @@ export async function POST(req: Request) {
 
   const tenantId = await currentTenantId();
 
-  // ---- Optional attachment -----------------------------------------------------------------------
-  let attachmentKey: string | null = null;
-  let attachmentName: string | null = null;
-  let attachmentType: string | null = null;
-  let attachmentSize: number | null = null;
-  let attachmentBuf: Buffer | null = null;
-
-  const file = form.get("file");
-  if (file instanceof File && file.size > 0) {
-    const type = (file.type || "").toLowerCase();
-    if (!ALLOWED.has(type)) return NextResponse.json({ error: "Attachment must be an image, PDF, or text file." }, { status: 400 });
-    if (file.size > MAX_BYTES) return NextResponse.json({ error: "Attachment is larger than 10 MB." }, { status: 400 });
-    attachmentBuf = Buffer.from(await file.arrayBuffer());
-    attachmentType = type;
-    // Sanitise the display name; the storage key is a uuid so the filename never touches the path.
-    attachmentName = (file.name || "attachment").replace(/[^\w.\- ]+/g, "_").slice(0, 120);
-    attachmentSize = file.size;
-    attachmentKey = crypto.randomUUID();
-    await putAsset(attachmentKey, attachmentBuf, attachmentType);
-  }
+  // ---- Optional attachment (shared validation with replies) --------------------------------------
+  const att = await takeAttachment(form.get("file"));
+  if (att.error) return NextResponse.json({ error: att.error }, { status: 400 });
+  const attachmentKey = att.stored?.key ?? null;
+  const attachmentName = att.stored?.name ?? null;
+  const attachmentType = att.stored?.type ?? null;
+  const attachmentSize = att.stored?.size ?? null;
 
   const ticket = await createSupportRequest({
     tenantId,
@@ -100,7 +87,7 @@ export async function POST(req: Request) {
   // ---- Notify ops + acknowledge the requester (best-effort) --------------------------------------
   const eb = await emailBrand(tenantId);
   const ops = opsInbox();
-  const attachments = attachmentBuf && attachmentName && attachmentType ? [{ filename: attachmentName, contentType: attachmentType, content: attachmentBuf }] : undefined;
+  const attachments = att.stored ? [{ filename: att.stored.name, contentType: att.stored.type, content: att.stored.buffer }] : undefined;
 
   if (ops) {
     const mail = supportRequestEmail(
