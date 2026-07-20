@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { getUser } from "@/lib/server/auth";
+import { auth } from "@/auth";
+import { BOOTSTRAP_ADMINS } from "@/lib/server/auth";
 import { getTenantBySlug } from "@/lib/server/tenants";
 import { DEFAULT_TENANT } from "@/lib/server/tenant";
 import { signHandoffToken } from "@/lib/server/account-token";
@@ -23,8 +24,16 @@ function apex(): string {
 
 export default async function SsoRelay({ searchParams }: { searchParams: Promise<{ to?: string }> }) {
   const { to } = await searchParams;
-  const me = await getUser();
-  if (!me.email) redirect("/signin");
+  // Read the SESSION directly, not getUser(). getUser() applies a host-scoped membership guard that
+  // blanks the identity whenever homeTenant !== the host's tenant — and this page runs on the MAIN
+  // host by design, so every customer's session (homeTenant = their slug) was being stripped and the
+  // handoff always failed with "Not a member of this workspace". The relay is the one legitimate
+  // cross-tenant page: its whole job is to verify membership itself and hand off to the subdomain.
+  const session = await auth();
+  const email = session?.user?.email?.toLowerCase();
+  if (!email) redirect("/signin");
+  const homeTenant = (session!.user as { homeTenant?: string }).homeTenant ?? DEFAULT_TENANT;
+  const platformAdmin = Boolean((session!.user as { platformAdmin?: boolean }).platformAdmin) || BOOTSTRAP_ADMINS.includes(email);
 
   const slug = (to || "").toLowerCase();
   const validSlug = /^[a-z0-9-]{1,32}$/.test(slug);
@@ -33,7 +42,10 @@ export default async function SsoRelay({ searchParams }: { searchParams: Promise
   }
 
   // Membership gate: the OAuth identity must belong to this workspace (or be a platform admin).
-  const member = me.platformAdmin || (me.homeTenant ?? DEFAULT_TENANT) === slug;
+  // Still strict — OAuth alone must never grant access to a customer's workspace — and the target
+  // subdomain re-checks membership when it consumes the handoff token (defence in depth).
+  const member = platformAdmin || homeTenant === slug;
+  if (!member) console.warn(`[auth] SSO relay refused: ${email} (workspace "${homeTenant}") requested "${slug}"`);
   if (!member) {
     return (
       <AuthShell className="text-center">
@@ -46,6 +58,6 @@ export default async function SsoRelay({ searchParams }: { searchParams: Promise
     );
   }
 
-  const token = signHandoffToken(me.email);
+  const token = signHandoffToken(email);
   redirect(`https://${slug}.${apex()}/sso/handoff?token=${encodeURIComponent(token)}`);
 }
