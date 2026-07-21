@@ -1,6 +1,7 @@
 import "server-only";
 import crypto from "crypto";
 import { getTenantJson, setTenantJson } from "./store";
+import { ssrfSafeFetch } from "./ssrf";
 
 // Outbound integrations: signed webhooks + an optional Slack incoming webhook. Per-tenant config in
 // the JSON store. On booking events we POST a JSON payload to each subscribed endpoint with an
@@ -110,7 +111,9 @@ export async function dispatchEvent(event: WebhookEvent, data: Record<string, un
     if (!safeWebhookUrl(e.url)) continue; // re-validate at send time (covers pre-fix configs)
     const sig = crypto.createHmac("sha256", e.secret).update(body).digest("hex");
     jobs.push(
-      fetch(e.url, {
+      // ssrfSafeFetch: no redirects, and the connection is pinned to a validated PUBLIC ip, so a
+      // registered public host can't 3xx or DNS-rebind into an internal service.
+      ssrfSafeFetch(e.url, {
         method: "POST",
         headers: { "Content-Type": "application/json", "X-RoamHub-Event": event, "X-RoamHub-Signature": `sha256=${sig}` },
         body,
@@ -121,7 +124,7 @@ export async function dispatchEvent(event: WebhookEvent, data: Record<string, un
 
   if (cfg.slackUrl && safeWebhookUrl(cfg.slackUrl, { requireHost: "hooks.slack.com" })) {
     jobs.push(
-      fetch(cfg.slackUrl, {
+      ssrfSafeFetch(cfg.slackUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ text: slackText(event, data) }),
