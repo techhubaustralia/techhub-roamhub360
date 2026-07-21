@@ -17,6 +17,7 @@ const SUGGESTIONS = ["Book me a desk tomorrow", "Who's in on Friday?", "Find a m
 
 export function AssistantWidget() {
   const [available, setAvailable] = useState(false);
+  const [provider, setProvider] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
@@ -27,7 +28,8 @@ export function AssistantWidget() {
     // Show only when configured AND not disabled for this tenant.
     Promise.all([assistantConfigured(), fetch("/api/me").then((r) => (r.ok ? r.json() : null)).catch(() => null)]).then(([cfg, me]) => {
       const disabled = (me?.disabledFeatures ?? []).includes("assistant");
-      setAvailable(cfg && !disabled);
+      setAvailable(cfg.configured && !disabled);
+      setProvider(cfg.provider);
     });
   }, []);
 
@@ -131,6 +133,10 @@ export function AssistantWidget() {
               <Send className="size-4" />
             </button>
           </form>
+          {/* Data-processing disclosure (M8): name where conversations are processed. */}
+          <p className="border-t px-3 py-1.5 text-center text-[10.5px] leading-tight text-txt-mute">
+            Messages are sent to {provider ?? "an AI provider"} to generate replies. Hubbi only suggests bookings — you confirm each one.
+          </p>
         </div>
       )}
     </>

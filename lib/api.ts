@@ -325,12 +325,14 @@ export interface BookingProposal {
   startTime?: string;
   endTime?: string;
 }
-export async function assistantConfigured(): Promise<boolean> {
+export async function assistantConfigured(): Promise<{ configured: boolean; provider: string | null }> {
   try {
     const r = await fetch(`/api/assistant`, { cache: "no-store" });
-    return r.ok ? Boolean((await r.json()).configured) : false;
+    if (!r.ok) return { configured: false, provider: null };
+    const b = await r.json();
+    return { configured: Boolean(b.configured), provider: b.provider ?? null };
   } catch {
-    return false;
+    return { configured: false, provider: null };
   }
 }
 export async function askAssistant(messages: { role: "user" | "assistant"; content: string }[]): Promise<{ reply: string; proposal?: BookingProposal; error?: string }> {

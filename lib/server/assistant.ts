@@ -5,7 +5,8 @@ import { findAvailability, resolveSpaceLabel } from "./availability";
 import { listBookings } from "./db";
 import { getDirectoryMap } from "./directory";
 import { getHiddenPresenceEmails } from "./users";
-import { overlaps, ACTIVE_STATUSES, todayInTz } from "../booking-rules";
+import { overlaps, ACTIVE_STATUSES } from "../booking-rules";
+import { TOOL_DEFS, buildSystem } from "../assistant-policy";
 import type { AppUser } from "./auth";
 
 // AI booking concierge — PROVIDER-AGNOSTIC. Works with Anthropic (ANTHROPIC_API_KEY) or ANY
@@ -45,54 +46,16 @@ function resolveProvider(): Provider | null {
 }
 export const assistantConfigured = Boolean(resolveProvider());
 
-// ---- neutral tool definitions (shared across providers) ----
-/* eslint-disable @typescript-eslint/no-explicit-any */
-interface ToolDef {
-  name: string;
-  description: string;
-  parameters: Record<string, any>;
+// Safe, key-free provider identity for the data-processing disclosure and audit trail. Never
+// includes the API key or base URL — just the vendor kind and model so users/admins can see WHERE
+// their conversation is processed.
+const VENDOR_NAME: Record<Provider["kind"], string> = { anthropic: "Anthropic (Claude)", openai: "the configured AI provider" };
+export function assistantProvider(): { kind: Provider["kind"]; model: string; vendor: string } | null {
+  const p = resolveProvider();
+  return p ? { kind: p.kind, model: p.model, vendor: VENDOR_NAME[p.kind] } : null;
 }
-const TOOL_DEFS: ToolDef[] = [
-  {
-    name: "find_availability",
-    description: "Find spaces that are actually free on a date. Use before proposing any booking. Optionally filter by kind or building, or rank by proximity to a colleague ('near_colleague').",
-    parameters: {
-      type: "object",
-      properties: {
-        date: { type: "string", description: "Date in YYYY-MM-DD" },
-        kind: { type: "string", enum: ["desk", "office", "room", "parking"] },
-        building: { type: "string", description: "Building name or id to restrict to" },
-        near_colleague: { type: "string", description: "A colleague's name or email to sit near" },
-      },
-      required: ["date"],
-    },
-  },
-  {
-    name: "whos_in",
-    description: "List who from the workspace is booked or checked in on a date (respecting privacy opt-outs).",
-    parameters: { type: "object", properties: { date: { type: "string" }, building: { type: "string" } }, required: ["date"] },
-  },
-  { name: "list_my_bookings", description: "List the current user's own active (upcoming or in-progress) bookings.", parameters: { type: "object", properties: {} } },
-  {
-    name: "propose_booking",
-    description: "Propose ONE specific booking for the user to confirm. Do not claim it is booked — the user must confirm. Only propose a space returned by find_availability.",
-    parameters: {
-      type: "object",
-      properties: {
-        building_id: { type: "string" },
-        space_key: { type: "string" },
-        space_label: { type: "string" },
-        kind: { type: "string", enum: ["desk", "office", "room", "parking"] },
-        date: { type: "string" },
-        duration: { type: "string", enum: ["full", "half", "hourly"] },
-        start_time: { type: "string", description: "HH:mm, required for hourly" },
-        end_time: { type: "string", description: "HH:mm, required for hourly" },
-      },
-      required: ["building_id", "space_key", "space_label", "kind", "date", "duration"],
-    },
-  },
-];
 
+/* eslint-disable @typescript-eslint/no-explicit-any */
 function displayName(email: string): string {
   return (email.split("@")[0] || email).replace(/[._]+/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
@@ -144,16 +107,6 @@ async function runTool(name: string, input: any, user: AppUser, setProposal: (p:
     return { ok: true, note: "Proposed to the user — awaiting confirmation. Do not say it is booked." };
   }
   return { error: `unknown tool ${name}` };
-}
-
-function buildSystem(user: AppUser): string {
-  return (
-    `You are Hubbi, RoamHub360's friendly workspace-booking assistant, helping ${user.name} (${user.email}). Today is ${todayInTz()}. ` +
-    `If asked your name, you're Hubbi. ` +
-    `You can find free desks/offices/meeting rooms/parking, show who's in, list the user's bookings, and PROPOSE a booking for them to confirm. ` +
-    `Always call find_availability to get real options before proposing — never invent a space. When the user wants to book, propose exactly ONE space with propose_booking and tell them to confirm; never say a booking is done. ` +
-    `Be warm, brief, and concrete. Dates are YYYY-MM-DD; resolve "tomorrow"/"next Tuesday" relative to today.`
-  );
 }
 
 // ---- Anthropic driver ----
