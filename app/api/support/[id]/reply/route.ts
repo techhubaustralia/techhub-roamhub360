@@ -6,6 +6,7 @@ import { getSupportRequest, listReplies, addReply, updateSupportRequest, markSup
 import { takeAttachment } from "@/lib/server/support-attachment";
 import { sendMail } from "@/lib/server/graph";
 import { emailBrand, supportReplyEmail, supportFollowUpEmail } from "@/lib/server/email";
+import { redactEmail } from "@/lib/redact";
 
 // Conversation on a support request. ONE endpoint for both directions:
 //   • the requester adding a follow-up      → notifies the ops inbox
@@ -92,14 +93,14 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   if (fromAdmin) {
     const mail = supportReplyEmail({ subject: row.subject, body, fromName: me.name, url: `${workspaceOrigin(tenantId)}/support` }, eb);
     const sent = await sendMail(row.userEmail, mail.subject, mail.html, tenantId, attachments).catch(() => false);
-    console.log(`[support] admin reply on ${id} → ${row.userEmail}: ${sent ? "emailed" : "NOT emailed"}`);
+    console.log(`[support] admin reply on ${id} → ${redactEmail(row.userEmail)}: ${sent ? "emailed" : "NOT emailed"}`);
   } else {
     const ops = opsInbox();
     if (ops) {
       const mail = supportFollowUpEmail({ subject: row.subject, body, userEmail: me.email, workspace: tenantId, ticketUrl: `${workspaceOrigin(tenantId)}/admin/support` }, eb);
       await sendMail(ops, mail.subject, mail.html, tenantId, attachments).catch(() => false);
     }
-    console.log(`[support] follow-up on ${id} from ${me.email}`);
+    console.log(`[support] follow-up on ${id} from ${redactEmail(me.email)}`);
   }
 
   return NextResponse.json({ ok: true, reply });

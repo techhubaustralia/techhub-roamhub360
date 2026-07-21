@@ -3,6 +3,7 @@ import { brand } from "../brand";
 import { DEFAULT_TENANT, currentTenantId } from "./tenant";
 import { getIntegrationCreds } from "./tenant-integration";
 import { sendViaEsp, type MailAttachment } from "./mailer";
+import { redactEmail } from "../redact";
 
 // Microsoft Graph (app-only / client credentials). Sends mail from the brand mailbox, reserves
 // room mailboxes, and reads the directory. Credentials are resolved PER TENANT (Commercial SaaS
@@ -51,16 +52,37 @@ async function token(tenantId: string): Promise<string> {
     grant_type: "client_credentials",
     scope: "https://graph.microsoft.com/.default",
   });
-  const r = await fetch(`https://login.microsoftonline.com/${creds.tenant}/oauth2/v2.0/token`, { method: "POST", body });
+  const r = await fetchWithTimeout(`https://login.microsoftonline.com/${creds.tenant}/oauth2/v2.0/token`, { method: "POST", body });
   const j = await r.json();
   if (!r.ok) throw new Error("graph token: " + JSON.stringify(j));
   tokenCache.set(tenantId, { token: j.access_token, exp: Date.now() + j.expires_in * 1000 });
   return j.access_token;
 }
 
+// M5: every Microsoft call gets a hard timeout so a slow/hung Graph dependency can't pin a request
+// worker indefinitely, plus one retry on a transient failure (network error, 429, or 5xx). A full
+// circuit breaker is the next step; timeout+bounded-retry is the load-bearing part.
+const GRAPH_TIMEOUT_MS = 12_000;
+async function fetchWithTimeout(url: string, init: RequestInit): Promise<Response> {
+  let lastErr: unknown;
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      const r = await fetch(url, { ...init, signal: AbortSignal.timeout(GRAPH_TIMEOUT_MS) });
+      if (r.status === 429 || r.status >= 500) {
+        if (attempt === 0) { await new Promise((res) => setTimeout(res, 400)); continue; } // one retry
+      }
+      return r;
+    } catch (e) {
+      lastErr = e; // network error / timeout — retry once, then rethrow
+      if (attempt === 0) { await new Promise((res) => setTimeout(res, 400)); continue; }
+    }
+  }
+  throw lastErr instanceof Error ? lastErr : new Error("graph request failed");
+}
+
 async function gfetch(path: string, init: RequestInit, tenantId: string) {
   const t = await token(tenantId);
-  const r = await fetch("https://graph.microsoft.com/v1.0" + path, {
+  const r = await fetchWithTimeout("https://graph.microsoft.com/v1.0" + path, {
     ...init,
     headers: { Authorization: `Bearer ${t}`, "Content-Type": "application/json", ...(init.headers || {}) },
   });
@@ -99,7 +121,7 @@ export async function sendMail(to: string, subject: string, html: string, tenant
   // Prefer the dedicated ESP (Resend) when configured — reliable, no dependency on any customer's
   // Microsoft 365. Falls through to the Graph mailbox only if the ESP is off or the send failed.
   if (await sendViaEsp(to, subject, html, undefined, attachments)) {
-    console.log(`[mail] sent via ESP to ${to}`);
+    console.log(`[mail] sent via ESP to ${redactEmail(to)}`);
     return true;
   }
   const t = tenantId ?? (await currentTenantId()); // kept for logging/context only
@@ -110,7 +132,7 @@ export async function sendMail(to: string, subject: string, html: string, tenant
   const creds = await credsFor(DEFAULT_TENANT);
   const from = creds?.mailFrom;
   if (!creds || !from) {
-    console.error(`[mail] NOT SENT to ${to}: platform mailbox not configured (set AZURE_TENANT_ID / GRAPH_CLIENT_ID / GRAPH_CLIENT_SECRET / MAIL_FROM)`);
+    console.error(`[mail] NOT SENT to ${redactEmail(to)}: platform mailbox not configured (set AZURE_TENANT_ID / GRAPH_CLIENT_ID / GRAPH_CLIENT_SECRET / MAIL_FROM)`);
     return false;
   }
   try {
@@ -139,10 +161,10 @@ export async function sendMail(to: string, subject: string, html: string, tenant
       },
       DEFAULT_TENANT,
     );
-    console.log(`[mail] sent to ${to} from ${from} (for "${t}")`);
+    console.log(`[mail] sent to ${redactEmail(to)} from ${redactEmail(from)} (for "${t}")`);
     return true;
   } catch (e) {
-    console.error(`[mail] FAILED to ${to} from ${from}: ${e instanceof Error ? e.message : String(e)}`);
+    console.error(`[mail] FAILED to ${redactEmail(to)} from ${redactEmail(from)}: ${e instanceof Error ? e.message : String(e)}`);
     return false; // callers treat false as "not sent"; never throw out of sendMail
   }
 }

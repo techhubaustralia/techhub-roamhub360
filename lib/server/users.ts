@@ -51,19 +51,20 @@ export async function updateUserPrefs(email: string, patch: Partial<UserPrefs>):
   if (Object.keys(data).length) await p.user.update({ where: { email: email.toLowerCase() }, data });
 }
 
-/** Emails (lowercased) of users who have opted out of the presence board. Empty without a DB. */
+/** Emails (lowercased) of THIS tenant's users who opted out of the presence board. Empty without a
+ *  DB. Tenant-scoped (M2) — previously queried every tenant's users. */
 export async function getHiddenPresenceEmails(): Promise<Set<string>> {
   if (!process.env.DATABASE_URL) return new Set();
   const p = await prisma();
-  const rows = await p.user.findMany({ where: { hidePresence: true }, select: { email: true } });
+  const rows = await p.user.findMany({ where: { hidePresence: true, ...tenantWhere(await currentTenantId()) }, select: { email: true } });
   return new Set(rows.map((r: { email: string }) => r.email.toLowerCase()));
 }
 
-/** Emails (lowercased) of users who opted in to the daily "who's in" digest. Empty without a DB. */
+/** Emails (lowercased) of THIS tenant's users opted in to the daily "who's in" digest. Tenant-scoped. */
 export async function getPresenceDigestEmails(): Promise<Set<string>> {
   if (!process.env.DATABASE_URL) return new Set();
   const p = await prisma();
-  const rows = await p.user.findMany({ where: { notifyPresence: true }, select: { email: true } });
+  const rows = await p.user.findMany({ where: { notifyPresence: true, ...tenantWhere(await currentTenantId()) }, select: { email: true } });
   return new Set(rows.map((r: { email: string }) => r.email.toLowerCase()));
 }
 

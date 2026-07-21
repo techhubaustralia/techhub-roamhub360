@@ -3,6 +3,7 @@ import { z } from "zod";
 import { getUser } from "@/lib/server/auth";
 import { currentTenantId } from "@/lib/server/tenant";
 import { getSupportRequest, updateSupportRequest, markSupportRead } from "@/lib/server/support";
+import { redactEmail } from "@/lib/redact";
 
 // Let the REQUESTER resolve their own request (or reopen it) — without this, only an admin could
 // close anything, so a user who solved their own problem had no way to say so.
@@ -28,6 +29,6 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 
   const updated = await updateSupportRequest(id, { status: parsed.data.status });
   await markSupportRead(id, "requester");
-  console.log(`[support] ${me.email} set own request ${id} → ${parsed.data.status}`);
+  console.log(`[support] ${redactEmail(me.email)} set own request ${id} → ${parsed.data.status}`);
   return NextResponse.json({ ok: true, request: updated });
 }

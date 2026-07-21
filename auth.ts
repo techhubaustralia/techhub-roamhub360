@@ -10,6 +10,7 @@ import { findUserByEmail, upsertSsoUser } from "@/lib/server/users";
 import { findTenantByEntraTid } from "@/lib/server/entra-sso";
 import { verifyTeamsSsoToken } from "@/lib/server/teams-token";
 import { rateLimit } from "@/lib/server/rate-limit";
+import { redactEmail } from "@/lib/redact";
 
 // Break-glass platform operators (comma-separated env). They may access any workspace.
 const BOOTSTRAP_ADMINS = (process.env.BOOTSTRAP_ADMINS || "").split(",").map((s) => s.trim().toLowerCase()).filter(Boolean);
@@ -67,7 +68,7 @@ class SignInRejected extends CredentialsSignin {
 }
 
 function rejectSignIn(code: string, email: string, detail?: string): never {
-  console.warn(`[auth] sign-in rejected (${code}) for ${email}${detail ? ` — ${detail}` : ""}`);
+  console.warn(`[auth] sign-in rejected (${code}) for ${redactEmail(email)}${detail ? ` — ${detail}` : ""}`);
   throw new SignInRejected(code);
 }
 
@@ -97,7 +98,7 @@ const providers: Provider[] = [
       // still succeeds within the window; only guessing is slowed.
       if (!rateLimit(`login:${email}`, 20, 15 * 60 * 1000).ok) rejectSignIn("rate_limited", email, "too many attempts");
       const u = await findUserByEmail(email).catch((e) => {
-        console.error(`[auth] DB lookup failed for ${email}: ${e instanceof Error ? e.message : String(e)}`);
+        console.error(`[auth] DB lookup failed for ${redactEmail(email)}: ${e instanceof Error ? e.message : String(e)}`);
         return null;
       });
       // No local password = SSO-only or unknown account. Reported generically (this is the ONLY
@@ -119,7 +120,7 @@ const providers: Provider[] = [
         const { verifyTotp } = await import("@/lib/server/totp");
         if (!verifyTotp(u.totpSecret, code)) rejectSignIn("totp_invalid", email, "2FA code incorrect");
       }
-      console.log(`[auth] sign-in OK for ${email} (workspace "${u.tenantId ?? "default"}")`);
+      console.log(`[auth] sign-in OK for ${redactEmail(email)} (workspace "${u.tenantId ?? "default"}")`);
       return { id: u.id, email: u.email, name: u.name ?? email };
     },
   }),
@@ -140,16 +141,16 @@ const providers: Provider[] = [
       }
       const u = await findUserByEmail(h.email).catch(() => null);
       if (!u) {
-        console.warn(`[auth] SSO handoff rejected: ${h.email} is not provisioned in this workspace`);
+        console.warn(`[auth] SSO handoff rejected: ${redactEmail(h.email)} is not provisioned in this workspace`);
         return null;
       }
       // Same tenant lock as password login: the relayed SSO session only lands on the account's own
       // workspace subdomain (platform operators excepted).
       if (!accountMatchesHost(u.tenantId, h.email, request)) {
-        console.warn(`[auth] SSO handoff rejected: ${h.email} belongs to "${u.tenantId ?? "default"}", relayed to "${tenantFromHost(request ? requestHost(request) : "")}"`);
+        console.warn(`[auth] SSO handoff rejected: ${redactEmail(h.email)} belongs to "${u.tenantId ?? "default"}", relayed to "${tenantFromHost(request ? requestHost(request) : "")}"`);
         return null;
       }
-      console.log(`[auth] SSO handoff OK for ${h.email}`);
+      console.log(`[auth] SSO handoff OK for ${redactEmail(h.email)}`);
       return { id: u.id, email: u.email, name: u.name ?? h.email };
     },
   }),
@@ -227,16 +228,16 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const provision = async (tenantId?: string): Promise<boolean> => {
           try {
             await upsertSsoUser(email, user.name ?? undefined, account.provider, tenantId);
-            console.log(`[auth] SSO sign-in OK for ${email} via ${account.provider}${tenantId ? ` → workspace "${tenantId}"` : ""}`);
+            console.log(`[auth] SSO sign-in OK for ${redactEmail(email)} via ${account.provider}${tenantId ? ` → workspace "${tenantId}"` : ""}`);
             return true;
           } catch (e) {
-            console.error(`[auth] SSO provisioning FAILED for ${email}: ${e instanceof Error ? e.message : String(e)}`);
+            console.error(`[auth] SSO provisioning FAILED for ${redactEmail(email)}: ${e instanceof Error ? e.message : String(e)}`);
             return false; // fail closed, but the log names the real cause
           }
         };
 
         const existing = await findUserByEmail(email).catch((e) => {
-          console.error(`[auth] SSO user lookup failed for ${email}: ${e instanceof Error ? e.message : String(e)}`);
+          console.error(`[auth] SSO user lookup failed for ${redactEmail(email)}: ${e instanceof Error ? e.message : String(e)}`);
           return null;
         });
         if (existing || BOOTSTRAP_ADMINS.includes(email)) return provision();
@@ -262,7 +263,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         if (domains.includes(email.split("@")[1] ?? "")) return provision();
 
         // Unknown account — needs an invite, an org-SSO connection, or an allowlisted domain.
-        console.warn(`[auth] SSO sign-in DENIED for ${email}: not provisioned, Entra tid ${tid ?? "(none)"} not linked to a workspace, and domain not in SSO_AUTO_JOIN_DOMAINS`);
+        console.warn(`[auth] SSO sign-in DENIED for ${redactEmail(email)}: not provisioned, Entra tid ${tid ?? "(none)"} not linked to a workspace, and domain not in SSO_AUTO_JOIN_DOMAINS`);
         return false;
       }
       return true;
