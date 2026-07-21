@@ -24,6 +24,12 @@ describe("tenantFromHost", () => {
   it("is case-insensitive", () => {
     expect(tenantFromHost("Test123.RoamHub360.com")).toBe("test123");
   });
+
+  it("refuses hosts outside the trusted apex (H1: spoofed Host can't impersonate a tenant)", () => {
+    expect(tenantFromHost("victim.evil.com")).toBe("default");
+    expect(tenantFromHost("test123.attacker.net")).toBe("default");
+    expect(tenantFromHost("roamhub360.com.evil.com")).toBe("default");
+  });
 });
 
 describe("requestHost", () => {
