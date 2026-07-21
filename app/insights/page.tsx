@@ -99,19 +99,9 @@ export default function InsightsPage() {
     ["Parking utilisation %", a!.utilisation.parking],
   ];
 
-  async function exportXlsx() {
-    if (!a) return;
-    const XLSX = await import("xlsx");
-    const wb = XLSX.utils.book_new();
-    const sheet = (name: string, head: string[], rows: (string | number)[][]) =>
-      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([head, ...rows]), name);
-    sheet("Summary", ["Metric", "Value"], summaryRows());
-    sheet("Top spaces", ["Space", "Building", "Bookings"], a.topSpaces.map((s) => [s.label, s.building, s.count]));
-    sheet("Active users", ["User", "Bookings"], a.topUsers.map((u) => [u.user, u.count]));
-    sheet("Buildings", ["Building", "Bookings"], a.byBuilding.map((b) => [b.name, b.count]));
-    sheet("Daily", ["Date", "Bookings"], a.daily.map((d) => [d.date, d.count]));
-    XLSX.writeFile(wb, `roamhub360-analytics-${a.range.from}_${a.range.to}.xlsx`);
-  }
+  // (Removed the Excel/xlsx export: the SheetJS `xlsx` package carries unpatched prototype-pollution
+  //  + ReDoS advisories on npm, and the CSV export above already covers the same tabular data — and
+  //  is the more BI-connector-friendly format. PDF export remains for a formatted report.)
 
   async function exportPdf() {
     if (!a) return;
@@ -142,9 +132,6 @@ export default function InsightsPage() {
           <div className="flex flex-wrap gap-2 print:hidden">
             <button onClick={exportCsv} className="inline-flex items-center gap-1.5 rounded-[10px] border bg-panel-2 px-3 py-2.5 text-[13px] font-semibold hover:border-primary">
               <Download className="size-4" /> CSV
-            </button>
-            <button onClick={exportXlsx} className="inline-flex items-center gap-1.5 rounded-[10px] border bg-panel-2 px-3 py-2.5 text-[13px] font-semibold hover:border-primary">
-              <Download className="size-4" /> Excel
             </button>
             <button onClick={exportPdf} className="inline-flex items-center gap-1.5 rounded-[10px] border bg-panel-2 px-3 py-2.5 text-[13px] font-semibold hover:border-primary">
               <Printer className="size-4" /> PDF
