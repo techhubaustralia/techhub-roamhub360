@@ -1,4 +1,5 @@
 import "server-only";
+import { prisma } from "./prisma";
 import { promises as fs } from "fs";
 import path from "path";
 import { overlaps, ACTIVE_STATUSES } from "@/lib/booking-rules";
@@ -57,14 +58,6 @@ async function writeJson(file: string, data: unknown): Promise<void> {
 }
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
-let _prisma: any = null;
-async function prisma(): Promise<any> {
-  if (!_prisma) {
-    const mod: any = await import("@prisma/client");
-    _prisma = new mod.PrismaClient();
-  }
-  return _prisma;
-}
 
 // Collision-resistant id; the DB primary key enforces uniqueness as a backstop.
 const rid = () => globalThis.crypto?.randomUUID?.() ?? "b_" + Math.random().toString(36).slice(2, 10) + Date.now().toString(36);

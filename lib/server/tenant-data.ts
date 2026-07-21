@@ -1,4 +1,5 @@
 import "server-only";
+import { prisma } from "./prisma";
 import { purgeTenantStorage } from "./store";
 
 // GDPR / offboarding: export or permanently delete ALL of a tenant's data. Platform-operator only
@@ -6,12 +7,6 @@ import { purgeTenantStorage } from "./store";
 // purged via the storage layer. Never touches the default workspace.
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-let _prisma: any = null;
-async function prisma(): Promise<any> {
-  if (!process.env.DATABASE_URL) throw new Error("Tenant data operations require DATABASE_URL.");
-  if (!_prisma) _prisma = new (await import("@prisma/client")).PrismaClient();
-  return _prisma;
-}
 
 /** A portable JSON snapshot of everything personal/operational a tenant holds. Password hashes and
  *  encrypted integration secrets are stripped. */

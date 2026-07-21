@@ -1,4 +1,5 @@
 import "server-only";
+import { prisma } from "./prisma";
 import { markdownExcerpt } from "../markdown";
 
 // Knowledge Base data access. Articles are either GLOBAL (tenantId = null; authored by the platform
@@ -8,14 +9,6 @@ import { markdownExcerpt } from "../markdown";
 
 const useSql = Boolean(process.env.DATABASE_URL);
 
-let _prisma: any = null;
-async function prisma(): Promise<any> {
-  if (!_prisma) {
-    const mod: any = await import("@prisma/client");
-    _prisma = new mod.PrismaClient();
-  }
-  return _prisma;
-}
 
 export interface KbListItem {
   id: string;

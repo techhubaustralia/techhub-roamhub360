@@ -1,4 +1,5 @@
 import "server-only";
+import { prisma } from "./prisma";
 import { currentTenantId } from "./tenant";
 import { graphConfiguredFor, graphJson, graphPhotoDataUrl } from "./graph";
 import { getDirectoryGroups } from "./tenant-integration";
@@ -13,14 +14,6 @@ import { getDirectoryGroups } from "./tenant-integration";
 
 const useSql = Boolean(process.env.DATABASE_URL);
 
-let _prisma: any = null;
-async function prisma(): Promise<any> {
-  if (!_prisma) {
-    const mod: any = await import("@prisma/client");
-    _prisma = new mod.PrismaClient();
-  }
-  return _prisma;
-}
 
 export interface DirectoryEntry {
   email: string;

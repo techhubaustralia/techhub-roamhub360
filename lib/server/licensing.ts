@@ -1,4 +1,5 @@
 import "server-only";
+import { prisma } from "./prisma";
 import { DEFAULT_TENANT, currentTenantId } from "./tenant";
 import { computeLicenseState, TIER_DEFAULTS, type LicenseCore, type LicenseState, type LicenseTier } from "../license-state";
 
@@ -9,14 +10,6 @@ import { computeLicenseState, TIER_DEFAULTS, type LicenseCore, type LicenseState
 
 const useSql = Boolean(process.env.DATABASE_URL);
 
-let _prisma: any = null;
-async function prisma(): Promise<any> {
-  if (!_prisma) {
-    const mod: any = await import("@prisma/client");
-    _prisma = new mod.PrismaClient();
-  }
-  return _prisma;
-}
 
 const UNLIMITED: LicenseCore = { tier: "enterprise", maxSites: 9999, maxFloorsPerSite: 99, status: "active", expiresAt: null, graceDays: 0 };
 const IMPLICIT_TRIAL: LicenseCore = { tier: "trial", maxSites: TIER_DEFAULTS.trial.maxSites, maxFloorsPerSite: TIER_DEFAULTS.trial.maxFloorsPerSite, status: "active", expiresAt: null, graceDays: 14 };

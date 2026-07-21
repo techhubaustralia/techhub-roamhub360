@@ -1,4 +1,5 @@
 import "server-only";
+import { prisma } from "./prisma";
 import crypto from "crypto";
 
 // "Org sign-in" via Microsoft Entra ADMIN CONSENT (Commercial G6).
@@ -13,14 +14,6 @@ import crypto from "crypto";
 
 const useSql = Boolean(process.env.DATABASE_URL);
 
-let _prisma: any = null;
-async function prisma(): Promise<any> {
-  if (!_prisma) {
-    const mod: any = await import("@prisma/client");
-    _prisma = new mod.PrismaClient();
-  }
-  return _prisma;
-}
 
 // ---- CSRF state for the consent round-trip (HMAC, 15 min) --------------------------------------
 const SECRET = process.env.AUTH_SECRET || "dev-insecure-secret-change-me";

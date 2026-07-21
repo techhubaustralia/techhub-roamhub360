@@ -10,9 +10,8 @@ export async function GET() {
   let db: "ok" | "down" | "not-configured" = "not-configured";
   if (process.env.DATABASE_URL) {
     try {
-      const { PrismaClient } = await import("@prisma/client");
-      const g = globalThis as unknown as { __healthPrisma?: InstanceType<typeof PrismaClient> };
-      const p = (g.__healthPrisma ??= new PrismaClient());
+      const { prisma } = await import("@/lib/server/prisma"); // shared client — no extra pool
+      const p = await prisma();
       await p.$queryRaw`SELECT 1`;
       db = "ok";
     } catch {

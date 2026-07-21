@@ -1,4 +1,5 @@
 import "server-only";
+import { prisma } from "./prisma";
 
 // Support-request data access. A request is created from the Help panel, emailed to OPS_EMAIL, and
 // kept here so admins get an in-app open/closed queue. Attachments live in lib/server/store.ts; only
@@ -7,14 +8,6 @@ import "server-only";
 
 const useSql = Boolean(process.env.DATABASE_URL);
 
-let _prisma: any = null;
-async function prisma(): Promise<any> {
-  if (!_prisma) {
-    const mod: any = await import("@prisma/client");
-    _prisma = new mod.PrismaClient();
-  }
-  return _prisma;
-}
 
 export interface SupportRequest {
   id: string;

@@ -1,18 +1,10 @@
 import "server-only";
+import { prisma } from "./prisma";
 import { DEFAULT_TENANT } from "./tenant";
 
 // Tenant (customer organisation) records + management. Platform-operator level.
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-let _prisma: any = null;
-async function prisma(): Promise<any> {
-  if (!process.env.DATABASE_URL) throw new Error("Tenant management requires DATABASE_URL (Postgres).");
-  if (!_prisma) {
-    const mod: any = await import("@prisma/client");
-    _prisma = new mod.PrismaClient();
-  }
-  return _prisma;
-}
 
 export interface TenantRow {
   id: string;

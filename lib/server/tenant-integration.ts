@@ -1,4 +1,5 @@
 import "server-only";
+import { prisma } from "./prisma";
 import { encryptSecret, decryptSecret } from "./crypto";
 
 // Per-tenant Microsoft integration store (Commercial SaaS CP1). Writes encrypt the client secret;
@@ -8,14 +9,6 @@ import { encryptSecret, decryptSecret } from "./crypto";
 
 const useSql = Boolean(process.env.DATABASE_URL);
 
-let _prisma: any = null;
-async function prisma(): Promise<any> {
-  if (!_prisma) {
-    const mod: any = await import("@prisma/client");
-    _prisma = new mod.PrismaClient();
-  }
-  return _prisma;
-}
 
 export interface IntegrationStatus {
   configured: boolean; // azureTenantId + clientId + secret all present

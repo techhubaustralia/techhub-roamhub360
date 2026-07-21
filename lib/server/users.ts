@@ -1,4 +1,5 @@
 import "server-only";
+import { prisma } from "./prisma";
 import { currentTenantId, DEFAULT_TENANT } from "./tenant";
 
 // Rows belong to a tenant. On the DEFAULT workspace we also match legacy rows whose tenantId was
@@ -9,15 +10,6 @@ const tenantWhere = (t: string) => (t === DEFAULT_TENANT ? { OR: [{ tenantId: t 
 // both local (email/password) and Entra (SSO) users. Requires DATABASE_URL.
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-let _prisma: any = null;
-async function prisma(): Promise<any> {
-  if (!process.env.DATABASE_URL) throw new Error("User management requires DATABASE_URL (Postgres) to be set.");
-  if (!_prisma) {
-    const mod: any = await import("@prisma/client");
-    _prisma = new mod.PrismaClient();
-  }
-  return _prisma;
-}
 
 export interface UserRow {
   id: string;
