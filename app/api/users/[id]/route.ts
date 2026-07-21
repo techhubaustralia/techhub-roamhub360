@@ -34,7 +34,13 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     return NextResponse.json({ error: "Cannot demote the last Global Admin." }, { status: 400 });
   }
   await updateUser(id, parsed.data);
-  await audit(me.email, "user.update", `${target.email}${parsed.data.role ? ` → ${parsed.data.role}` : ""}`);
+  // Capture the permission-relevant transition (role/sites/multiBook) so the audit trail records
+  // the exact privilege change, not just that an edit happened. Password is never snapshotted.
+  await audit(me.email, "user.update", `${target.email}${parsed.data.role ? ` → ${parsed.data.role}` : ""}`, {
+    target: target.email,
+    before: { role: target.role, sites: target.sites, multiBook: target.multiBook },
+    after: { role: parsed.data.role ?? target.role, sites: parsed.data.sites ?? target.sites, multiBook: parsed.data.multiBook ?? target.multiBook },
+  });
   return NextResponse.json({ ok: true });
 }
 

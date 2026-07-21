@@ -72,15 +72,26 @@ model Lock {
   @@id([tenantId, buildingId, spaceKey])
 }
 
+// Append-only audit trail. Rows are only ever created (never updated) and are removed solely by
+// retention pruning (pruneAudit) or a full tenant purge. Structured request context (ip/userAgent/
+// requestId) is captured automatically; before/after/target are opt-in per call for change events.
 model AuditLog {
-  id       String   @id @default(uuid())
-  tenantId String   @default("default")
-  at       DateTime @default(now())
-  actor    String
-  action   String
-  detail   String?
+  id        String   @id @default(uuid())
+  tenantId  String   @default("default")
+  at        DateTime @default(now())
+  actor     String
+  action    String
+  detail    String?
+  ip        String?
+  userAgent String?
+  requestId String?
+  target    String?
+  before    String?
+  after     String?
 
   @@index([tenantId])
+  @@index([tenantId, at])
+  @@index([at])
 }
 
 // Per-tenant licence (Commercial SaaS CP2). Sites are the billing unit ($2000/site/yr); the

@@ -343,21 +343,70 @@ export async function setLock(buildingId: string, spaceKey: string, locked: bool
 }
 
 // ---------- audit ----------
-export async function audit(actor: string, action: string, detail?: string): Promise<void> {
+// Optional structured context for a change event. actor/action/detail describe WHAT happened;
+// this carries the subject (target) and the state transition (before → after) for security-
+// relevant mutations (role changes, licence edits) so the trail answers "who changed whose what".
+export interface AuditContext { target?: string; before?: unknown; after?: unknown }
+
+// Serialise a before/after snapshot compactly, capped so an audit row can't be pushed to an
+// unbounded size by a large object. Non-serialisable input degrades to a string, never throws.
+function auditSnapshot(v: unknown): string | undefined {
+  if (v === undefined) return undefined;
+  let s: string;
+  try {
+    s = typeof v === "string" ? v : JSON.stringify(v);
+  } catch {
+    s = String(v);
+  }
+  return s.length > 4000 ? s.slice(0, 4000) + "…" : s;
+}
+
+// Capture request context from the ambient headers WITHOUT threading `request` through 34 call
+// sites. Returns nulls outside a request scope (e.g. a cron job), where headers() throws.
+// ponytail: requestId honours a proxy-set x-request-id, else a per-event uuid. A middleware-stamped
+// per-request id (correlating several audit rows in one request) is the upgrade if that's needed.
+async function auditRequestMeta(): Promise<{ ip: string | null; userAgent: string | null; requestId: string }> {
+  try {
+    const { headers } = await import("next/headers");
+    const h = await headers();
+    const xff = h.get("x-forwarded-for");
+    const ip = (xff ? xff.split(",")[0]!.trim() : h.get("x-real-ip")) || null;
+    return { ip, userAgent: h.get("user-agent") || null, requestId: h.get("x-request-id") || crypto.randomUUID() };
+  } catch {
+    return { ip: null, userAgent: null, requestId: crypto.randomUUID() };
+  }
+}
+
+export async function audit(actor: string, action: string, detail?: string, ctx?: AuditContext): Promise<void> {
   // audit logging must never break the underlying operation
   try {
     const tenantId = await currentTenantId();
+    const meta = await auditRequestMeta();
+    const before = auditSnapshot(ctx?.before);
+    const after = auditSnapshot(ctx?.after);
+    const row = { tenantId, actor, action, detail, target: ctx?.target, before, after, ip: meta.ip, userAgent: meta.userAgent, requestId: meta.requestId };
     if (useSql) {
       const p = await prisma();
-      await p.auditLog.create({ data: { tenantId, actor, action, detail } });
+      await p.auditLog.create({ data: row });
       return;
     }
     const log = await readJson<AuditEntry[]>(F.audit, []);
-    log.unshift({ at: new Date().toISOString(), tenantId, actor, action, detail });
-    await writeJson(F.audit, log.slice(0, 1000));
+    log.unshift({ at: new Date().toISOString(), ...row, ip: meta.ip ?? undefined, userAgent: meta.userAgent ?? undefined });
+    await writeJson(F.audit, log.slice(0, 5000));
   } catch (e) {
     console.error("audit failed (non-fatal)", e);
   }
+}
+
+// Retention: delete audit rows older than AUDIT_RETENTION_DAYS (default 365) across ALL tenants.
+// This is the ONLY sanctioned deletion of audit data (besides a full tenant purge) — the trail is
+// otherwise append-only. Run from the jobs route on a schedule. No-op on the JSON store (self-caps).
+export async function pruneAudit(days = Number(process.env.AUDIT_RETENTION_DAYS) || 365): Promise<number> {
+  if (!useSql) return 0;
+  const p = await prisma();
+  const cutoff = new Date(Date.now() - days * 86_400_000);
+  const res = await p.auditLog.deleteMany({ where: { at: { lt: cutoff } } });
+  return res.count as number;
 }
 
 /** Diagnostic: probe the audit backend directly (surfacing errors that audit() swallows). */
@@ -384,13 +433,20 @@ export async function auditSelfTest(): Promise<{ useSql: boolean; ok: boolean; c
   return out;
 }
 
-export interface AuditEntry { at: string; tenantId?: string; actor: string; action: string; detail?: string }
+export interface AuditEntry {
+  at: string; tenantId?: string; actor: string; action: string; detail?: string;
+  target?: string; before?: string; after?: string; ip?: string; userAgent?: string; requestId?: string;
+}
 export async function listAudit(limit = 200): Promise<AuditEntry[]> {
   const tenantId = await currentTenantId();
   if (useSql) {
     const p = await prisma();
     const rows = await p.auditLog.findMany({ where: { tenantId }, orderBy: { at: "desc" }, take: limit });
-    return rows.map((r: any) => ({ at: (r.at as Date).toISOString(), actor: r.actor, action: r.action, detail: r.detail ?? undefined }));
+    return rows.map((r: any) => ({
+      at: (r.at as Date).toISOString(), actor: r.actor, action: r.action, detail: r.detail ?? undefined,
+      target: r.target ?? undefined, before: r.before ?? undefined, after: r.after ?? undefined,
+      ip: r.ip ?? undefined, userAgent: r.userAgent ?? undefined, requestId: r.requestId ?? undefined,
+    }));
   }
   const log = await readJson<AuditEntry[]>(F.audit, []);
   return log.filter(ofTenant(tenantId)).slice(0, limit);

@@ -1,10 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Shield } from "lucide-react";
+import { Shield, Download } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 
-interface Entry { at: string; actor: string; action: string; detail?: string }
+interface Entry { at: string; actor: string; action: string; detail?: string; target?: string; ip?: string }
 
 const LABEL: Record<string, string> = {
   "booking.create": "Booked a space",
@@ -53,7 +53,18 @@ export default function AuditPage() {
 
   return (
     <div className="animate-fade-up">
-      <PageHeader title="Activity log" subtitle="Recent administrative and booking activity (latest 200)" />
+      <PageHeader
+        title="Activity log"
+        subtitle="Recent administrative and booking activity (latest 200)"
+        action={
+          <a
+            href="/api/audit?format=csv"
+            className="inline-flex items-center gap-1.5 rounded-[10px] border bg-card px-3 py-1.5 text-[12.5px] font-medium shadow-sm hover:bg-panel-2"
+          >
+            <Download className="size-3.5" /> Export CSV
+          </a>
+        }
+      />
       {errDetail && (
         <div className="mb-4 rounded-[14px] border border-destructive/40 bg-destructive/10 p-4 text-[12.5px] text-destructive">
           <b className="font-semibold">Activity log unavailable.</b> {errDetail}

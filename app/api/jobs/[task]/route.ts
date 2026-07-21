@@ -1,6 +1,6 @@
 import crypto from "crypto";
 import { NextResponse } from "next/server";
-import { listBookings, setBookingStatus, audit, type Booking } from "@/lib/server/db";
+import { listBookings, setBookingStatus, audit, pruneAudit, type Booking } from "@/lib/server/db";
 import { sendMail } from "@/lib/server/graph";
 import { reminderEmail, checkInEmail, checkOutEmail, presenceDigestEmail, emailBrand } from "@/lib/server/email";
 import { listCustomBuildings, listHiddenBuildings, getStoredPlan } from "@/lib/server/store";
@@ -166,6 +166,11 @@ export async function GET(req: Request, { params }: { params: Promise<{ task: st
 
   if (task === "license-check") {
     return NextResponse.json({ task, ...(await runLicenseChecks()) });
+  }
+
+  if (task === "audit-prune") {
+    // Retention sweep: drop audit rows past AUDIT_RETENTION_DAYS. Schedule daily.
+    return NextResponse.json({ task, pruned: await pruneAudit() });
   }
 
   if (task === "report") {
