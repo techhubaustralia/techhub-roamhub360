@@ -94,6 +94,27 @@ model AuditLog {
   @@index([at])
 }
 
+// Per-tenant API keys for the public REST API (/api/v1). The secret is shown once at creation and
+// stored only as a SHA-256 hash (the token has ~192 bits of entropy, so a fast hash is right — no
+// brute-force surface, unlike a password). Governance: least-privilege scopes, optional expiry,
+// last-used tracking. A dedicated table (vs the old JSON blob) gives indexed hash lookup and atomic
+// per-key writes — no whole-list read-modify-write race on create/revoke/last-used.
+model ApiKey {
+  id         String    @id @default(uuid())
+  tenantId   String    @default("default")
+  name       String
+  prefix     String // first chars, for display ("rh_ab12…")
+  hash       String    @unique // sha256(secret) — never returned
+  scopes     String[]  @default(["read"])
+  createdAt  DateTime  @default(now())
+  createdBy  String
+  lastUsedAt DateTime?
+  expiresAt  DateTime? // null = never expires
+
+  @@index([tenantId])
+  @@index([hash])
+}
+
 // Per-tenant licence (Commercial SaaS CP2). Sites are the billing unit ($2000/site/yr); the
 // tier caps floors-per-site (≤5). Issued/edited by the TechHub Partner portal (CP3). Absence of
 // a row = an implicit trial; the DEFAULT/demo tenant is always treated as unlimited/active.

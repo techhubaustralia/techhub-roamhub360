@@ -5,7 +5,9 @@ import { toast } from "sonner";
 import { Copy, KeyRound, Webhook, Trash2, Plus, MessageSquare } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 
-interface ApiKeyPublic { id: string; name: string; prefix: string; createdAt: string; lastUsedAt?: string }
+interface ApiKeyPublic { id: string; name: string; prefix: string; createdAt: string; lastUsedAt?: string; scopes?: string[]; expiresAt?: string | null }
+const EXPIRY_OPTIONS = [{ label: "Never", days: 0 }, { label: "30 days", days: 30 }, { label: "90 days", days: 90 }, { label: "1 year", days: 365 }];
+const isKeyExpired = (k: ApiKeyPublic) => Boolean(k.expiresAt && Date.parse(k.expiresAt) <= Date.now());
 interface WebhookEndpoint { id: string; url: string; secret: string; events: string[]; createdAt: string }
 interface Integrations { endpoints: WebhookEndpoint[]; slackUrl?: string }
 
@@ -27,6 +29,8 @@ export default function DeveloperPage() {
   const [origin, setOrigin] = useState("");
   const [keys, setKeys] = useState<ApiKeyPublic[] | null>(null);
   const [newName, setNewName] = useState("");
+  const [newScopes, setNewScopes] = useState<string[]>(["read"]);
+  const [newExpiryDays, setNewExpiryDays] = useState(0);
   const [freshKey, setFreshKey] = useState<string | null>(null);
   const [integ, setInteg] = useState<Integrations | null>(null);
   const [hookUrl, setHookUrl] = useState("");
@@ -50,13 +54,22 @@ export default function DeveloperPage() {
 
   async function createKey() {
     setBusy(true);
-    const res = await fetch("/api/admin/apikeys", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: newName }) });
+    const res = await fetch("/api/admin/apikeys", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: newName, scopes: newScopes, expiresInDays: newExpiryDays }),
+    });
     setBusy(false);
     if (!res.ok) return toast.error("Could not create key");
     const d = await res.json();
     setFreshKey(d.key);
     setNewName("");
+    setNewScopes(["read"]);
+    setNewExpiryDays(0);
     setKeys((k) => [...(k ?? []), d.record]);
+  }
+  function toggleScope(s: string) {
+    setNewScopes((cur) => (cur.includes(s) ? cur.filter((x) => x !== s) : [...cur, s]));
   }
   async function revokeKey(id: string) {
     setKeys((k) => (k ?? []).filter((x) => x.id !== id));
@@ -108,9 +121,19 @@ export default function DeveloperPage() {
             </div>
           )}
 
-          <div className="mt-3 flex gap-2">
-            <input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="Key name (e.g. Zapier)" className="min-w-0 flex-1 rounded-[10px] border bg-transparent px-3 py-1.5 text-sm" />
-            <button className={btn} disabled={busy} onClick={createKey}><Plus className="size-4" /> Create key</button>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="Key name (e.g. Zapier)" className="min-w-[160px] flex-1 rounded-[10px] border bg-transparent px-3 py-1.5 text-sm" />
+            <div className="flex items-center gap-1.5 rounded-[10px] border px-2 py-1" title="Scopes this key is allowed to use">
+              {["read", "write"].map((s) => (
+                <label key={s} className="flex cursor-pointer items-center gap-1 text-[12.5px] capitalize">
+                  <input type="checkbox" checked={newScopes.includes(s)} onChange={() => toggleScope(s)} /> {s}
+                </label>
+              ))}
+            </div>
+            <select value={newExpiryDays} onChange={(e) => setNewExpiryDays(Number(e.target.value))} className="rounded-[10px] border bg-transparent px-2 py-1.5 text-[12.5px]" title="Expiry">
+              {EXPIRY_OPTIONS.map((o) => <option key={o.days} value={o.days}>{o.label}</option>)}
+            </select>
+            <button className={btn} disabled={busy || newScopes.length === 0} onClick={createKey}><Plus className="size-4" /> Create key</button>
           </div>
 
           <div className="mt-4 divide-y">
@@ -118,8 +141,15 @@ export default function DeveloperPage() {
             {keys?.map((k) => (
               <div key={k.id} className="flex items-center justify-between gap-3 py-2.5">
                 <div className="min-w-0">
-                  <div className="truncate text-sm font-medium">{k.name} <span className="font-normal text-txt-mute">· {k.prefix}…</span></div>
-                  <div className="text-[11.5px] text-txt-mute">Added {k.createdAt.slice(0, 10)}{k.lastUsedAt ? ` · last used ${k.lastUsedAt.slice(0, 10)}` : " · never used"}</div>
+                  <div className="flex flex-wrap items-center gap-1.5 truncate text-sm font-medium">
+                    {k.name} <span className="font-normal text-txt-mute">· {k.prefix}…</span>
+                    {(k.scopes ?? ["read"]).map((s) => <span key={s} className="rounded bg-panel-2 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.04em] text-txt-mute">{s}</span>)}
+                    {isKeyExpired(k) && <span className="rounded bg-destructive/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-destructive">Expired</span>}
+                  </div>
+                  <div className="text-[11.5px] text-txt-mute">
+                    Added {k.createdAt.slice(0, 10)}{k.lastUsedAt ? ` · last used ${k.lastUsedAt.slice(0, 10)}` : " · never used"}
+                    {k.expiresAt ? ` · ${isKeyExpired(k) ? "expired" : "expires"} ${k.expiresAt.slice(0, 10)}` : " · no expiry"}
+                  </div>
                 </div>
                 <button className={ghost} onClick={() => revokeKey(k.id)}><Trash2 className="size-4" /> Revoke</button>
               </div>

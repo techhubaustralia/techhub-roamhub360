@@ -18,13 +18,20 @@ export async function GET() {
   return NextResponse.json({ keys: await listApiKeys() });
 }
 
+const CreateKey = z.object({
+  name: z.string().max(60).optional(),
+  scopes: z.array(z.enum(["read", "write"])).optional(),
+  // 0 / omitted = never expires; otherwise days until expiry (capped at 2 years).
+  expiresInDays: z.number().int().min(0).max(730).optional(),
+});
+
 export async function POST(req: Request) {
   const me = await guard();
   if (!me) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  const parsed = z.object({ name: z.string().max(60).optional() }).safeParse(await req.json().catch(() => ({})));
-  const name = parsed.success ? parsed.data.name ?? "" : "";
-  const created = await createApiKey(name, me.email);
-  await audit(me.email, "apikey.create", `${created.record.name} (${created.record.prefix}…)`);
+  const parsed = CreateKey.safeParse(await req.json().catch(() => ({})));
+  const d = parsed.success ? parsed.data : {};
+  const created = await createApiKey(d.name ?? "", me.email, { scopes: d.scopes, expiresInDays: d.expiresInDays || null });
+  await audit(me.email, "apikey.create", `${created.record.name} (${created.record.prefix}…) scopes=[${created.record.scopes.join(",")}] expires=${created.record.expiresAt ?? "never"}`);
   return NextResponse.json(created, { status: 201 }); // full key returned ONCE
 }
 
