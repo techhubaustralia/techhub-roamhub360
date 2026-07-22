@@ -12,7 +12,7 @@ export const runtime = "nodejs";
 const Body = z.object({ token: z.string().min(1), password: z.string().min(8, "Password must be at least 8 characters") });
 
 export async function POST(req: Request) {
-  if (!rateLimit(`setpw:${clientIp(req)}`, 20, 15 * 60 * 1000).ok) {
+  if (!(await rateLimit(`setpw:${clientIp(req)}`, 20, 15 * 60 * 1000)).ok) {
     return NextResponse.json({ error: "Too many attempts. Please wait a few minutes." }, { status: 429 });
   }
 

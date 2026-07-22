@@ -14,7 +14,7 @@ export const runtime = "nodejs";
 const Body = z.object({ email: z.string().email() });
 
 export async function POST(req: Request) {
-  if (!rateLimit(`resendverify:${clientIp(req)}`, 5, 15 * 60 * 1000).ok) return NextResponse.json({ ok: true });
+  if (!(await rateLimit(`resendverify:${clientIp(req)}`, 5, 15 * 60 * 1000)).ok) return NextResponse.json({ ok: true });
 
   const parsed = Body.safeParse(await req.json().catch(() => ({})));
   if (!parsed.success) return NextResponse.json({ ok: true });

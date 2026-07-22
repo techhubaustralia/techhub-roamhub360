@@ -19,7 +19,7 @@ export async function apiGuard(req: Request, scope: ApiScope = "read"): Promise<
   const key = await apiAuth(req);
   if (!key) return { res: apiUnauthorized() };
   if (!hasScope(key.scopes, scope)) return { res: apiForbidden(scope) };
-  const rl = rateLimit(`v1:${key.id}`, 120, 60_000);
+  const rl = await rateLimit(`v1:${key.id}`, 120, 60_000);
   if (!rl.ok) return { res: tooMany(rl.retryAfter) };
   return { key };
 }

@@ -1,10 +1,11 @@
 import "server-only";
 
-// Best-effort, in-memory fixed-window rate limiter. NOTE: counters live in the
-// process, so on a multi-replica deployment (this app autoscales min1/max4) limits
-// are enforced per-replica, not globally. This blunts spam/retry storms cheaply with
-// no extra infrastructure. For exact global limits, back this with Azure Cache for
-// Redis and replace the Map with a shared INCR+EXPIRE.
+// Fixed-window rate limiter. DEFAULT is in-memory (counters live in the process) — correct and
+// zero-infrastructure for a single instance. When REDIS_URL is set, a shared Redis INCR+PEXPIRE
+// makes limits GLOBAL across replicas (H3), so horizontal scaling doesn't multiply every limit by
+// the replica count. rateLimit() is async so the Redis path can await; the in-memory path still
+// resolves immediately. A Redis hiccup fails OPEN to the in-memory limiter — an infra blip must
+// never lock users out.
 
 interface Bucket {
   count: number;
@@ -12,8 +13,7 @@ interface Bucket {
 }
 const buckets = new Map<string, Bucket>();
 
-/** Returns ok=false once `limit` is exceeded within the rolling `windowMs`. */
-export function rateLimit(key: string, limit: number, windowMs: number): { ok: boolean; retryAfter: number } {
+function memoryLimit(key: string, limit: number, windowMs: number): { ok: boolean; retryAfter: number } {
   const now = Date.now();
   let b = buckets.get(key);
   if (!b || b.resetAt <= now) {
@@ -27,6 +27,46 @@ export function rateLimit(key: string, limit: number, windowMs: number): { ok: b
   }
   if (b.count > limit) return { ok: false, retryAfter: Math.max(1, Math.ceil((b.resetAt - now) / 1000)) };
   return { ok: true, retryAfter: 0 };
+}
+
+// Lazily connect once. undefined = not tried yet, null = no Redis (use memory).
+/* eslint-disable @typescript-eslint/no-explicit-any */
+let redisClient: any | null | undefined;
+async function getRedis(): Promise<any | null> {
+  if (redisClient !== undefined) return redisClient;
+  if (!process.env.REDIS_URL) {
+    redisClient = null;
+    return null;
+  }
+  try {
+    const mod: any = await import("ioredis");
+    const Redis = mod.default ?? mod;
+    const c = new Redis(process.env.REDIS_URL, { maxRetriesPerRequest: 2, enableOfflineQueue: false });
+    c.on("error", () => {}); // swallow transient errors; rateLimit falls back to memory on throw
+    redisClient = c;
+  } catch {
+    redisClient = null; // ioredis not installed / URL invalid → memory
+  }
+  return redisClient;
+}
+
+/** Returns ok=false once `limit` is exceeded within the fixed `windowMs`. Global across replicas
+ *  when REDIS_URL is set, otherwise per-process. Never throws. */
+export async function rateLimit(key: string, limit: number, windowMs: number): Promise<{ ok: boolean; retryAfter: number }> {
+  const r = await getRedis();
+  if (!r) return memoryLimit(key, limit, windowMs);
+  try {
+    const rk = `rl:${key}`;
+    const count: number = await r.incr(rk);
+    if (count === 1) await r.pexpire(rk, windowMs); // start the window on first hit
+    if (count > limit) {
+      const ttl: number = await r.pttl(rk);
+      return { ok: false, retryAfter: Math.max(1, Math.ceil((ttl > 0 ? ttl : windowMs) / 1000)) };
+    }
+    return { ok: true, retryAfter: 0 };
+  } catch {
+    return memoryLimit(key, limit, windowMs); // Redis blip → fail open to in-memory
+  }
 }
 
 /** Client IP from the ingress. SECURITY: use the LAST X-Forwarded-For entry — that's the one our

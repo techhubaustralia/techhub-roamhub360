@@ -22,7 +22,7 @@ const weekdayOf = (date: string): number => {
 const rootOf = (id: string) => id.split("__")[0];
 
 export async function GET(req: Request) {
-  const rl = rateLimit(`insights:ip:${clientIp(req)}`, 60, 60_000);
+  const rl = await rateLimit(`insights:ip:${clientIp(req)}`, 60, 60_000);
   if (!rl.ok) return tooMany(rl.retryAfter);
 
   await getUser(); // auth (middleware already gates; this also resolves the tenant)

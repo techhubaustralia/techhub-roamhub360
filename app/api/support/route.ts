@@ -43,7 +43,7 @@ export async function POST(req: Request) {
   if (!process.env.DATABASE_URL) return NextResponse.json({ error: "Support isn't available on this deployment." }, { status: 503 });
 
   // 5 requests / 10 min per user — enough for genuine follow-ups, blocks spam/abuse.
-  const rl = rateLimit(`support:${me.email.toLowerCase()}`, 5, 10 * 60 * 1000);
+  const rl = await rateLimit(`support:${me.email.toLowerCase()}`, 5, 10 * 60 * 1000);
   if (!rl.ok) return NextResponse.json({ error: `Too many requests — try again in ${rl.retryAfter}s.` }, { status: 429 });
 
   let form: FormData;

@@ -23,7 +23,7 @@ export async function POST(req: Request) {
   if (!adminOnly(me)) return NextResponse.json({ error: "Not authorized." }, { status: 403 });
   if ((me.disabledFeatures ?? []).includes("directory")) return NextResponse.json({ ok: false, synced: 0, photos: 0, error: "Directory sync is disabled for this workspace." }, { status: 403 });
   // A sync is a heavy Graph operation — throttle hard (a handful per minute is plenty).
-  const rl = rateLimit(`dirsync:${me.email || clientIp(req)}`, 5, 60_000);
+  const rl = await rateLimit(`dirsync:${me.email || clientIp(req)}`, 5, 60_000);
   if (!rl.ok) return tooMany(rl.retryAfter);
 
   const result = await syncDirectory();

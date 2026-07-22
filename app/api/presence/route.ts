@@ -20,7 +20,7 @@ function displayName(email: string): string {
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
 export async function GET(req: Request) {
-  const rl = rateLimit(`presence:ip:${clientIp(req)}`, 120, 60_000);
+  const rl = await rateLimit(`presence:ip:${clientIp(req)}`, 120, 60_000);
   if (!rl.ok) return tooMany(rl.retryAfter);
 
   const q = new URL(req.url).searchParams;

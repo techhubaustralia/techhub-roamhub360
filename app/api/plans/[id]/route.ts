@@ -23,7 +23,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
 export async function PUT(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { role, email } = await getUser();
   if (role !== "global-admin") return NextResponse.json({ error: "Only a Global Admin can edit floor plans." }, { status: 403 });
-  const rl = rateLimit(`admin:plan:${email}`, 120, 60_000);
+  const rl = await rateLimit(`admin:plan:${email}`, 120, 60_000);
   if (!rl.ok) return tooMany(rl.retryAfter);
   const { id } = await params;
   const body = (await req.json()) as FloorPlan;

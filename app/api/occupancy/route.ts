@@ -13,7 +13,7 @@ export async function GET(req: Request) {
   const date = url.searchParams.get("date");
   if (!buildingId || !date) return NextResponse.json([], { status: 200 });
   const user = await getUser();
-  const rl = rateLimit(`occ:${user.email || clientIp(req)}`, 120, 60_000);
+  const rl = await rateLimit(`occ:${user.email || clientIp(req)}`, 120, 60_000);
   if (!rl.ok) return tooMany(rl.retryAfter);
   const keys = await occupiedKeys(buildingId, `${date}T00:00`, `${date}T23:59`);
   return NextResponse.json(keys);

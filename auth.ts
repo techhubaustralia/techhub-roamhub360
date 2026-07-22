@@ -96,7 +96,7 @@ const providers: Provider[] = [
       if (!email || !password) rejectSignIn("bad_credentials", email || "(blank)", "email or password missing");
       // Brute-force throttle: cap failed attempts per account (20 / 15 min). A correct login
       // still succeeds within the window; only guessing is slowed.
-      if (!rateLimit(`login:${email}`, 20, 15 * 60 * 1000).ok) rejectSignIn("rate_limited", email, "too many attempts");
+      if (!(await rateLimit(`login:${email}`, 20, 15 * 60 * 1000)).ok) rejectSignIn("rate_limited", email, "too many attempts");
       const u = await findUserByEmail(email).catch((e) => {
         console.error(`[auth] DB lookup failed for ${redactEmail(email)}: ${e instanceof Error ? e.message : String(e)}`);
         return null;

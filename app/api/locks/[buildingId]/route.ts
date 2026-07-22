@@ -18,7 +18,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ building
   const { spaceKey, locked, scope } = await req.json();
   if (!spaceKey) return NextResponse.json({ error: "spaceKey required" }, { status: 400 });
   const user = await getUser();
-  const rl = rateLimit(`admin:lock:${user.email}`, 120, 60_000);
+  const rl = await rateLimit(`admin:lock:${user.email}`, 120, 60_000);
   if (!rl.ok) return tooMany(rl.retryAfter);
   // Site-scoped: global admins anywhere; site admins only within their own sites; staff never.
   if (!canAccessBuilding(user, buildingId)) {

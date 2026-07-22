@@ -31,9 +31,9 @@ export async function POST(req: Request) {
   if ((me.disabledFeatures ?? []).includes("assistant")) return NextResponse.json({ error: "The assistant is disabled for this workspace." }, { status: 403 });
   if (!assistantConfigured) return NextResponse.json({ error: "The assistant isn't configured yet." }, { status: 503 });
 
-  const rl = rateLimit(`assistant:${me.email || clientIp(req)}`, 20, 60_000);
+  const rl = await rateLimit(`assistant:${me.email || clientIp(req)}`, 20, 60_000);
   if (!rl.ok) return tooMany(rl.retryAfter);
-  const day = rateLimit(`assistant-day:${me.email || clientIp(req)}`, DAILY_CAP, 24 * 60 * 60_000);
+  const day = await rateLimit(`assistant-day:${me.email || clientIp(req)}`, DAILY_CAP, 24 * 60 * 60_000);
   if (!day.ok) return NextResponse.json({ error: "You've reached today's assistant limit. Please try again tomorrow." }, { status: 429 });
 
   const parsed = Body.safeParse(await req.json().catch(() => null));

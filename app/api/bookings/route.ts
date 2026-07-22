@@ -53,7 +53,7 @@ export async function GET(req: Request) {
     const rows = (await listBookings({ buildingId: building })).filter(
       (b) => ACTIVE_STATUSES.includes(b.status) && overlaps(b.start, b.end, dayStart, dayEnd),
     );
-    const rl = rateLimit(`occ:ip:${clientIp(req)}`, 120, 60_000); // search endpoint throttle
+    const rl = await rateLimit(`occ:ip:${clientIp(req)}`, 120, 60_000); // search endpoint throttle
     if (!rl.ok) return tooMany(rl.retryAfter);
     return NextResponse.json(
       // Admins additionally get the booking id + email so they can cancel on the user's behalf.
@@ -82,7 +82,7 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
   // Throttle booking creation per IP (cheap guard against retry storms / spam) before any work.
-  const ipRl = rateLimit(`book:ip:${clientIp(req)}`, 60, 60_000);
+  const ipRl = await rateLimit(`book:ip:${clientIp(req)}`, 60, 60_000);
   if (!ipRl.ok) return tooMany(ipRl.retryAfter);
 
   const parsed = BookingInput.safeParse(await req.json().catch(() => null));
@@ -97,7 +97,7 @@ export async function POST(req: Request) {
   const lic = await assertCanWrite();
   if (!lic.ok) return NextResponse.json({ error: lic.error }, { status: 402 });
   // Per-user throttle (in addition to the per-IP guard above).
-  const userRl = rateLimit(`book:user:${user.email}`, 20, 60_000);
+  const userRl = await rateLimit(`book:user:${user.email}`, 20, 60_000);
   if (!userRl.ok) return tooMany(userRl.retryAfter);
 
   // Booking on behalf of someone else is an admin action; site admins may only do it

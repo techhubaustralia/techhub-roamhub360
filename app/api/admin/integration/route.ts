@@ -49,7 +49,7 @@ export async function PUT(req: Request) {
 export async function POST(req: Request) {
   const me = await getUser();
   if (!adminOnly(me)) return NextResponse.json({ error: "Not authorized." }, { status: 403 });
-  const rl = rateLimit(`integ-test:${me.email || clientIp(req)}`, 10, 60_000);
+  const rl = await rateLimit(`integ-test:${me.email || clientIp(req)}`, 10, 60_000);
   if (!rl.ok) return tooMany(rl.retryAfter);
 
   const tenantId = await currentTenantId();

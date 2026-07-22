@@ -39,7 +39,7 @@ export async function POST(req: Request) {
   }
   if (!process.env.DATABASE_URL) return NextResponse.json({ error: "Signup is unavailable right now." }, { status: 503 });
 
-  const rl = rateLimit(`signup:ip:${clientIp(req)}`, 5, 3_600_000); // 5 per hour per IP
+  const rl = await rateLimit(`signup:ip:${clientIp(req)}`, 5, 3_600_000); // 5 per hour per IP
   if (!rl.ok) return tooMany(rl.retryAfter);
 
   const parsed = Body.safeParse(await req.json().catch(() => null));

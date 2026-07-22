@@ -16,7 +16,7 @@ export const runtime = "nodejs";
 const Body = z.object({ email: z.string().email() });
 
 export async function POST(req: Request) {
-  const rl = rateLimit(`forgot:${clientIp(req)}`, 5, 15 * 60 * 1000);
+  const rl = await rateLimit(`forgot:${clientIp(req)}`, 5, 15 * 60 * 1000);
   if (!rl.ok) return NextResponse.json({ ok: true }); // silently rate-limit (still no signal)
 
   const parsed = Body.safeParse(await req.json().catch(() => ({})));

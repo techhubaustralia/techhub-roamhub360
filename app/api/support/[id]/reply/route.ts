@@ -47,7 +47,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   const { me, row, isOwner, isAdmin } = await access(id);
   if (!me?.email) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
   if (!row) return NextResponse.json({ error: "Not found." }, { status: 404 });
-  if (!rateLimit(`support-reply:${me.email.toLowerCase()}`, 20, 10 * 60 * 1000).ok) {
+  if (!(await rateLimit(`support-reply:${me.email.toLowerCase()}`, 20, 10 * 60 * 1000)).ok) {
     return NextResponse.json({ error: "Too many messages — try again shortly." }, { status: 429 });
   }
 
