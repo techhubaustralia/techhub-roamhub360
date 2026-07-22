@@ -10,6 +10,7 @@ import { ACTIVE_STATUSES } from "@/lib/booking-rules";
 import { visibleColleagues } from "@/lib/presence-digest";
 import { runLicenseChecks } from "@/lib/server/license-notify";
 import { runMonthlyReport } from "@/lib/server/reports";
+import { claimJob, releaseJob, jobKey, pruneJobLedger } from "@/lib/server/job-ledger";
 
 // Cron model: a single `tick` task runs every 30 min (UTC). For each LIVE building it computes
 // its LOCAL time (from the building's saved timezone) and runs whatever is due, so every site
@@ -65,6 +66,17 @@ async function liveBuildings(): Promise<{ id: string; iana: string; name: string
   return out;
 }
 
+// Send exactly one email per (task, id, localDate) even if this job runs twice. Claims a ledger key
+// first; a duplicate run finds it taken and skips. On send failure the claim is released so a later
+// run retries (at-least-once, deduped on success). Returns true if an email was actually sent.
+async function sendOnce(task: string, id: string, localDate: string, to: string, subject: string, html: string): Promise<boolean> {
+  const key = jobKey(task, id, localDate);
+  if (!(await claimJob(key, task))) return false; // already handled by an earlier/concurrent run
+  const sent = await sendMail(to, subject, html);
+  if (!sent) await releaseJob(key); // transport failed → let a later run retry
+  return sent;
+}
+
 async function runTask(task: Task, buildingRoot: string, localDate: string, localNow: string, all: Booking[], siteName = buildingRoot): Promise<number> {
   const mine = all.filter((b) => rootOf(b.buildingId) === buildingRoot);
   const eb = await emailBrand(); // per-tenant email branding (G6); stock brand on the default host
@@ -73,20 +85,17 @@ async function runTask(task: Task, buildingRoot: string, localDate: string, loca
     const tmr = nextDay(localDate);
     for (const b of mine.filter((b) => b.status === "Booked" && b.start.slice(0, 10) === tmr)) {
       const m = reminderEmail(b, eb);
-      await sendMail(b.userEmail, m.subject, m.html);
-      n++;
+      if (await sendOnce("reminder", b.id, localDate, b.userEmail, m.subject, m.html)) n++;
     }
   } else if (task === "checkin") {
     for (const b of mine.filter((b) => b.status === "Booked" && b.start.slice(0, 10) === localDate)) {
       const m = checkInEmail(b, localDate, eb);
-      await sendMail(b.userEmail, m.subject, m.html);
-      n++;
+      if (await sendOnce("checkin", b.id, localDate, b.userEmail, m.subject, m.html)) n++;
     }
   } else if (task === "checkout") {
     for (const b of mine.filter((b) => b.status === "Checked in" && b.start.slice(0, 10) === localDate)) {
       const m = checkOutEmail(b, localDate, eb);
-      await sendMail(b.userEmail, m.subject, m.html);
-      n++;
+      if (await sendOnce("checkout", b.id, localDate, b.userEmail, m.subject, m.html)) n++;
     }
   } else if (task === "auto-release") {
     // Not checked in by 09:30 → auto-cancel with a clear reason (compare-and-set on the
@@ -128,8 +137,8 @@ async function runTask(task: Task, buildingRoot: string, localDate: string, loca
         checkedIn: c.checkedIn,
       }));
       const m = presenceDigestEmail(nameOf(rcpt), siteName, localDate, colleagues, eb);
-      await sendMail(rcpt, m.subject, m.html);
-      n++;
+      // Key by recipient+site+day so a re-tick doesn't re-send, but each site's digest still sends.
+      if (await sendOnce("digest", `${buildingRoot}:${rcpt}`, localDate, rcpt, m.subject, m.html)) n++;
     }
   }
   return n;
@@ -169,8 +178,8 @@ export async function GET(req: Request, { params }: { params: Promise<{ task: st
   }
 
   if (task === "audit-prune") {
-    // Retention sweep: drop audit rows past AUDIT_RETENTION_DAYS. Schedule daily.
-    return NextResponse.json({ task, pruned: await pruneAudit() });
+    // Daily retention sweep: drop audit rows past AUDIT_RETENTION_DAYS and stale job-ledger rows.
+    return NextResponse.json({ task, prunedAudit: await pruneAudit(), prunedLedger: await pruneJobLedger() });
   }
 
   if (task === "report") {

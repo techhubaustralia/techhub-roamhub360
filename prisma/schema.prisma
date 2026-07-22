@@ -115,6 +115,20 @@ model ApiKey {
   @@index([hash])
 }
 
+// Idempotency ledger for background jobs (H8). Each unit of work (one reminder/check-in/check-out
+// email per booking, one digest per recipient) claims a unique key BEFORE doing the work; a second
+// run of the same tick finds the key taken and skips it, so a cron retry or overlapping run can't
+// double-send. On send failure the claim is released so a later run retries (at-least-once, deduped
+// on success). Rows are pruned by retention.
+model JobLedger {
+  id   String   @id @default(uuid())
+  key  String   @unique // e.g. "checkin:<bookingId>:2026-07-22"
+  task String
+  at   DateTime @default(now())
+
+  @@index([at])
+}
+
 // Per-tenant licence (Commercial SaaS CP2). Sites are the billing unit ($2000/site/yr); the
 // tier caps floors-per-site (≤5). Issued/edited by the TechHub Partner portal (CP3). Absence of
 // a row = an implicit trial; the DEFAULT/demo tenant is always treated as unlimited/active.
