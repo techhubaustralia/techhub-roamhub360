@@ -31,7 +31,8 @@ USER nextjs
 EXPOSE 3000
 CMD ["node", "server.js"]
 
-# One-shot DB migrator (has the Prisma CLI + schema). docker-compose runs this once
-# before the app starts to create/update the Postgres schema (prisma db push).
+# One-shot DB migrator (has the Prisma CLI + schema + prisma/migrations). docker-compose runs this
+# once before the app starts. Applies VERSIONED migrations (prisma migrate deploy) and self-baselines
+# a database that predates migrations — see scripts/migrate.sh. Replaces the old `prisma db push`.
 FROM build AS migrator
-CMD ["npx", "prisma", "db", "push", "--skip-generate"]
+CMD ["sh", "scripts/migrate.sh"]
