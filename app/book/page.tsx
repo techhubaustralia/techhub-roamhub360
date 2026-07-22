@@ -327,6 +327,8 @@ export default function BookPage() {
             <div className="relative min-w-[130px] flex-1">
               <Search className="absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-txt-mute" />
               <input
+                type="search"
+                aria-label="Search spaces and colleagues"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Search desk, room, office or colleague…"
@@ -592,12 +594,12 @@ function Detail({
           <div className="text-[11px] font-semibold uppercase tracking-[0.05em] text-txt-mute">
             {(el.t === "desk" || el.t === "parking") && duration === "full" ? "From" : "Date"}
           </div>
-          <input type="date" value={selDate} min={today} onChange={(e) => setSelDate(e.target.value)} className="ed-input my-2" />
+          <input type="date" aria-label={(el.t === "desk" || el.t === "parking") && duration === "full" ? "From date" : "Booking date"} value={selDate} min={today} onChange={(e) => setSelDate(e.target.value)} className="ed-input my-2" />
 
           {(el.t === "desk" || el.t === "parking") && duration === "full" && (
             <>
               <div className="text-[11px] font-semibold uppercase tracking-[0.05em] text-txt-mute">To (max 14 days)</div>
-              <input type="date" value={endDate} min={selDate} onChange={(e) => setEndDate(e.target.value)} className="ed-input my-2" />
+              <input type="date" aria-label="To date" value={endDate} min={selDate} onChange={(e) => setEndDate(e.target.value)} className="ed-input my-2" />
             </>
           )}
 

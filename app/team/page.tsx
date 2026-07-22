@@ -144,7 +144,7 @@ export default function TeamPage() {
             <button aria-label="Previous day" onClick={() => setDate((d) => shiftDay(d, -1))} className="grid size-11 place-items-center rounded-lg hover:bg-panel-2 md:size-9">
               <ChevronLeft className="size-4" />
             </button>
-            <input type="date" value={date} onChange={(e) => setDate(e.target.value || todayLocal())} className="ed-input !w-auto border-0 bg-transparent px-1 text-[13px] font-semibold" />
+            <input type="date" aria-label="Select date" value={date} onChange={(e) => setDate(e.target.value || todayLocal())} className="ed-input !w-auto border-0 bg-transparent px-1 text-[13px] font-semibold" />
             <button aria-label="Next day" onClick={() => setDate((d) => shiftDay(d, 1))} className="grid size-11 place-items-center rounded-lg hover:bg-panel-2 md:size-9">
               <ChevronRight className="size-4" />
             </button>
