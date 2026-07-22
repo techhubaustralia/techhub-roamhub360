@@ -261,7 +261,7 @@ export default function TeamPage() {
       )}
 
       <p className="mt-5 text-[12px] text-txt-mute">
-        Only people in your workspace are shown. Names and where they're sitting are visible to colleagues; contact details are not.{" "}
+        Only people in your workspace are shown. Names and where they’re sitting are visible to colleagues; contact details are not.{" "}
         <Link href="/settings" className="font-semibold text-primary">Manage your visibility</Link>.
       </p>
     </div>

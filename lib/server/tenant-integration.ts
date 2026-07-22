@@ -5,7 +5,6 @@ import { encryptSecret, decryptSecret } from "./crypto";
 // Per-tenant Microsoft integration store (Commercial SaaS CP1). Writes encrypt the client secret;
 // reads for the UI never include it (only whether one is set). getIntegrationCreds() is the ONLY
 // path that decrypts, and it is server-only — used by the Graph layer, never returned to a client.
-/* eslint-disable @typescript-eslint/no-explicit-any */
 
 const useSql = Boolean(process.env.DATABASE_URL);
 

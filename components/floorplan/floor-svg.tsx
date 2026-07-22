@@ -262,7 +262,6 @@ export function RoomShape({ el: raw, status, selected, showLabel = true }: { el:
   } else {
     // long table
     const tw = Math.min(el.w - 40, 150);
-    const th = Math.min(el.h - 46, el.w > el.h ? 24 : 110); // vertical for tall narrow rooms
     const vertical = el.h > el.w;
     const tcx = cx;
     const tcy = el.y + el.h - (vertical ? el.h / 2 - 6 : 36);

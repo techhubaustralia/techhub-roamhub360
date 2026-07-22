@@ -5,7 +5,10 @@
 const VERSION = "rh360-sw-v1";
 
 self.addEventListener("install", () => self.skipWaiting());
-self.addEventListener("activate", (e) => e.waitUntil(self.clients.claim()));
+self.addEventListener("activate", (e) => {
+  console.log(`[sw] active: ${VERSION}`); // version marker aids debugging which SW is live
+  e.waitUntil(self.clients.claim());
+});
 
 // Pass-through fetch handler (satisfies PWA installability without any caching).
 self.addEventListener("fetch", () => {});

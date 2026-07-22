@@ -173,11 +173,11 @@ export default function BuildingsPage() {
         permanent. Timezone, hours and closures live on the building record.
       </p>
 
-      {hiddenRows.some((b) => canManage()) && (
+      {hiddenRows.length > 0 && canManage() && (
         <div className="mt-6">
           <h2 className="mb-2 text-[12px] font-semibold uppercase tracking-[0.05em] text-txt-mute">Removed sites</h2>
           <div className="overflow-hidden rounded-[14px] border bg-card shadow-sm">
-            {hiddenRows.filter((b) => canManage()).map((b) => (
+            {hiddenRows.map((b) => (
               <div key={b.id} className="flex items-center justify-between border-b px-3 py-2.5 last:border-b-0">
                 <div className="text-[13px]">
                   <b className="text-txt-mute">{b.name}</b>

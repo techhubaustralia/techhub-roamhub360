@@ -260,7 +260,7 @@ export function HelpButton() {
               {/* SUPPORT FORM */}
               {view === "support" && (
                 <form onSubmit={sendSupport} className="flex flex-col gap-3 p-4">
-                  <p className="text-[12.5px] text-txt-mute">Tell us what's going on and we'll get back to you by email. You can attach a screenshot or file.</p>
+                  <p className="text-[12.5px] text-txt-mute">Tell us what’s going on and we’ll get back to you by email. You can attach a screenshot or file.</p>
                   <label className="block">
                     <span className="mb-1 block text-[11px] font-semibold uppercase tracking-[0.05em] text-txt-mute">Type</span>
                     <select value={cat} onChange={(e) => setCat(e.target.value)} className="ed-input text-[13.5px]">
@@ -301,8 +301,8 @@ export function HelpButton() {
               {view === "sent" && (
                 <div className="grid place-items-center px-6 py-16 text-center">
                   <CheckCircle2 className="mb-3 size-12 text-ok" />
-                  <div className="font-heading text-[16px] font-bold">Thanks — we've got it</div>
-                  <p className="mt-1.5 max-w-[280px] text-[13px] text-txt-mute">Your request has been sent to our team. We'll reply by email, and you can follow it under <b>My requests</b>.</p>
+                  <div className="font-heading text-[16px] font-bold">Thanks — we’ve got it</div>
+                  <p className="mt-1.5 max-w-[280px] text-[13px] text-txt-mute">Your request has been sent to our team. We’ll reply by email, and you can follow it under <b>My requests</b>.</p>
                   <div className="mt-5 flex gap-2">
                     <a href="/support" className="rounded-[10px] bg-primary px-4 py-2 text-[13px] font-semibold text-primary-foreground hover:bg-orange-soft">Track my requests</a>
                     <button onClick={() => setView("list")} className="rounded-[10px] border bg-panel-2 px-4 py-2 text-[13px] font-semibold hover:border-primary">Back to help</button>

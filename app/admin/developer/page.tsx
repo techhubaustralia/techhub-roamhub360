@@ -36,11 +36,16 @@ export default function DeveloperPage() {
 
   useEffect(() => {
     setOrigin(window.location.origin);
-    fetch("/api/admin/apikeys").then((r) => r.json()).then((d) => setKeys(d.keys ?? []));
-    fetch("/api/admin/webhooks").then((r) => r.json()).then((d: Integrations) => {
-      setInteg(d);
-      setSlack(d.slackUrl ?? "");
-    });
+    // Degrade gracefully on failure: clear the loading state (keys=[]) and surface it, rather than
+    // leaving the panel stuck on "Loading…" if the request errors.
+    fetch("/api/admin/apikeys")
+      .then((r) => (r.ok ? r.json() : { keys: [] }))
+      .then((d) => setKeys(d.keys ?? []))
+      .catch(() => { setKeys([]); toast.error("Couldn't load API keys"); });
+    fetch("/api/admin/webhooks")
+      .then((r) => (r.ok ? r.json() : { endpoints: [] }))
+      .then((d: Integrations) => { setInteg(d); setSlack(d.slackUrl ?? ""); })
+      .catch(() => { setInteg({ endpoints: [] }); toast.error("Couldn't load webhooks"); });
   }, []);
 
   async function createKey() {
@@ -95,7 +100,7 @@ export default function DeveloperPage() {
 
           {freshKey && (
             <div className="mt-3 rounded-[10px] border border-emerald-500/40 bg-emerald-500/10 p-3">
-              <div className="text-[12.5px] font-semibold text-emerald-500">Copy your key now — it won't be shown again.</div>
+              <div className="text-[12.5px] font-semibold text-emerald-500">Copy your key now — it won’t be shown again.</div>
               <div className="mt-2 flex items-center gap-2">
                 <code className="min-w-0 flex-1 truncate rounded bg-panel-2 px-2 py-1.5 text-[13px]">{freshKey}</code>
                 <button className={ghost} onClick={() => copy(freshKey)}><Copy className="size-4" /></button>

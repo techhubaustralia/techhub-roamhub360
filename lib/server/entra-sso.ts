@@ -10,7 +10,6 @@ import crypto from "crypto";
 // ANY user of that Entra directory who signs in with Microsoft is auto-provisioned as staff in
 // that workspace — no invites needed. The directory id comes from Microsoft's signed id_token
 // (`tid` claim), so membership is cryptographically attested; we never trust the email domain.
-/* eslint-disable @typescript-eslint/no-explicit-any */
 
 const useSql = Boolean(process.env.DATABASE_URL);
 

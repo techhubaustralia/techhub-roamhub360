@@ -3,7 +3,6 @@ import { prisma } from "./prisma";
 import { DEFAULT_TENANT } from "./tenant";
 
 // Tenant (customer organisation) records + management. Platform-operator level.
-/* eslint-disable @typescript-eslint/no-explicit-any */
 
 
 export interface TenantRow {

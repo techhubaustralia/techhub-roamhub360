@@ -64,7 +64,7 @@ export default function TeamsConfigPage() {
     <div style={{ display: "grid", placeItems: "center", minHeight: "60vh", fontFamily: "'Plus Jakarta Sans', Segoe UI, Arial, sans-serif", color: "#0a232d", padding: 24, textAlign: "center" }}>
       <div style={{ maxWidth: 420 }}>
         <div style={{ fontSize: 40 }}>👋</div>
-        <h1 style={{ fontSize: 20, fontWeight: 700, margin: "8px 0" }}>Add “Who's in” to this channel</h1>
+        <h1 style={{ fontSize: 20, fontWeight: 700, margin: "8px 0" }}>Add “Who’s in” to this channel</h1>
         <p style={{ fontSize: 14, color: "#546" }}>
           {error
             ? `Couldn't set up the tab: ${error}. Open RoamHub360 in a browser instead.`

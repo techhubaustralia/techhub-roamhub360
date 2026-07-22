@@ -6,7 +6,6 @@ import { computeLicenseState, TIER_DEFAULTS, type LicenseCore, type LicenseState
 // Licence resolution + enforcement (Commercial SaaS CP2). The DEFAULT/demo tenant and any dev
 // (no DB) run unlimited so the live single-tenant demo is never restricted. A customer tenant
 // with no licence row gets an implicit trial. All the pure state logic lives in ../license-state.
-/* eslint-disable @typescript-eslint/no-explicit-any */
 
 const useSql = Boolean(process.env.DATABASE_URL);
 

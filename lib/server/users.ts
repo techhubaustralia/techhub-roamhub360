@@ -8,7 +8,6 @@ const tenantWhere = (t: string) => (t === DEFAULT_TENANT ? { OR: [{ tenantId: t 
 
 // App user store (Postgres via Prisma). Source of truth for identity + role for
 // both local (email/password) and Entra (SSO) users. Requires DATABASE_URL.
-/* eslint-disable @typescript-eslint/no-explicit-any */
 
 
 export interface UserRow {
