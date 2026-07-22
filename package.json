@@ -11,7 +11,9 @@
     "test:watch": "vitest",
     "test:api": "vitest run tests/api-regression.test.ts",
     "test:e2e": "playwright test",
-    "audit:ci": "npm audit --omit=dev --audit-level=high"
+    "audit:ci": "npm audit --omit=dev --audit-level=high",
+    "db:migrate": "prisma migrate deploy",
+    "db:migrate:new": "prisma migrate dev"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.110.0",
