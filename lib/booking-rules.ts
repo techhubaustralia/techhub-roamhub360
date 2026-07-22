@@ -49,28 +49,37 @@ export const daysBetween = (startDate: string, endDate: string): number => {
   return Math.round((Date.UTC(y2, m2 - 1, d2) - Date.UTC(y1, m1 - 1, d1)) / 86400000) + 1;
 };
 
-/** Today's calendar date (YYYY-MM-DD) in the given IANA timezone. Falls back to the
- *  server's date only when no timezone is supplied. */
+// Platform default timezone. Every "now"/"today" comparison is site-local; when a site hasn't set
+// its own IANA zone we resolve to THIS business timezone, never the server's (the droplet runs UTC,
+// which is hours off for a real site and silently corrupts past/today/check-in checks). Configurable
+// per deployment via APP_DEFAULT_TZ; defaults to the primary market (Australia/Sydney).
+export const DEFAULT_TZ = process.env.APP_DEFAULT_TZ || "Australia/Sydney";
+
+/** Today's calendar date (YYYY-MM-DD) in the given IANA timezone, or the platform default when the
+ *  site has no zone. Never falls back to the server's clock. */
 export function todayInTz(tz?: string): string {
-  if (!tz) return new Date().toISOString().slice(0, 10);
+  const zone = tz || DEFAULT_TZ;
   try {
-    return new Intl.DateTimeFormat("en-CA", { timeZone: tz, year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
+    return new Intl.DateTimeFormat("en-CA", { timeZone: zone, year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
   } catch {
-    return new Date().toISOString().slice(0, 10);
+    return new Intl.DateTimeFormat("en-CA", { timeZone: DEFAULT_TZ, year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
   }
 }
 
-/** Current wall-clock minute (YYYY-MM-DDTHH:mm) in the given IANA timezone. */
+/** Current wall-clock minute (YYYY-MM-DDTHH:mm) in the given IANA timezone, or the platform default
+ *  when the site has no zone. Never falls back to the server's clock. */
 export function nowInTz(tz?: string): string {
   const d = new Date();
-  if (!tz) return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
-  try {
-    const parts = new Intl.DateTimeFormat("en-CA", { timeZone: tz, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false }).formatToParts(d);
+  const fmt = (zone: string) => {
+    const parts = new Intl.DateTimeFormat("en-CA", { timeZone: zone, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false }).formatToParts(d);
     const g = (t: string) => parts.find((p) => p.type === t)?.value ?? "00";
     const hh = g("hour") === "24" ? "00" : g("hour");
     return `${g("year")}-${g("month")}-${g("day")}T${hh}:${g("minute")}`;
+  };
+  try {
+    return fmt(tz || DEFAULT_TZ);
   } catch {
-    return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+    return fmt(DEFAULT_TZ);
   }
 }
 

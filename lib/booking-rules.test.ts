@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { validateBooking, deriveTimes, overlaps, daysBetween, todayInTz, nowInTz } from "./booking-rules";
+import { validateBooking, deriveTimes, overlaps, daysBetween, todayInTz, nowInTz, DEFAULT_TZ } from "./booking-rules";
 
 const day = (n: number) => new Date(Date.now() + n * 864e5).toISOString().slice(0, 10);
 const nextWeekday = (start: number) => {
@@ -123,6 +123,16 @@ describe("timezone-aware helpers", () => {
     const a = todayInTz("Pacific/Kiritimati"); // UTC+14
     const b = todayInTz("Pacific/Pago_Pago"); // UTC-11
     expect(a >= b).toBe(true);
+  });
+  it("falls back to the platform default zone (not server-UTC) when no/blank/invalid tz is given", () => {
+    // H7: a site with no configured zone must resolve to DEFAULT_TZ, never the droplet's UTC clock.
+    const viaDefault = todayInTz(DEFAULT_TZ);
+    expect(todayInTz()).toBe(viaDefault);
+    expect(todayInTz("")).toBe(viaDefault);
+    expect(todayInTz("Not/AZone")).toBe(viaDefault);
+    const nowDefault = nowInTz(DEFAULT_TZ);
+    // same minute (compare to the minute to avoid a rare tick between the two calls)
+    expect(nowInTz("").slice(0, 15)).toBe(nowDefault.slice(0, 15));
   });
 });
 

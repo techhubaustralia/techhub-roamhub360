@@ -8,22 +8,13 @@ import { resolveSpaceLabel } from "@/lib/server/availability";
 import { currentTenantId } from "@/lib/server/tenant";
 import { publishLive } from "@/lib/server/live-bus";
 import { dispatchEvent } from "@/lib/server/webhooks";
-import { ACTIVE_STATUSES } from "@/lib/booking-rules";
+import { ACTIVE_STATUSES, todayInTz } from "@/lib/booking-rules";
 
 // Scan-a-QR-at-your-desk check-in. The sticker on a desk is STATIC — it encodes the space, not a
 // person — so this finds the signed-in scanner's own active booking for that space *today* and
 // checks them in. Requires a session (middleware enforces it; the QR link routes through /checkin,
 // which prompts sign-in first). Distinct path from the public token flow at /api/checkin.
 const Body = z.object({ buildingId: z.string().min(1), spaceKey: z.string().min(1) });
-
-// Today's yyyy-mm-dd in the building's own timezone (a booking's start is local wall-clock).
-function todayInTz(tz: string): string {
-  try {
-    return new Intl.DateTimeFormat("en-CA", { timeZone: tz, year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
-  } catch {
-    return new Date().toISOString().slice(0, 10);
-  }
-}
 
 export async function POST(req: Request) {
   const me = await getUser();
@@ -39,7 +30,7 @@ export async function POST(req: Request) {
 
   const plan = (await getStoredPlan(buildingId)) ?? getFloorPlan(buildingId);
   const label = (await resolveSpaceLabel(buildingId, spaceKey)) ?? "this space";
-  const today = todayInTz(plan?.tz ?? "UTC");
+  const today = todayInTz(plan?.tz); // site tz, or platform default (never server-UTC)
 
   // The scanner's own bookings for this exact space today (any active status).
   const mine = (await listBookings({ userEmail: me.email, buildingId }))

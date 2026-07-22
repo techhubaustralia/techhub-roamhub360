@@ -6,7 +6,7 @@ import { reminderEmail, checkInEmail, checkOutEmail, presenceDigestEmail, emailB
 import { listCustomBuildings, listHiddenBuildings, getStoredPlan } from "@/lib/server/store";
 import { getHiddenPresenceEmails, getPresenceDigestEmails } from "@/lib/server/users";
 import { getDirectoryMap } from "@/lib/server/directory";
-import { ACTIVE_STATUSES } from "@/lib/booking-rules";
+import { ACTIVE_STATUSES, DEFAULT_TZ } from "@/lib/booking-rules";
 import { visibleColleagues } from "@/lib/presence-digest";
 import { runLicenseChecks } from "@/lib/server/license-notify";
 import { runMonthlyReport } from "@/lib/server/reports";
@@ -61,7 +61,7 @@ async function liveBuildings(): Promise<{ id: string; iana: string; name: string
   const out: { id: string; iana: string; name: string }[] = [];
   for (const b of buildings) {
     const plan = await getStoredPlan(b.id);
-    out.push({ id: b.id, iana: plan?.tz || "UTC", name: b.name || b.id });
+    out.push({ id: b.id, iana: plan?.tz || DEFAULT_TZ, name: b.name || b.id });
   }
   return out;
 }
