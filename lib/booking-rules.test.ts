@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { validateBooking, deriveTimes, overlaps, daysBetween, todayInTz, nowInTz, DEFAULT_TZ } from "./booking-rules";
+import { validateBooking, deriveTimes, overlaps, daysBetween, todayInTz, nowInTz, DEFAULT_TZ, checkInWindowError, maxAdvanceDate } from "./booking-rules";
 
 const day = (n: number) => new Date(Date.now() + n * 864e5).toISOString().slice(0, 10);
 const nextWeekday = (start: number) => {
@@ -152,5 +152,60 @@ describe("maxHours is DST-immune wall-clock hours", () => {
   it("accepts a room booking within maxHours (7h <= 8h)", () => {
     const d = w(2);
     expect(validateBooking("room", `${d}T09:00`, `${d}T16:00`, { maxHours: 8 })).toBeNull();
+  });
+});
+
+describe("checkInWindowError — only within the booking's own dates (site-local)", () => {
+  // `day()` is UTC-based, so evaluate in "UTC" to keep "today" consistent with the fixtures.
+  const plusOneMinuteUtc = () => {
+    const [h, m] = nowInTz("UTC").slice(11).split(":").map(Number);
+    const t = h * 60 + m + 1;
+    return `${String(Math.floor(t / 60)).padStart(2, "0")}:${String(t % 60).padStart(2, "0")}`;
+  };
+  it("blocks check-in before the booking's start date", () => {
+    expect(checkInWindowError(`${day(2)}T08:00`, `${day(2)}T17:30`, "UTC")).toMatch(/only check in on the day/i);
+  });
+  it("allows check-in on the booking date", () => {
+    expect(checkInWindowError(`${day(0)}T08:00`, `${day(0)}T17:30`, "UTC")).toBeNull();
+  });
+  it("allows check-in on any day inside a multi-day span", () => {
+    expect(checkInWindowError(`${day(-1)}T08:00`, `${day(1)}T17:30`, "UTC")).toBeNull();
+  });
+  it("blocks check-in after the booking has ended", () => {
+    expect(checkInWindowError(`${day(-3)}T08:00`, `${day(-2)}T17:30`, "UTC")).toMatch(/ended/i);
+  });
+  it("names the open time and date when a future booking is gated by one", () => {
+    expect(checkInWindowError(`${day(1)}T08:00`, `${day(1)}T17:30`, "UTC", "08:00")).toBe(`Check-in for this booking opens at 08:00 on ${day(1)}.`);
+  });
+  // Gate = one minute from now; only undefined at 23:59 UTC, when the next minute is tomorrow.
+  it.skipIf(nowInTz("UTC").slice(11) === "23:59")("blocks check-in before today's open time", () => {
+    expect(checkInWindowError(`${day(0)}T08:00`, `${day(0)}T17:30`, "UTC", plusOneMinuteUtc())).toMatch(/opens at/i);
+  });
+  it("treats a midnight open time as date-only", () => {
+    expect(checkInWindowError(`${day(0)}T08:00`, `${day(0)}T17:30`, "UTC", "00:00")).toBeNull();
+  });
+  it("ignores a malformed open time (falls back to date-only)", () => {
+    expect(checkInWindowError(`${day(0)}T08:00`, `${day(0)}T17:30`, "UTC", "8am")).toBeNull();
+  });
+  it("resolves to the platform default zone (not server-UTC) when tz is absent", () => {
+    // H7: no tz must give the same answer as DEFAULT_TZ explicitly.
+    const d = todayInTz(DEFAULT_TZ);
+    expect(checkInWindowError(`${d}T08:00`, `${d}T17:30`)).toBe(checkInWindowError(`${d}T08:00`, `${d}T17:30`, DEFAULT_TZ));
+  });
+});
+
+describe("maxAdvanceDate — date-picker window cap", () => {
+  it("returns undefined when unlimited", () => {
+    expect(maxAdvanceDate(0, "UTC")).toBeUndefined();
+    expect(maxAdvanceDate(undefined, "UTC")).toBeUndefined();
+    expect(maxAdvanceDate(-3, "UTC")).toBeUndefined();
+  });
+  it("returns today + advanceDays in the site zone", () => {
+    expect(maxAdvanceDate(7, "UTC")).toBe(day(7));
+  });
+  it("agrees with validateBooking's advance rule at the boundary", () => {
+    const cap = maxAdvanceDate(7, "UTC")!;
+    expect(validateBooking("desk", `${cap}T08:00`, `${cap}T17:30`, { advanceDays: 7, tz: "UTC", allowPast: true })).toBeNull();
+    expect(validateBooking("desk", `${day(8)}T08:00`, `${day(8)}T17:30`, { advanceDays: 7, tz: "UTC", allowPast: true })).toMatch(/at most 7 days/);
   });
 });

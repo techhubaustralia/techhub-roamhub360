@@ -83,6 +83,38 @@ export function nowInTz(tz?: string): string {
   }
 }
 
+/** Latest date (YYYY-MM-DD) a booking may START under the site's advance-booking window, in the
+ *  site's zone (platform default when unset). Undefined = no limit (advanceDays 0/undefined). Lets
+ *  date pickers disable out-of-window days up front instead of rejecting after the click; mirrors
+ *  the advanceDays rule in validateBooking, which stays authoritative. */
+export function maxAdvanceDate(advanceDays?: number, tz?: string): string | undefined {
+  if (!advanceDays || advanceDays <= 0) return undefined;
+  return addDays(todayInTz(tz), advanceDays);
+}
+
+/** Whether a booking may be checked in RIGHT NOW, evaluated in the site's zone (platform default
+ *  when unset — never the server clock). Check-in is only valid inside the booking's own date span:
+ *  not before its start date (an early check-in counts someone as present who isn't, and shields a
+ *  no-show from auto-release) and not after it has ended. When `openTime` (HH:mm) is set, check-in
+ *  on the start day additionally cannot begin before that time; unset/malformed = from 00:00 (date
+ *  only). Multi-day desks: any day within the span is valid. Returns an error string, or null when
+ *  check-in is allowed. One rule shared by the UI hint, the PATCH route, and the signed email link. */
+export function checkInWindowError(startLocal: string, endLocal: string, tz?: string, openTime?: string): string | null {
+  const startDate = startLocal.slice(0, 10);
+  const endDate = endLocal.slice(0, 10);
+  if (todayInTz(tz) > endDate) return "This booking has ended and can no longer be checked in.";
+  // Earliest permitted instant = start date at the gate time. Comparing the site's wall-clock "now"
+  // against it covers "before the booking date" and "before open time today" in one check, and a
+  // later day of a multi-day span is already past the start-day gate.
+  const gate = openTime && /^\d{2}:\d{2}$/.test(openTime) ? openTime : "00:00";
+  if (nowInTz(tz) < `${startDate}T${gate}`) {
+    return gate === "00:00"
+      ? "You can only check in on the day of your booking."
+      : `Check-in for this booking opens at ${gate} on ${startDate}.`;
+  }
+  return null;
+}
+
 /** Build start/end ISO-local strings from the picker inputs. */
 export function deriveTimes(opts: {
   kind: Kind;
