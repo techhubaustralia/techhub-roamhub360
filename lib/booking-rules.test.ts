@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { validateBooking, deriveTimes, overlaps, daysBetween, todayInTz, nowInTz, DEFAULT_TZ, checkInWindowError, maxAdvanceDate } from "./booking-rules";
+import { validateBooking, deriveTimes, overlaps, daysBetween, todayInTz, nowInTz, DEFAULT_TZ, checkInWindowError, maxAdvanceDate, autoReleaseTimeFor, AUTO_RELEASE_DEFAULT } from "./booking-rules";
 
 const day = (n: number) => new Date(Date.now() + n * 864e5).toISOString().slice(0, 10);
 const nextWeekday = (start: number) => {
@@ -191,6 +191,25 @@ describe("checkInWindowError — only within the booking's own dates (site-local
     // H7: no tz must give the same answer as DEFAULT_TZ explicitly.
     const d = todayInTz(DEFAULT_TZ);
     expect(checkInWindowError(`${d}T08:00`, `${d}T17:30`)).toBe(checkInWindowError(`${d}T08:00`, `${d}T17:30`, DEFAULT_TZ));
+  });
+});
+
+describe("autoReleaseTimeFor — per-site auto-release must sit on a 30-minute tick", () => {
+  it("honours a configured :00/:30 time", () => {
+    expect(autoReleaseTimeFor("10:00")).toBe("10:00");
+    expect(autoReleaseTimeFor("08:30")).toBe("08:30");
+    expect(autoReleaseTimeFor("00:00")).toBe("00:00");
+    expect(autoReleaseTimeFor("23:30")).toBe("23:30");
+  });
+  it("falls back to the platform default when unset", () => {
+    expect(autoReleaseTimeFor()).toBe(AUTO_RELEASE_DEFAULT);
+    expect(autoReleaseTimeFor("")).toBe(AUTO_RELEASE_DEFAULT);
+  });
+  it("falls back when the time would never match a tick", () => {
+    expect(autoReleaseTimeFor("09:45")).toBe(AUTO_RELEASE_DEFAULT);
+    expect(autoReleaseTimeFor("9:30")).toBe(AUTO_RELEASE_DEFAULT);
+    expect(autoReleaseTimeFor("24:00")).toBe(AUTO_RELEASE_DEFAULT);
+    expect(autoReleaseTimeFor("later")).toBe(AUTO_RELEASE_DEFAULT);
   });
 });
 

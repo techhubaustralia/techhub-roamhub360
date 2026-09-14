@@ -83,6 +83,17 @@ export function nowInTz(tz?: string): string {
   }
 }
 
+// Auto-release of un-checked-in bookings runs from the 30-minute jobs tick, so a per-site time is
+// only honoured when it lands on a :00/:30 slot — anything else would never equal the tick's hhmm
+// and silently never fire. Single source of truth for the default and the rule.
+export const AUTO_RELEASE_DEFAULT = "09:30";
+export const TICK_TIME_RE = /^([01]\d|2[0-3]):(00|30)$/;
+/** The effective auto-release time for a site: its configured value when it is a valid tick slot,
+ *  else the platform default. */
+export function autoReleaseTimeFor(configured?: string): string {
+  return configured && TICK_TIME_RE.test(configured) ? configured : AUTO_RELEASE_DEFAULT;
+}
+
 /** Latest date (YYYY-MM-DD) a booking may START under the site's advance-booking window, in the
  *  site's zone (platform default when unset). Undefined = no limit (advanceDays 0/undefined). Lets
  *  date pickers disable out-of-window days up front instead of rejecting after the click; mirrors

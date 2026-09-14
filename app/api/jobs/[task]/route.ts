@@ -6,7 +6,7 @@ import { reminderEmail, checkInEmail, checkOutEmail, presenceDigestEmail, emailB
 import { listCustomBuildings, listHiddenBuildings, getStoredPlan } from "@/lib/server/store";
 import { getHiddenPresenceEmails, getPresenceDigestEmails } from "@/lib/server/users";
 import { getDirectoryMap } from "@/lib/server/directory";
-import { ACTIVE_STATUSES, DEFAULT_TZ } from "@/lib/booking-rules";
+import { ACTIVE_STATUSES, DEFAULT_TZ, AUTO_RELEASE_DEFAULT, autoReleaseTimeFor } from "@/lib/booking-rules";
 import { visibleColleagues } from "@/lib/presence-digest";
 import { runLicenseChecks } from "@/lib/server/license-notify";
 import { runMonthlyReport } from "@/lib/server/reports";
@@ -26,7 +26,7 @@ const TARGET: Record<Task, string> = {
   digest: "07:30", // Team Build-Up D: morning "who's in" digest, before check-in reminders
   reminder: "18:00",
   checkin: "08:00",
-  "auto-release": "09:30",
+  "auto-release": AUTO_RELEASE_DEFAULT, // global fallback; each site may override on a :00/:30 slot
   checkout: "17:00",
   "auto-checkout": "17:30",
 };
@@ -54,14 +54,15 @@ function officeNow(iana: string) {
 const nextDay = (d: string) => new Date(new Date(d + "T00:00:00Z").getTime() + 86400000).toISOString().slice(0, 10);
 const rootOf = (id: string) => id.split("__")[0];
 
-/** Live (non-hidden) buildings with their IANA timezone (from the saved plan; UTC fallback). */
-async function liveBuildings(): Promise<{ id: string; iana: string; name: string }[]> {
+/** Live (non-hidden) buildings with their IANA timezone (from the saved plan; platform-default
+ *  fallback) and their per-site auto-release time (validated tick slot, else the default). */
+async function liveBuildings(): Promise<{ id: string; iana: string; name: string; releaseTime: string }[]> {
   const hidden = new Set(await listHiddenBuildings());
   const buildings = (await listCustomBuildings()).filter((b) => !hidden.has(b.id));
-  const out: { id: string; iana: string; name: string }[] = [];
+  const out: { id: string; iana: string; name: string; releaseTime: string }[] = [];
   for (const b of buildings) {
     const plan = await getStoredPlan(b.id);
-    out.push({ id: b.id, iana: plan?.tz || DEFAULT_TZ, name: b.name || b.id });
+    out.push({ id: b.id, iana: plan?.tz || DEFAULT_TZ, name: b.name || b.id, releaseTime: autoReleaseTimeFor(plan?.autoReleaseTime) });
   }
   return out;
 }
@@ -77,7 +78,7 @@ async function sendOnce(task: string, id: string, localDate: string, to: string,
   return sent;
 }
 
-async function runTask(task: Task, buildingRoot: string, localDate: string, localNow: string, all: Booking[], siteName = buildingRoot): Promise<number> {
+async function runTask(task: Task, buildingRoot: string, localDate: string, localNow: string, all: Booking[], siteName = buildingRoot, releaseTime = TARGET["auto-release"]): Promise<number> {
   const mine = all.filter((b) => rootOf(b.buildingId) === buildingRoot);
   const eb = await emailBrand(); // per-tenant email branding (G6); stock brand on the default host
   let n = 0;
@@ -98,17 +99,18 @@ async function runTask(task: Task, buildingRoot: string, localDate: string, loca
       if (await sendOnce("checkout", b.id, localDate, b.userEmail, m.subject, m.html)) n++;
     }
   } else if (task === "auto-release") {
-    // Not checked in by 09:30 → auto-cancel with a clear reason (compare-and-set on the
-    // still-"Booked" status so we never clobber a check-in that landed in the same tick).
+    // Not checked in by the site's auto-release time (default 09:30) → auto-cancel with a clear
+    // reason (compare-and-set on the still-"Booked" status so we never clobber a check-in that
+    // landed in the same tick).
     for (const b of mine.filter((b) => b.status === "Booked" && b.start.slice(0, 10) === localDate)) {
       const ok = await setBookingStatus(
         b.id,
         "Cancelled",
-        { cancelledBy: "system", cancelReason: "Automatically cancelled — not checked in by 09:30." },
+        { cancelledBy: "system", cancelReason: `Automatically cancelled — not checked in by ${releaseTime}.` },
         "Booked",
       );
       if (ok) {
-        await audit("system", "booking.auto-cancel", `${b.spaceLabel} — no check-in by 09:30`);
+        await audit("system", "booking.auto-cancel", `${b.spaceLabel} — no check-in by ${releaseTime}`);
         n++;
       }
     }
@@ -164,7 +166,10 @@ export async function GET(req: Request, { params }: { params: Promise<{ task: st
       const { date, hhmm } = officeNow(o.iana);
       const localNow = `${date}T${hhmm}`;
       for (const t of Object.keys(TARGET) as Task[]) {
-        if (TARGET[t] === hhmm) results[`${o.id}:${t}`] = await runTask(t, o.id, date, localNow, all, o.name);
+        // auto-release fires at the site's own time (default 09:30); every other task at its global
+        // TARGET time. Both are :00/:30, so they can match the 30-minute tick.
+        const due = t === "auto-release" ? o.releaseTime : TARGET[t];
+        if (due === hhmm) results[`${o.id}:${t}`] = await runTask(t, o.id, date, localNow, all, o.name, o.releaseTime);
       }
     }
     // Tenant-level (not per-building): licence-expiry notices. Idempotent — dedupes on the bands
@@ -191,7 +196,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ task: st
   // manual run: that task for all buildings, using each building's local date/time
   for (const o of buildings) {
     const { date, hhmm } = officeNow(o.iana);
-    results[o.id] = await runTask(task as Task, o.id, date, `${date}T${hhmm}`, all, o.name);
+    results[o.id] = await runTask(task as Task, o.id, date, `${date}T${hhmm}`, all, o.name, o.releaseTime);
   }
   return NextResponse.json({ task, results });
 }

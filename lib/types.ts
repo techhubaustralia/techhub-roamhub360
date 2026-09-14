@@ -93,6 +93,8 @@ export interface FloorPlan {
   advanceDays?: number; // max days ahead a booking may start (0/undefined = unlimited)
   allowedWeekdays?: boolean[]; // [Sun..Sat]; undefined = all days allowed
   allowPast?: boolean; // permit booking dates in the past (default false)
+  checkInOpenTime?: string; // earliest site-local time on the booking day check-in may begin ("08:00"); unset = from 00:00 (date only)
+  autoReleaseTime?: string; // site-local time un-checked-in bookings auto-cancel ("09:30"; must be a :00/:30 tick); unset = 09:30
   // ---- quota (per user, this building) ----
   maxDeskPerDay?: number; // max active desk bookings per user per day (0 = unlimited; default 1)
   maxConcurrent?: number; // max active future desk bookings per user (0 = unlimited; default 10)

@@ -9,6 +9,7 @@ import { fetchPlan, savePlan, resetPlan, addCustomBuilding, saveFloors, getFloor
 import { TIMEZONES, winTzFor, tzLabel } from "@/lib/timezones";
 import { REGIONS, COUNTRIES } from "@/lib/countries";
 import { scaleEls, scaleFactors } from "@/lib/plan-scale";
+import { AUTO_RELEASE_DEFAULT } from "@/lib/booking-rules";
 import { EditorCanvas } from "@/components/floorplan/editor-canvas";
 
 const clone = (p: FloorPlan): FloorPlan => JSON.parse(JSON.stringify(p));
@@ -16,6 +17,11 @@ const slug = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(
 // Short, collision-resistant suffix so each new building gets a UNIQUE id even when
 // two sites share a name. Without this, id = slug(name) collided and one site overwrote another.
 const shortId = () => (globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`).replace(/-/g, "").slice(0, 8);
+
+// Auto-release runs from the 30-minute jobs tick, so the per-site time is chosen from :00/:30
+// slots only — a free-text time that misses a tick would silently never fire (see
+// autoReleaseTimeFor in lib/booking-rules.ts, which the jobs route applies server-side).
+const TICK_TIMES = Array.from({ length: 48 }, (_, i) => `${String(Math.floor(i / 2)).padStart(2, "0")}:${i % 2 ? "30" : "00"}`);
 
 function blankPlan(): FloorPlan {
   return { id: "new", name: "New building", viewBox: "0 0 1200 800", open: true, els: [] };
@@ -238,6 +244,15 @@ export default function EditorPage() {
   }
 
   async function persist(published: boolean) {
+    // A check-in open time at or after the auto-release time would let the release job cancel
+    // every booking at the site before anyone is permitted to check in — refuse the save.
+    const releaseAt = plan.autoReleaseTime ?? AUTO_RELEASE_DEFAULT;
+    if (plan.checkInOpenTime && releaseAt <= plan.checkInOpenTime) {
+      toast.error("Check-in opens too late", {
+        description: `Check-in opens at ${plan.checkInOpenTime} but unattended bookings auto-release at ${releaseAt}. Set check-in to open before the auto-release time.`,
+      });
+      return;
+    }
     if (isNew) {
       if (!plan.name.trim()) {
         toast.error("Name required", { description: "Give the building a name before saving." });
@@ -487,6 +502,25 @@ export default function EditorPage() {
                   <input type="checkbox" checked={plan.allowPast ?? false} onChange={(e) => setPlan((p) => ({ ...p, allowPast: e.target.checked }))} className="size-4 accent-[var(--orange)]" />
                   Allow booking past dates
                 </label>
+                <div className="grid grid-cols-2 gap-3">
+                  <Field label="Check-in opens (blank = from midnight)">
+                    <input
+                      type="time"
+                      value={plan.checkInOpenTime ?? ""}
+                      onChange={(e) => setPlan((p) => ({ ...p, checkInOpenTime: e.target.value || undefined }))}
+                      className="ed-input"
+                    />
+                  </Field>
+                  <Field label="Auto-release unattended at">
+                    <select
+                      value={plan.autoReleaseTime ?? AUTO_RELEASE_DEFAULT}
+                      onChange={(e) => setPlan((p) => ({ ...p, autoReleaseTime: e.target.value === AUTO_RELEASE_DEFAULT ? undefined : e.target.value }))}
+                      className="ed-input"
+                    >
+                      {TICK_TIMES.map((t) => <option key={t} value={t}>{t}{t === AUTO_RELEASE_DEFAULT ? " (default)" : ""}</option>)}
+                    </select>
+                  </Field>
+                </div>
               </Section>
 
               <p className="rounded-[9px] bg-panel-2 px-3 py-2 text-[11.5px] text-txt-mute">Saved on <b className="font-semibold text-txt">Save draft</b> or <b className="font-semibold text-txt">Publish</b>. Click any resource on the plan to edit it.</p>
