@@ -21,3 +21,24 @@ export function canAccessBuilding(user: ScopedUser, floorOrBuildingId: string): 
   const root = String(floorOrBuildingId || "").split("__")[0];
   return (user.sites ?? []).includes(root);
 }
+
+// ---- Dev-only identity simulation (API regression suite) ----
+// `x-dev-user` / `x-dev-role` let a local test act as a named user with a given role. Kept pure
+// so the production guarantee is unit-testable: returns null under NODE_ENV=production no matter
+// what headers arrive. The server additionally only consults this inside the no-session dev branch
+// of getUser(), so the gate is doubled. A named user defaults to the LEAST-privileged role.
+export const DEV_USER_HEADER = "x-dev-user";
+export const DEV_ROLE_HEADER = "x-dev-role";
+const ROLES: readonly Role[] = ["global-admin", "site-admin", "staff"];
+
+export function devIdentityFromHeaders(
+  get: (name: string) => string | null | undefined,
+  nodeEnv: string | undefined,
+): { email: string; role: Role } | null {
+  if (nodeEnv === "production") return null;
+  const email = (get(DEV_USER_HEADER) ?? "").trim().toLowerCase();
+  if (!email || !email.includes("@")) return null;
+  const roleRaw = (get(DEV_ROLE_HEADER) ?? "").trim().toLowerCase();
+  const role = (ROLES as readonly string[]).includes(roleRaw) ? (roleRaw as Role) : "staff";
+  return { email, role };
+}

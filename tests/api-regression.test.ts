@@ -4,15 +4,21 @@ import { describe, it, expect, afterAll } from "vitest";
 //   E2E_BASE=http://localhost:3000 npx vitest run tests/api-regression.test.ts
 // Skipped by the normal unit run (no E2E_BASE) so `npm test` stays a pure unit suite.
 //
-// Identity is simulated via the Easy Auth header (x-ms-client-principal-name). Seeding
-// requires the base identity to be admin-capable — true for local dev (empty role store
-// => global-admin) and for a staging admin token. Each test seeds its OWN building and uses
-// per-run-unique identities, so the suite is idempotent across repeated runs.
+// Identity is simulated via the dev-only x-dev-user / x-dev-role headers, honoured solely by the
+// no-session dev branch of getUser() (lib/server/auth.ts; inert under NODE_ENV=production). No
+// email = the base dev identity (demo global-admin) — used for seeding and admin actions. A named
+// user defaults to STAFF. Each test seeds its OWN building and uses per-run-unique identities, and
+// afterAll cancels every booking it made before deleting its buildings, so re-runs are idempotent.
 
 const BASE = process.env.E2E_BASE;
 const gate = BASE ? describe : describe.skip;
 
-const H = (email?: string) => ({ "Content-Type": "application/json", ...(email ? { "x-ms-client-principal-name": email } : {}) });
+type DevRole = "global-admin" | "site-admin" | "staff";
+const H = (email?: string, role?: DevRole) => ({
+  "Content-Type": "application/json",
+  ...(email ? { "x-dev-user": email } : {}),
+  ...(role ? { "x-dev-role": role } : {}),
+});
 async function api(path: string, opts: RequestInit = {}) {
   const r = await fetch(`${BASE}${path}`, opts);
   let body: any = null;
@@ -31,10 +37,20 @@ async function freshBuilding(extra: Record<string, unknown> = {}, els: unknown[]
   created.push(id);
   return id;
 }
-const book = (email: string | undefined, bldg: string, spaceKey: string, kind: string, start: string, end: string, durationType = "full") =>
-  api(`/api/bookings`, { method: "POST", headers: H(email), body: JSON.stringify({ buildingId: bldg, spaceKey, kind, durationType, start, end, spaceLabel: spaceKey }) });
+const booked: string[] = [];
+const book = async (email: string | undefined, bldg: string, spaceKey: string, kind: string, start: string, end: string, durationType = "full") => {
+  const r = await api(`/api/bookings`, { method: "POST", headers: H(email), body: JSON.stringify({ buildingId: bldg, spaceKey, kind, durationType, start, end, spaceLabel: spaceKey }) });
+  if (r.status === 201 && r.body?.id) booked.push(r.body.id as string);
+  return r;
+};
 const patch = (email: string | undefined, id: string, status: string, reason?: string) =>
   api(`/api/bookings/${id}`, { method: "PATCH", headers: H(email), body: JSON.stringify({ status, ...(reason ? { reason } : {}) }) });
+// Deleting a plan does not release its bookings (only removing spaces via PUT does), so cancel
+// every booking this run made first — otherwise leftovers accumulate in the local store.
+async function cleanup() {
+  for (const id of booked.splice(0)) await patch(undefined, id, "Cancelled").catch(() => {});
+  for (const id of created.splice(0)) await api(`/api/plans/${id}`, { method: "DELETE", headers: H() });
+}
 function futureWeekday(offset = 3): string {
   let d = new Date(Date.now() + offset * 864e5);
   while (d.getUTCDay() === 0 || d.getUTCDay() === 6) d = new Date(d.getTime() + 864e5);
@@ -50,7 +66,7 @@ const RUN = Math.random().toString(36).slice(2, 8);
 const E = (name: string) => `${name}-${RUN}@example.com`;
 
 gate("API regression — booking business rules", () => {
-  afterAll(async () => { for (const id of created) await api(`/api/plans/${id}`, { method: "DELETE", headers: H() }); });
+  afterAll(cleanup);
 
   it("creates a valid desk booking (201)", async () => {
     expect((await book(E("u1"), await freshBuilding(), "desk-1", "desk", `${D}T09:00`, `${D}T11:00`, "hourly")).status).toBe(201);
@@ -108,7 +124,9 @@ gate("API regression — booking business rules", () => {
     expect((await book(u, B, "room-r1", "room", `${D}T09:30`, `${D}T10:30`, "hourly")).status).toBe(201);
   });
   it("rejects past-time bookings (office tz); allows future", async () => {
-    const A = await freshBuilding();
+    // 24h room hours so the "90 minutes from now" slot is never outside the default 08:00–17:30
+    // window whatever the time of day the suite runs — this test is about past/future only.
+    const A = await freshBuilding({ openTime: "00:00", closeTime: "23:59" });
     const at = (m: number) => { const d = new Date(Date.now() + m * 60000); const p = (n: number) => String(n).padStart(2, "0"); return `${d.toISOString().slice(0, 10)}T${p(d.getUTCHours())}:${p(d.getUTCMinutes())}`; };
     expect((await book(E("t1"), A, "room-r1", "room", at(-120), at(-60), "hourly")).status).toBe(400);
     expect((await book(E("t2"), A, "room-r1", "room", at(-30), at(30), "hourly")).status).toBe(400);
@@ -127,7 +145,7 @@ gate("API regression — booking business rules", () => {
 });
 
 gate("API regression — admin cancellation", () => {
-  afterAll(async () => { for (const id of created) await api(`/api/plans/${id}`, { method: "DELETE", headers: H() }); });
+  afterAll(cleanup);
 
   it("admin cancels a user's booking; owner sees it flagged, with reason; terminal", async () => {
     const A = await freshBuilding();
@@ -168,7 +186,7 @@ gate("API regression — admin cancellation", () => {
 });
 
 gate("API regression — reschedule & check-out", () => {
-  afterAll(async () => { for (const id of created) await api(`/api/plans/${id}`, { method: "DELETE", headers: H() }); });
+  afterAll(cleanup);
 
   it("reschedule: free time 200, space conflict 409, past 400, cancelled 409", async () => {
     const A = await freshBuilding();
@@ -203,8 +221,8 @@ gate("API regression — reschedule & check-out", () => {
 });
 
 gate("API regression — RBAC & PII", () => {
-  afterAll(async () => { for (const id of created) await api(`/api/plans/${id}`, { method: "DELETE", headers: H() }); });
-  const staff = E("nobody.staff");
+  afterAll(cleanup);
+  const staff = E("nobody.staff"); // named dev users default to the staff role
 
   it("staff cannot read another user's bookings (403)", async () => {
     expect((await api(`/api/bookings?user=${E("someone")}`, { headers: H(staff) })).status).toBe(403);

@@ -1,6 +1,7 @@
 import "server-only";
 import { auth as getSession } from "@/auth";
-import { canAccessBuilding } from "../authz";
+import { headers } from "next/headers";
+import { canAccessBuilding, devIdentityFromHeaders } from "../authz";
 import { currentTenantId, DEFAULT_TENANT } from "./tenant";
 import { getTenantContext, type TenantBrand } from "./tenants";
 
@@ -75,6 +76,25 @@ export async function getUser(): Promise<AppUser> {
   // No session. In local dev (no login / no DB) fall back to a demo admin so the app
   // is usable without Postgres or SSO. This branch NEVER runs in production.
   if (process.env.NODE_ENV !== "production") {
+    // Identity simulation for the API regression suite: x-dev-user / x-dev-role impersonate a
+    // named user (least-privileged role by default). Parsed by the pure devIdentityFromHeaders,
+    // which is unit-tested to be inert under NODE_ENV=production — and this branch itself never
+    // runs there, so the gate is doubled. Outside a request scope (cron) headers() throws → demo.
+    const dev = await devIdentity();
+    if (dev) {
+      return {
+        name: dev.email.split("@")[0],
+        email: dev.email,
+        role: dev.role,
+        groups: [],
+        roleSource: "dev",
+        entraConfigured,
+        authenticated: false,
+        tenantId,
+        homeTenant: tenantId,
+        platformAdmin: false,
+      };
+    }
     return {
       name: "Demo Admin",
       email: "admin@roamhub360.com",
@@ -91,4 +111,14 @@ export async function getUser(): Promise<AppUser> {
 
   // Production, no session: fail closed (middleware redirects to /signin before this).
   return { name: "", email: "", role: "staff", groups: [], roleSource: "anonymous", entraConfigured, setupMode: true, authenticated: false, tenantId };
+}
+
+/** The ambient x-dev-* identity, or null when absent / not permitted / outside a request scope. */
+async function devIdentity(): Promise<{ email: string; role: Role } | null> {
+  try {
+    const h = await headers();
+    return devIdentityFromHeaders((n) => h.get(n), process.env.NODE_ENV);
+  } catch {
+    return null;
+  }
 }
