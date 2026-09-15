@@ -1,18 +1,20 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
 import { Search, Plus, Minus, Lock, Unlock, ShieldCheck, Upload, Trash2, Monitor, DoorClosed, Users, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLocation } from "@/components/location-context";
 import { usePlan, getFloors, type FloorRoom } from "@/lib/plan-store";
-import { getLocks, setLockApi, createBookingApi, getOccupied, setBookingStatusApi } from "@/lib/api";
+import { getLocks, setLockApi, createBookingApi, getOccupied, setBookingStatusApi, getPresence, type PresenceEntry } from "@/lib/api";
+import { groupAttendance } from "@/lib/attendance";
 import { deriveTimes, validateBooking, todayInTz, maxAdvanceDate, DURATION_LABELS, type DurationType, type Kind } from "@/lib/booking-rules";
 import { spaceKey, type SpaceEl, type SpaceKind, type SpaceStatus } from "@/lib/types";
 import { FloorSvg } from "@/components/floorplan/floor-svg";
 import { Legend } from "@/components/floorplan/legend";
 import { PageHeader } from "@/components/page-header";
+import { AttendanceStack } from "@/components/attendance-stack";
 
 const TABS: { label: string; kind: SpaceKind }[] = [
   { label: "Desks", kind: "desk" },
@@ -166,6 +168,21 @@ export default function BookPage() {
       .catch(() => {});
     return () => { alive = false; };
   }, [planId, selDate]);
+
+  // "Who's coming in" to this site on the selected date — from /api/presence, which applies the
+  // presence feature flag, the hidePresence opt-out and PII minimisation server-side (the map's
+  // own occupant feed above does not honour the opt-out, so it is deliberately not reused here).
+  // Refreshed live when anyone books, cancels or checks in.
+  const [presence, setPresence] = useState<PresenceEntry[]>([]);
+  useEffect(() => {
+    if (!officeId) return;
+    let alive = true;
+    const load = () => getPresence(selDate).then((p) => { if (alive) setPresence(p.entries); });
+    load();
+    window.addEventListener("bookings:changed", load);
+    return () => { alive = false; window.removeEventListener("bookings:changed", load); };
+  }, [officeId, selDate]);
+  const attendance = useMemo(() => groupAttendance(presence, officeId), [presence, officeId]);
 
   const selKey = selected ? spaceKey(selected) : null;
   const selStatus: SpaceStatus = selKey ? status[selKey] ?? "free" : "free";
@@ -324,6 +341,15 @@ export default function BookPage() {
                 ))}
               </select>
             )}
+            <input
+              type="date"
+              aria-label="Date shown on the map"
+              value={selDate}
+              min={todayInTz(plan.tz)}
+              max={maxAdvanceDate(plan.advanceDays, plan.tz)}
+              onChange={(e) => e.target.value && changeFromDate(e.target.value)}
+              className="rounded-[9px] border bg-panel-2 px-2.5 py-1.5 text-[12.5px] font-semibold text-txt"
+            />
             <div className="relative min-w-[130px] flex-1">
               <Search className="absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-txt-mute" />
               <input
@@ -335,6 +361,7 @@ export default function BookPage() {
                 className="w-full rounded-[9px] border bg-panel-2 py-1.5 pl-8 pr-3 text-[13px] outline-none"
               />
             </div>
+            <AttendanceStack people={attendance} siteName={office.b} />
             <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-ok">
               <span className="size-2 animate-[pulse-dot_1.6s_infinite] rounded-full bg-ok" /> Live
             </span>
