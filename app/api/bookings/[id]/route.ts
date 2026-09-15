@@ -3,7 +3,7 @@ import { getBooking, setBookingStatus, updateBookingTimes, listBookings, Conflic
 import { getUser, canAccessBuilding } from "@/lib/server/auth";
 import { cancelBookingEvent, updateBookingEvent, sendMail } from "@/lib/server/graph";
 import { cancellationEmail, updatedEmail, emailBrand } from "@/lib/server/email";
-import { validateBooking, overlaps, ACTIVE_STATUSES, type Kind } from "@/lib/booking-rules";
+import { validateBooking, overlaps, checkInWindowError, ACTIVE_STATUSES, type Kind } from "@/lib/booking-rules";
 import { getStoredPlan } from "@/lib/server/store";
 import { getFloorPlan } from "@/lib/floorplans";
 import { officeWinTz } from "@/lib/data";
@@ -131,6 +131,15 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
         { status: 409 },
       );
     }
+  }
+
+  // Check-in only inside the booking's own dates, in the site's zone (and not before the site's
+  // check-in open time, if set). Same rule as the signed email link, so no channel can mark someone
+  // present ahead of time. Applies to admins too — an early check-in is never a legitimate state.
+  if (status === "Checked in" && booking.status !== "Checked in") {
+    const plan = (await getStoredPlan(booking.buildingId)) ?? getFloorPlan(booking.buildingId);
+    const notYet = checkInWindowError(booking.start, booking.end, plan.tz, plan.checkInOpenTime);
+    if (notYet) return NextResponse.json({ error: notYet }, { status: 409 });
   }
 
   const isCancel = status === "Cancelled" || status === "Declined";

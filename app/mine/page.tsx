@@ -5,7 +5,7 @@ import Link from "next/link";
 import { toast } from "sonner";
 import { getBookings, setBookingStatusApi, editBookingApi, isActiveBooking, displayStatus, type Booking } from "@/lib/api";
 import { getBuildingsMeta } from "@/lib/plan-store";
-import { deriveTimes, type DurationType, type Kind } from "@/lib/booking-rules";
+import { deriveTimes, checkInWindowError, type DurationType, type Kind } from "@/lib/booking-rules";
 import { PageHeader } from "@/components/page-header";
 import { StatusPill } from "@/components/status-pill";
 
@@ -14,6 +14,7 @@ const KIND_LABEL: Record<string, string> = { desk: "Desk", room: "Meeting room",
 export default function MinePage() {
   const [rows, setRows] = useState<Booking[]>([]);
   const [names, setNames] = useState<Record<string, string>>({});
+  const [tzs, setTzs] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [showHistory, setShowHistory] = useState(false);
   const [editing, setEditing] = useState<Booking | null>(null);
@@ -24,10 +25,17 @@ export default function MinePage() {
   }
   useEffect(() => {
     load();
-    getBuildingsMeta().then((m) => setNames(Object.fromEntries(m.custom.map((c) => [c.id, c.name]))));
+    getBuildingsMeta().then((m) => {
+      setNames(Object.fromEntries(m.custom.map((c) => [c.id, c.name])));
+      setTzs(Object.fromEntries(m.custom.filter((c) => c.tz).map((c) => [c.id, c.tz as string])));
+    });
   }, []);
 
   const bName = (id: string) => names[id] ?? names[id.split("__")[0]] ?? id;
+  const tzOf = (id: string) => tzs[id] ?? tzs[id.split("__")[0]];
+  // UI hint only: grey out "Check in" until the booking's date in the site's zone. The server is
+  // the authority (it also applies the site's check-in open time, which the list doesn't carry).
+  const checkInBlock = (r: Booking) => checkInWindowError(r.start, r.end, tzOf(r.buildingId));
 
   const active = useMemo(() => rows.filter((r) => isActiveBooking(r)).sort((a, b) => a.start.localeCompare(b.start)), [rows]);
   const history = useMemo(() => rows.filter((r) => !isActiveBooking(r)).sort((a, b) => b.start.localeCompare(a.start)), [rows]);
@@ -35,7 +43,14 @@ export default function MinePage() {
 
   async function checkIn(id: string) {
     setRows((rs) => rs.map((r) => (r.id === id ? { ...r, status: "Checked in" } : r)));
-    await setBookingStatusApi(id, "Checked in");
+    const res = await setBookingStatusApi(id, "Checked in");
+    if (!res.ok) {
+      // The server decides the check-in window (site zone + open time): undo the optimistic flip
+      // and show its reason rather than a false success.
+      setRows((rs) => rs.map((r) => (r.id === id ? { ...r, status: "Booked" } : r)));
+      toast.error("Not yet", { description: res.error ?? "Could not check in." });
+      return;
+    }
     toast.success("Checked in", { description: "Booking confirmed" });
   }
   async function checkOut(id: string) {
@@ -106,9 +121,12 @@ export default function MinePage() {
                     {isActiveBooking(r) ? (
                       <>
                         <button onClick={() => setEditing(r)} className="mr-3 font-semibold text-primary hover:underline">Edit</button>
-                        {r.status === "Booked" && (
-                          <button onClick={() => checkIn(r.id)} className="mr-3 font-semibold text-primary hover:underline">Check in</button>
-                        )}
+                        {r.status === "Booked" &&
+                          (checkInBlock(r) ? (
+                            <span className="mr-3 font-semibold text-txt-mute" title={checkInBlock(r) ?? undefined}>Check in</span>
+                          ) : (
+                            <button onClick={() => checkIn(r.id)} className="mr-3 font-semibold text-primary hover:underline">Check in</button>
+                          ))}
                         {r.status === "Checked in" && (
                           <button onClick={() => checkOut(r.id)} className="mr-3 font-semibold text-ok hover:underline">Check out</button>
                         )}
@@ -145,7 +163,12 @@ export default function MinePage() {
               {isActiveBooking(r) && (
                 <div className="mt-3 flex flex-wrap gap-2">
                   <button onClick={() => setEditing(r)} className="rounded-[9px] border px-3 py-2 text-[12.5px] font-semibold hover:border-primary">Edit</button>
-                  {r.status === "Booked" && <button onClick={() => checkIn(r.id)} className="rounded-[9px] bg-primary px-3 py-2 text-[12.5px] font-semibold text-primary-foreground">Check in</button>}
+                  {r.status === "Booked" &&
+                    (checkInBlock(r) ? (
+                      <span className="rounded-[9px] border px-3 py-2 text-[12.5px] font-semibold text-txt-mute" title={checkInBlock(r) ?? undefined}>Check in</span>
+                    ) : (
+                      <button onClick={() => checkIn(r.id)} className="rounded-[9px] bg-primary px-3 py-2 text-[12.5px] font-semibold text-primary-foreground">Check in</button>
+                    ))}
                   {r.status === "Checked in" && <button onClick={() => checkOut(r.id)} className="rounded-[9px] border border-ok/50 px-3 py-2 text-[12.5px] font-semibold text-ok">Check out</button>}
                   <button onClick={() => cancel(r.id)} className="rounded-[9px] border border-destructive/50 px-3 py-2 text-[12.5px] font-semibold text-destructive">Cancel</button>
                 </div>

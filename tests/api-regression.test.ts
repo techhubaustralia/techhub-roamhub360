@@ -41,9 +41,13 @@ function futureWeekday(offset = 3): string {
   return d.toISOString().slice(0, 10);
 }
 const D = futureWeekday();
+// The site's calendar "today" — freshBuilding pins tz: "UTC", so UTC today is the site's today.
+// Check-in is only permitted on the booking's own date, so check-in tests book on TODAY (with
+// allowPast on the site so the booking is creatable at any time of day).
+const TODAY = new Date().toISOString().slice(0, 10);
 // per-run-unique identities (idempotent re-runs; avoids self-collision with the one-desk rule)
 const RUN = Math.random().toString(36).slice(2, 8);
-const E = (name: string) => `${name}-${RUN}@sodali.com`;
+const E = (name: string) => `${name}-${RUN}@example.com`;
 
 gate("API regression — booking business rules", () => {
   afterAll(async () => { for (const id of created) await api(`/api/plans/${id}`, { method: "DELETE", headers: H() }); });
@@ -76,6 +80,19 @@ gate("API regression — booking business rules", () => {
     const b = await book(u, A, "desk-1", "desk", `${D}T13:00`, `${D}T15:00`, "hourly");
     await patch(u, b.body.id, "Cancelled");
     expect((await patch(u, b.body.id, "Checked in")).status).toBe(409);
+  });
+  it("check-in is refused before the booking's date (409) — in-app path", async () => {
+    const A = await freshBuilding();
+    const u = E("early");
+    // office, not desk: immune to the global one-desk-per-user rule if identities collapse in dev
+    const b = await book(u, A, "office-1", "office", `${D}T08:00`, `${D}T17:30`);
+    expect(b.status).toBe(201);
+    const r = await patch(u, b.body.id, "Checked in");
+    expect(r.status).toBe(409);
+    expect(r.body?.error).toMatch(/only check in on the day/i);
+    // still Booked — the refusal must not have touched state
+    const row = ((await api(`/api/bookings`, { headers: H(u) })).body as any[]).find((x) => x.id === b.body.id);
+    expect(row.status).toBe("Booked");
   });
   it("ONE DESK per user at any time — blocks overlapping desk in another building (409)", async () => {
     const A = await freshBuilding(), B = await freshBuilding();
@@ -139,9 +156,9 @@ gate("API regression — admin cancellation", () => {
     // compare-and-set, so exactly one transition wins (one 200, one 409). The file dev
     // backend can't do atomic CAS, so both may land (last-write-wins). Either way the
     // INVARIANT below must hold — no invalid state, and cancelled stays terminal.
-    const A = await freshBuilding();
+    const A = await freshBuilding({ allowPast: true });
     const u = E("race");
-    const b = await book(u, A, "office-1", "office", `${D}T08:00`, `${D}T17:30`);
+    const b = await book(u, A, "office-1", "office", `${TODAY}T08:00`, `${TODAY}T17:30`); // today: check-in must be a live contender
     const [a, c] = await Promise.all([patch(u, b.body.id, "Cancelled"), patch(u, b.body.id, "Checked in")]);
     expect([a.status, c.status]).toContain(200); // at least one succeeded
     const row = ((await api(`/api/bookings`, { headers: H(u) })).body as any[]).find((r) => r.id === b.body.id);
@@ -173,9 +190,9 @@ gate("API regression — reschedule & check-out", () => {
   });
 
   it("check-out: checked-in -> checked out (200), terminal, releases the space", async () => {
-    const A = await freshBuilding();
+    const A = await freshBuilding({ allowPast: true });
     const z = E("co.z");
-    const b = await book(z, A, "office-1", "office", `${D}T08:00`, `${D}T17:30`);
+    const b = await book(z, A, "office-1", "office", `${TODAY}T08:00`, `${TODAY}T17:30`); // today: check-in is only allowed on the booking's date
     expect(b.status).toBe(201);
     expect((await patch(z, b.body.id, "Checked in")).status).toBe(200);
     expect((await patch(z, b.body.id, "Checked out")).status).toBe(200);
