@@ -13,9 +13,7 @@ import {
   type EntraGroupRow,
 } from "@/lib/api";
 import { PageHeader } from "@/components/page-header";
-
-const initials = (name: string) =>
-  name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]?.toUpperCase()).join("") || "?";
+import { Avatar } from "@/components/avatar";
 
 function relTime(iso: string | null): string {
   if (!iso) return "never";
@@ -211,11 +209,7 @@ export default function DirectoryPage() {
                 <tr key={r.email} className="hover:bg-panel-2">
                   <td className="border-b px-3 py-2.5">
                     <div className="flex items-center gap-2.5">
-                      {r.photo ? (
-                        <img src={r.photo} alt="" className="size-8 rounded-full object-cover" />
-                      ) : (
-                        <span className="grid size-8 place-items-center rounded-full bg-primary/12 text-[11px] font-bold text-primary">{initials(r.displayName || r.email)}</span>
-                      )}
+                      <Avatar name={r.displayName || r.email} photo={r.photo} size={32} />
                       <div className="min-w-0">
                         <div className="truncate font-semibold">{r.displayName || r.email}</div>
                         <div className="truncate text-[11.5px] text-txt-mute">{r.email}</div>

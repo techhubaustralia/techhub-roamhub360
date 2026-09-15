@@ -7,6 +7,7 @@ import { getPresence, getPresenceInsights, type PresenceEntry, type PresenceInsi
 import { getBuildingsMeta } from "@/lib/plan-store";
 import { PageHeader } from "@/components/page-header";
 import { StatusPill } from "@/components/status-pill";
+import { Avatar } from "@/components/avatar";
 
 const KIND: Record<string, { label: string; icon: LucideIcon }> = {
   desk: { label: "Desk", icon: LayoutGrid },
@@ -33,19 +34,6 @@ const timeRange = (start: string, end: string) => {
   const sameDay = start.slice(0, 10) === end.slice(0, 10);
   return sameDay ? `${start.slice(11)}–${end.slice(11)}` : `${start.slice(5, 10)} → ${end.slice(5, 10)}`;
 };
-const initials = (name: string) =>
-  name
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((w) => w[0]?.toUpperCase())
-    .join("") || "?";
-
-function Avatar({ name, photo }: { name: string; photo?: string }) {
-  if (photo) return <img src={photo} alt="" className="size-9 shrink-0 rounded-full object-cover" />;
-  return <span className="grid size-9 shrink-0 place-items-center rounded-full bg-primary/12 text-[12px] font-bold text-primary">{initials(name)}</span>;
-}
-
 export default function TeamPage() {
   const [date, setDate] = useState(todayLocal());
   const [entries, setEntries] = useState<PresenceEntry[]>([]);
