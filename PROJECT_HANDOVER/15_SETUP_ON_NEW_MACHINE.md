@@ -5,7 +5,7 @@ to run locally** — with `DATABASE_URL` unset the app uses a JSON/file backend 
 
 ## 1. Prerequisites
 
-- **Node.js 20 LTS** (matches the container `node:20-slim`; 22/24 likely work but 20 is the target).
+- **Node.js 22 LTS or newer** (matches the container `node:22-slim`). Node 20 does **not** work: `undici` 8 requires ≥ 22.19 and the build fails with `util.markAsUncloneable is not a function`.
 - **npm** (bundled with Node). **Git**.
 - Optional (only for DB-backed dev or deploy): **Docker Desktop**, **PostgreSQL client** (`psql`).
 - Optional (E2E): Playwright browsers (installed in a later step).

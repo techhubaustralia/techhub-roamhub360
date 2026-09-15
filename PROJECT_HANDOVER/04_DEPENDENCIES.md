@@ -4,7 +4,7 @@
 
 | | |
 |---|---|
-| **Runtime** | Node.js. Container base image: **`node:20-slim`** (Debian, Prisma-friendly). Local dev machines have observed Node 20 / 24 — **target Node 20 LTS to match the container.** |
+| **Runtime** | Node.js. Container base image: **`node:22-slim`** (Debian, Prisma-friendly). **Node 22 LTS is the floor**: `undici` 8 (the C2 webhook agent) declares `engines.node >= 22.19` and a Node 20 image fails `next build` (`util.markAsUncloneable is not a function`). Local dev on 22 or 24 is fine. |
 | **Package manager** | **npm** (there is a `package-lock.json`; `npm ci` is used in the Docker build). |
 | **Language** | TypeScript **5** (strict, `noEmit`, `moduleResolution: bundler`, path alias `@/*`). |
 | **Framework** | Next.js **16.2.9** (App Router, `output: "standalone"`, Turbopack). |

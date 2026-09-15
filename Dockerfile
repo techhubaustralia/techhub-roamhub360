@@ -1,5 +1,7 @@
-# Next.js standalone container for Azure Container Apps (Debian slim — Prisma-friendly)
-FROM node:20-slim AS base
+# Next.js standalone container (Debian slim — Prisma-friendly). Node 22 LTS: undici 8 (the SSRF-safe
+# webhook agent, C2) requires Node >= 22.19 — its fetch/webidl code calls util.markAsUncloneable,
+# which Node 20 lacks, so `next build` fails collecting page data on a Node 20 image.
+FROM node:22-slim AS base
 WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends openssl ca-certificates && rm -rf /var/lib/apt/lists/*
 
