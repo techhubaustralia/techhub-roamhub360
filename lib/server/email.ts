@@ -100,6 +100,31 @@ export function confirmationEmail(b: Booking, eb: EmailBrand = DEFAULT_EMAIL_BRA
   };
 }
 
+/** One confirmation for a "Repeat weekly" series: every date booked, plus any that were skipped and
+ *  why. Replaces the per-booking confirmation for the series (one email, not one per date). */
+export function recurringConfirmationEmail(created: Booking[], skipped: { date: string; reason: string }[], eb: EmailBrand = DEFAULT_EMAIL_BRAND) {
+  const first = created[0];
+  const onBehalf = first?.bookedByEmail ? `<p style="color:#7491a0;font-size:13px">Booked on your behalf by ${esc(first.bookedByEmail)}.</p>` : "";
+  const rows = created.map((b) => `<li>${esc(b.start.replace("T", " "))} → ${esc(b.end.slice(11))}</li>`).join("");
+  const skippedRows = skipped.length
+    ? `<p style="margin-top:14px;color:#7491a0;font-size:13px"><b>Not booked (${skipped.length}):</b></p>
+       <ul style="color:#7491a0;font-size:13px;margin:4px 0 0;padding-left:18px">${skipped.map((s) => `<li>${esc(s.date)} — ${esc(s.reason)}</li>`).join("")}</ul>`
+    : "";
+  return {
+    subject: `${created.length} booking${created.length === 1 ? "" : "s"} confirmed — ${first?.spaceLabel ?? "Recurring booking"}`,
+    html: shell(
+      "Recurring booking confirmed",
+      `<p>Your repeat booking is confirmed for the dates below.</p>
+       <p><b>${esc(first?.spaceLabel ?? "")}</b></p>
+       <ul style="margin:4px 0 0;padding-left:18px">${rows}</ul>
+       ${onBehalf}
+       ${skippedRows}
+       <p style="margin-top:16px">${btn(`${APP_URL}/mine`, "View my bookings", undefined, eb)}</p>`,
+      eb,
+    ),
+  };
+}
+
 export function cancellationEmail(b: Booking, opts?: { byAdmin?: string; reason?: string }, eb: EmailBrand = DEFAULT_EMAIL_BRAND) {
   const note = opts?.byAdmin
     ? `<p style="color:#7491a0;font-size:13px">Cancelled by an administrator (${esc(opts.byAdmin)}).${opts.reason ? ` Reason: ${esc(opts.reason)}` : ""}</p>`

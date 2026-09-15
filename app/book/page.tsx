@@ -7,7 +7,8 @@ import { Search, Plus, Minus, Lock, Unlock, ShieldCheck, Upload, Trash2, Monitor
 import { cn } from "@/lib/utils";
 import { useLocation } from "@/components/location-context";
 import { usePlan, getFloors, type FloorRoom } from "@/lib/plan-store";
-import { getLocks, setLockApi, createBookingApi, getOccupied, setBookingStatusApi, getPresence, type PresenceEntry } from "@/lib/api";
+import { getLocks, setLockApi, createBookingApi, createRecurringBookingApi, getOccupied, setBookingStatusApi, getPresence, type PresenceEntry } from "@/lib/api";
+import { expandWeekly } from "@/lib/recurrence";
 import { groupAttendance } from "@/lib/attendance";
 import { deriveTimes, validateBooking, todayInTz, maxAdvanceDate, DURATION_LABELS, type DurationType, type Kind } from "@/lib/booking-rules";
 import { spaceKey, type SpaceEl, type SpaceKind, type SpaceStatus } from "@/lib/types";
@@ -81,6 +82,11 @@ export default function BookPage() {
     setEndDate((d) => (d < t ? t : d));
   }, [planId, plan?.tz]);
   const [half, setHalf] = useState<"am" | "pm">("am");
+  // Repeat weekly: the same space on chosen weekdays through an end date — one single-day booking
+  // per matching date, created by ONE server request (see /api/bookings/recurring).
+  const [repeat, setRepeat] = useState(false);
+  const [repeatDays, setRepeatDays] = useState<boolean[]>([false, false, false, false, false, false, false]);
+  const [repeatUntil, setRepeatUntil] = useState("");
   const [startTime, setStartTime] = useState("09:00");
   const [endTime, setEndTime] = useState("10:00");
   // whether the user has manually edited the end time (so we stop auto-defaulting it to +1h)
@@ -216,6 +222,38 @@ export default function BookPage() {
   async function doBook(el: SpaceEl) {
     const label = spaceLabel(el);
     const kindT = el.t as Kind;
+
+    // ---- Repeat weekly: one request; the server expands the dates and applies every rule per date ----
+    if (repeat) {
+      const behalfR = admin && onBehalf.trim() ? onBehalf.trim() : undefined;
+      if (behalfR && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(behalfR)) {
+        toast.error("Invalid email", { description: "Enter a valid address to book on behalf of, or clear the field." });
+        return;
+      }
+      const until = repeatUntil || selDate;
+      const preview = expandWeekly({ startDate: selDate, until, weekdays: repeatDays });
+      if ("error" in preview) {
+        toast.error("Check the repeat settings", { description: preview.error });
+        return;
+      }
+      const r = await createRecurringBookingApi({
+        buildingId: planId, spaceKey: spaceKey(el), spaceLabel: label, kind: el.t, durationType: duration,
+        startDate: selDate, until, weekdays: repeatDays, startTime, endTime, half, userEmail: behalfR,
+      });
+      const skippedText = r.skipped.length
+        ? `Skipped ${r.skipped.length}: ${r.skipped.slice(0, 3).map((s) => `${s.date.slice(5)} (${s.reason.replace(/\.$/, "")})`).join("; ")}${r.skipped.length > 3 ? "…" : ""}`
+        : "See My bookings.";
+      if (!r.ok) {
+        toast.error(r.created.length ? "Partly booked" : "Nothing booked", { description: r.error ?? skippedText });
+        if (!r.created.length) return;
+      } else {
+        toast.success(`Booked ${r.created.length} of ${r.requested} dates`, { description: skippedText });
+      }
+      setSelected(null);
+      refreshStatus();
+      return;
+    }
+
     const { start, end } = deriveTimes({ kind: kindT, duration, startDate: selDate, endDate, startTime, endTime, half, hours: { open: plan.openTime, close: plan.closeTime } });
     const err = validateBooking(kindT, start, end, { advanceDays: plan.advanceDays, allowedWeekdays: plan.allowedWeekdays, allowPast: plan.allowPast, maxHours: el.t === "room" ? el.maxHours : undefined, tz: plan.tz, openTime: plan.openTime, closeTime: plan.closeTime }, duration);
     if (err) {
@@ -470,6 +508,12 @@ export default function BookPage() {
                 officeClose={plan.closeTime || "17:30"}
                 today={todayInTz(plan.tz)}
                 maxDate={maxAdvanceDate(plan.advanceDays, plan.tz)}
+                repeat={repeat}
+                setRepeat={setRepeat}
+                repeatDays={repeatDays}
+                setRepeatDays={setRepeatDays}
+                repeatUntil={repeatUntil}
+                setRepeatUntil={setRepeatUntil}
                 onToggleLock={toggleLock}
                 onBook={doBook}
                 adminBooking={selKey ? adminBookings[selKey] : undefined}
@@ -514,6 +558,12 @@ function Detail({
   officeClose,
   today,
   maxDate,
+  repeat,
+  setRepeat,
+  repeatDays,
+  setRepeatDays,
+  repeatUntil,
+  setRepeatUntil,
   onToggleLock,
   onBook,
   adminBooking,
@@ -541,6 +591,12 @@ function Detail({
   officeClose: string;
   today: string; // today's date in the OFFICE timezone (min selectable date)
   maxDate?: string; // latest selectable START date under the site's advance-booking window (undefined = unlimited)
+  repeat: boolean;
+  setRepeat: (v: boolean) => void;
+  repeatDays: boolean[]; // [Sun..Sat]
+  setRepeatDays: (d: boolean[]) => void;
+  repeatUntil: string;
+  setRepeatUntil: (d: string) => void;
   onToggleLock: () => void;
   onBook: (el: SpaceEl) => void;
   adminBooking?: { id: string; user: string };
@@ -626,7 +682,7 @@ function Detail({
           </div>
           <input type="date" aria-label={(el.t === "desk" || el.t === "parking") && duration === "full" ? "From date" : "Booking date"} value={selDate} min={today} max={maxDate} onChange={(e) => setSelDate(e.target.value)} className="ed-input my-2" />
 
-          {(el.t === "desk" || el.t === "parking") && duration === "full" && (
+          {(el.t === "desk" || el.t === "parking") && duration === "full" && !repeat && (
             <>
               <div className="text-[11px] font-semibold uppercase tracking-[0.05em] text-txt-mute">To (max 14 days)</div>
               <input type="date" aria-label="To date" value={endDate} min={selDate} onChange={(e) => setEndDate(e.target.value)} className="ed-input my-2" />
@@ -656,6 +712,53 @@ function Detail({
             </div>
           )}
 
+          {/* Repeat weekly: the same space on chosen weekdays through an end date (one booking per date). */}
+          <label className="my-2 flex items-center gap-2 text-[12.5px]">
+            <input
+              type="checkbox"
+              checked={repeat}
+              onChange={(e) => {
+                const on = e.target.checked;
+                setRepeat(on);
+                // default to the selected date's weekday so "repeat" means "this day, every week"
+                if (on && !repeatDays.some(Boolean)) {
+                  const wd = new Date(`${selDate}T00:00:00Z`).getUTCDay();
+                  setRepeatDays(repeatDays.map((_, i) => i === wd));
+                }
+              }}
+              className="size-4 accent-[var(--orange)]"
+            />
+            Repeat weekly
+          </label>
+          {repeat && (
+            <div className="my-2 rounded-[10px] border bg-panel-2 p-2.5">
+              <div className="flex gap-1">
+                {["S", "M", "T", "W", "T", "F", "S"].map((d, i) => (
+                  <button
+                    key={i}
+                    type="button"
+                    aria-pressed={repeatDays[i]}
+                    aria-label={["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][i]}
+                    onClick={() => setRepeatDays(repeatDays.map((v, j) => (j === i ? !v : v)))}
+                    className={cn("size-8 rounded-full text-[12px] font-bold", repeatDays[i] ? "bg-primary text-primary-foreground" : "bg-card text-txt-dim")}
+                  >
+                    {d}
+                  </button>
+                ))}
+              </div>
+              <div className="mt-2 text-[11px] font-semibold uppercase tracking-[0.05em] text-txt-mute">Until</div>
+              <input type="date" aria-label="Repeat until" value={repeatUntil || selDate} min={selDate} max={maxDate} onChange={(e) => setRepeatUntil(e.target.value)} className="ed-input mt-1" />
+              {(() => {
+                const p = expandWeekly({ startDate: selDate, until: repeatUntil || selDate, weekdays: repeatDays });
+                return (
+                  <div className={cn("mt-1.5 text-[11.5px]", "error" in p ? "text-destructive" : "text-txt-mute")}>
+                    {"error" in p ? p.error : `${p.dates.length} booking${p.dates.length === 1 ? "" : "s"} will be made (each a single day).`}
+                  </div>
+                );
+              })()}
+            </div>
+          )}
+
           {admin && (
             <label className="my-2 block">
               <span className="mb-1 block text-[11px] font-semibold uppercase tracking-[0.05em] text-txt-mute">Book on behalf of (optional)</span>
@@ -674,7 +777,7 @@ function Detail({
             onClick={() => onBook(el)}
             className="mt-2 w-full rounded-[10px] bg-primary px-4 py-2.5 text-[13.5px] font-semibold text-primary-foreground hover:bg-orange-soft"
           >
-            {el.t === "room" ? "Book & invite via Outlook" : admin && onBehalf.trim() ? "Book for colleague" : "Confirm booking"}
+            {repeat ? "Book all dates" : el.t === "room" ? "Book & invite via Outlook" : admin && onBehalf.trim() ? "Book for colleague" : "Confirm booking"}
           </button>
         </>
       )}

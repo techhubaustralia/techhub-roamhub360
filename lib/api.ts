@@ -401,6 +401,44 @@ export function notifyBookingsChanged(): void {
   if (typeof window !== "undefined") window.dispatchEvent(new Event("bookings:changed"));
 }
 
+// ---- Repeat weekly: one request, one booking per matching date (server expands + validates) ----
+export interface RecurringBookingInput {
+  buildingId: string;
+  spaceKey: string;
+  spaceLabel: string;
+  kind: string;
+  durationType: string;
+  startDate: string; // YYYY-MM-DD
+  until: string; // YYYY-MM-DD
+  weekdays: boolean[]; // [Sun..Sat]
+  startTime?: string; // hourly
+  endTime?: string;
+  half?: "am" | "pm";
+  userEmail?: string; // on behalf
+}
+export interface RecurringBookingResult {
+  ok: boolean;
+  error?: string;
+  created: Booking[];
+  skipped: { date: string; reason: string }[];
+  requested: number;
+}
+export async function createRecurringBookingApi(payload: RecurringBookingInput): Promise<RecurringBookingResult> {
+  const empty = { created: [], skipped: [], requested: 0 };
+  try {
+    const r = await fetch(`/api/bookings/recurring`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+    const body = await r.json().catch(() => ({}));
+    if (r.status === 201) {
+      notifyBookingsChanged();
+      return { ok: true, ...empty, ...body };
+    }
+    // 409 = nothing could be booked (per-date reasons in `skipped`); anything else carries `error`.
+    return { ok: false, ...empty, ...body, error: body.error ?? (body.skipped?.length ? "Nothing could be booked." : "Booking failed") };
+  } catch {
+    return { ok: false, ...empty, error: "Network error" };
+  }
+}
+
 export async function createBookingApi(payload: BookingInput): Promise<{ ok: boolean; error?: string; booking?: Booking }> {
   try {
     const r = await fetch(`/api/bookings`, {

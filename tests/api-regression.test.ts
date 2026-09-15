@@ -275,3 +275,50 @@ gate("API regression — office bookings overview", () => {
     expect((await api(`/api/office-bookings?from=2026-01-01&to=2026-04-01`, { headers: H() })).status).toBe(400);
   });
 });
+
+gate("API regression — recurring bookings", () => {
+  afterAll(cleanup);
+  const addDays = (d: string, n: number) => new Date(new Date(`${d}T00:00:00Z`).getTime() + n * 864e5).toISOString().slice(0, 10);
+  const onlyDow = (d: string) => Array.from({ length: 7 }, (_, i) => i === new Date(`${d}T00:00:00Z`).getUTCDay());
+  const recur = (email: string | undefined, body: Record<string, unknown>) => {
+    // recorded for cleanup like book(): created ids come back in the body
+    return api(`/api/bookings/recurring`, { method: "POST", headers: H(email), body: JSON.stringify(body) }).then((r) => {
+      for (const c of (r.body?.created ?? []) as { id: string }[]) booked.push(c.id);
+      return r;
+    });
+  };
+
+  it("books every matching date in ONE request and reports the count (201)", async () => {
+    const A = await freshBuilding();
+    const u = E("rec.user");
+    // D's weekday only, over D..D+7 → exactly 2 occurrences
+    const r = await recur(u, { buildingId: A, spaceKey: "office-1", kind: "office", durationType: "full", spaceLabel: "office-1", startDate: D, until: addDays(D, 7), weekdays: onlyDow(D) });
+    expect(r.status).toBe(201);
+    expect(r.body.requested).toBe(2);
+    expect(r.body.created).toHaveLength(2);
+    expect(r.body.skipped).toEqual([]);
+    expect(r.body.created.map((c: { start: string }) => c.start.slice(0, 10))).toEqual([D, addDays(D, 7)]);
+  });
+  it("skips a conflicting date with the real reason and still books the rest", async () => {
+    const A = await freshBuilding();
+    const u = E("rec.conflict"), other = E("rec.other");
+    expect((await book(other, A, "office-1", "office", `${D}T08:00`, `${D}T17:30`)).status).toBe(201); // D taken
+    const r = await recur(u, { buildingId: A, spaceKey: "office-1", kind: "office", durationType: "full", spaceLabel: "office-1", startDate: D, until: addDays(D, 7), weekdays: onlyDow(D) });
+    expect(r.status).toBe(201);
+    expect(r.body.created).toHaveLength(1);
+    expect(r.body.skipped).toHaveLength(1);
+    expect(r.body.skipped[0].date).toBe(D);
+    expect(r.body.skipped[0].reason).toMatch(/already booked/i);
+  });
+  it("refuses more than 60 occurrences up front (400) — nothing is created", async () => {
+    const A = await freshBuilding();
+    const r = await recur(E("rec.many"), { buildingId: A, spaceKey: "office-1", kind: "office", durationType: "full", startDate: D, until: addDays(D, 120), weekdays: [true, true, true, true, true, true, true] });
+    expect(r.status).toBe(400);
+    expect(r.body.error).toMatch(/more than 60/i);
+  });
+  it("staff cannot book a series on behalf of someone else (403)", async () => {
+    const A = await freshBuilding();
+    const r = await recur(E("rec.staff"), { buildingId: A, spaceKey: "office-1", kind: "office", durationType: "full", startDate: D, until: addDays(D, 7), weekdays: onlyDow(D), userEmail: E("rec.victim") });
+    expect(r.status).toBe(403);
+  });
+});
