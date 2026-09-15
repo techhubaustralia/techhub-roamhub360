@@ -120,8 +120,8 @@ gate("API regression — booking business rules", () => {
   });
   it("identity is casing-insensitive — booking visible under any principal casing", async () => {
     const A = await freshBuilding();
-    await book(`Mixed.Case-${RUN}@sodali.com`, A, "desk-1", "desk", `${D}T15:30`, `${D}T16:30`, "hourly");
-    const res = await api(`/api/bookings`, { headers: H(`mixed.case-${RUN}@sodali.com`) });
+    await book(`Mixed.Case-${RUN}@example.com`, A, "desk-1", "desk", `${D}T15:30`, `${D}T16:30`, "hourly");
+    const res = await api(`/api/bookings`, { headers: H(`mixed.case-${RUN}@example.com`) });
     expect((res.body as any[]).filter((r) => r.buildingId === A).length).toBeGreaterThan(0);
   });
 });

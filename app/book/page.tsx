@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
 import { useLocation } from "@/components/location-context";
 import { usePlan, getFloors, type FloorRoom } from "@/lib/plan-store";
 import { getLocks, setLockApi, createBookingApi, getOccupied, setBookingStatusApi } from "@/lib/api";
-import { deriveTimes, validateBooking, todayInTz, DURATION_LABELS, type DurationType, type Kind } from "@/lib/booking-rules";
+import { deriveTimes, validateBooking, todayInTz, maxAdvanceDate, DURATION_LABELS, type DurationType, type Kind } from "@/lib/booking-rules";
 import { spaceKey, type SpaceEl, type SpaceKind, type SpaceStatus } from "@/lib/types";
 import { FloorSvg } from "@/components/floorplan/floor-svg";
 import { Legend } from "@/components/floorplan/legend";
@@ -442,6 +442,7 @@ export default function BookPage() {
                 officeOpen={plan.openTime || "08:00"}
                 officeClose={plan.closeTime || "17:30"}
                 today={todayInTz(plan.tz)}
+                maxDate={maxAdvanceDate(plan.advanceDays, plan.tz)}
                 onToggleLock={toggleLock}
                 onBook={doBook}
                 adminBooking={selKey ? adminBookings[selKey] : undefined}
@@ -485,6 +486,7 @@ function Detail({
   officeOpen,
   officeClose,
   today,
+  maxDate,
   onToggleLock,
   onBook,
   adminBooking,
@@ -511,6 +513,7 @@ function Detail({
   officeOpen: string;
   officeClose: string;
   today: string; // today's date in the OFFICE timezone (min selectable date)
+  maxDate?: string; // latest selectable START date under the site's advance-booking window (undefined = unlimited)
   onToggleLock: () => void;
   onBook: (el: SpaceEl) => void;
   adminBooking?: { id: string; user: string };
@@ -594,7 +597,7 @@ function Detail({
           <div className="text-[11px] font-semibold uppercase tracking-[0.05em] text-txt-mute">
             {(el.t === "desk" || el.t === "parking") && duration === "full" ? "From" : "Date"}
           </div>
-          <input type="date" aria-label={(el.t === "desk" || el.t === "parking") && duration === "full" ? "From date" : "Booking date"} value={selDate} min={today} onChange={(e) => setSelDate(e.target.value)} className="ed-input my-2" />
+          <input type="date" aria-label={(el.t === "desk" || el.t === "parking") && duration === "full" ? "From date" : "Booking date"} value={selDate} min={today} max={maxDate} onChange={(e) => setSelDate(e.target.value)} className="ed-input my-2" />
 
           {(el.t === "desk" || el.t === "parking") && duration === "full" && (
             <>

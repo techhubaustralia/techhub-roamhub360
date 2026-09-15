@@ -4,8 +4,8 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
 import { getBookings, setBookingStatusApi, editBookingApi, isActiveBooking, displayStatus, type Booking } from "@/lib/api";
-import { getBuildingsMeta } from "@/lib/plan-store";
-import { deriveTimes, checkInWindowError, type DurationType, type Kind } from "@/lib/booking-rules";
+import { getBuildingsMeta, fetchPlan } from "@/lib/plan-store";
+import { deriveTimes, checkInWindowError, maxAdvanceDate, type DurationType, type Kind } from "@/lib/booking-rules";
 import { PageHeader } from "@/components/page-header";
 import { StatusPill } from "@/components/status-pill";
 
@@ -200,6 +200,16 @@ function EditModal({ b, buildingName, onClose, onSaved }: { b: Booking; building
   const [endTime, setEndTime] = useState(b.end.slice(11) || "10:00");
   const [half, setHalf] = useState<"am" | "pm">(b.start.slice(11) < "12:30" ? "am" : "pm");
   const [saving, setSaving] = useState(false);
+  // Cap the date picker at the site's advance-booking window so out-of-window days are disabled up
+  // front rather than rejected on save (validateBooking on the server stays authoritative).
+  const [maxDate, setMaxDate] = useState<string | undefined>(undefined);
+  useEffect(() => {
+    let alive = true;
+    fetchPlan(b.buildingId)
+      .then((p) => { if (alive) setMaxDate(maxAdvanceDate(p.advanceDays, p.tz)); })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, [b.buildingId]);
 
   async function save() {
     const { start, end } = deriveTimes({ kind, duration: dur, startDate, endDate: kind === "desk" && dur === "full" ? endDate : undefined, startTime, endTime, half });
@@ -223,7 +233,7 @@ function EditModal({ b, buildingName, onClose, onSaved }: { b: Booking; building
         <div className="mt-4 flex flex-col gap-3">
           <label className="block">
             <span className="mb-1 block text-[11px] font-semibold uppercase tracking-[0.05em] text-txt-mute">{kind === "desk" && dur === "full" ? "From date" : "Date"}</span>
-            <input type="date" value={startDate} min={today} onChange={(e) => setStartDate(e.target.value)} className="ed-input" />
+            <input type="date" value={startDate} min={today} max={maxDate} onChange={(e) => setStartDate(e.target.value)} className="ed-input" />
           </label>
 
           {kind === "desk" && dur === "full" && (
