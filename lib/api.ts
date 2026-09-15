@@ -100,6 +100,28 @@ export interface Presence {
   mySites: string[];
 }
 /** Who from your workspace has an active booking on the given day (grouped/rendered client-side). */
+// ---- Office bookings overview (cross-site, date range) ----
+export interface OfficeBookings {
+  enabled: boolean; // false when the tenant has presence or office-booking switched off
+  isAdmin: boolean;
+  total: number;
+  rows: import("./office-bookings").OfficeBookingRow[];
+  from?: string;
+  to?: string;
+}
+const OFFICE_BOOKINGS_EMPTY: OfficeBookings = { enabled: true, isAdmin: false, total: 0, rows: [] };
+export async function getOfficeBookings(params: Record<string, string | number | undefined>): Promise<OfficeBookings> {
+  const qs = new URLSearchParams();
+  for (const [k, v] of Object.entries(params)) if (v !== undefined && v !== "") qs.set(k, String(v));
+  try {
+    const r = await fetch(`/api/office-bookings?${qs}`, { cache: "no-store" });
+    if (!r.ok) return OFFICE_BOOKINGS_EMPTY;
+    return (await r.json()) as OfficeBookings;
+  } catch {
+    return OFFICE_BOOKINGS_EMPTY;
+  }
+}
+
 export async function getPresence(date: string): Promise<Presence> {
   try {
     const r = await fetch(`/api/presence?date=${date}`, { cache: "no-store" });

@@ -23,6 +23,7 @@ export const FEATURES: { key: string; label: string }[] = [
   { key: "directory", label: "Directory sync" },
   { key: "digest", label: "Daily who's-in digest" },
   { key: "assistant", label: "Hubbi (AI booking assistant)" },
+  { key: "office-booking", label: "Office bookings (cross-site overview)" },
 ];
 
 // Subdomain rules: 3–32 chars, lowercase alphanumeric + hyphens, not reserved.

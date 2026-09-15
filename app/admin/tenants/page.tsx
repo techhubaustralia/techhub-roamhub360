@@ -20,6 +20,7 @@ const FEATURES = [
   { key: "presence", label: "Who's in (team presence)" },
   { key: "directory", label: "Directory sync" },
   { key: "digest", label: "Daily who's-in digest" },
+  { key: "office-booking", label: "Office bookings (cross-site overview)" },
 ];
 const TIERS = ["trial", "standard", "professional", "enterprise"];
 

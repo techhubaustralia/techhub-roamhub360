@@ -240,3 +240,38 @@ gate("API regression — RBAC & PII", () => {
     expect(rows[0].userEmail).toBeUndefined();
   });
 });
+
+gate("API regression — office bookings overview", () => {
+  afterAll(cleanup);
+
+  it("lists a colleague's booking by name; email + id only for admins", async () => {
+    const A = await freshBuilding();
+    const u = E("ob.user"), viewer = E("ob.viewer");
+    expect((await book(u, A, "office-1", "office", `${D}T08:00`, `${D}T17:30`)).status).toBe(201);
+    const asStaff = await api(`/api/office-bookings?from=${D}&to=${D}&site=${A}`, { headers: H(viewer) });
+    expect(asStaff.status).toBe(200);
+    expect(asStaff.body.enabled).toBe(true);
+    expect(asStaff.body.isAdmin).toBe(false);
+    expect(asStaff.body.total).toBe(1);
+    expect(asStaff.body.rows[0].name).toBeTruthy();
+    expect(asStaff.body.rows[0].space).toBe("office-1");
+    expect(asStaff.body.rows[0].userEmail).toBeUndefined();
+    expect(asStaff.body.rows[0].id).toBeUndefined();
+    const asAdmin = await api(`/api/office-bookings?from=${D}&to=${D}&site=${A}`, { headers: H() });
+    expect(asAdmin.body.isAdmin).toBe(true);
+    expect(String(asAdmin.body.rows[0].userEmail).toLowerCase()).toBe(u.toLowerCase());
+    expect(asAdmin.body.rows[0].id).toBeTruthy();
+  });
+  it("search matches the space label but never a hidden email", async () => {
+    const A = await freshBuilding();
+    const u = E("ob.search");
+    expect((await book(u, A, "room-r1", "room", `${D}T09:00`, `${D}T10:00`, "hourly")).status).toBe(201);
+    const bySpace = await api(`/api/office-bookings?from=${D}&to=${D}&site=${A}&q=room-r1`, { headers: H(E("ob.other")) });
+    expect(bySpace.body.total).toBe(1);
+    const byEmail = await api(`/api/office-bookings?from=${D}&to=${D}&site=${A}&q=${encodeURIComponent("@example.com")}`, { headers: H(E("ob.other")) });
+    expect(byEmail.body.total).toBe(0); // staff cannot search by email
+  });
+  it("rejects a window longer than 62 days (400)", async () => {
+    expect((await api(`/api/office-bookings?from=2026-01-01&to=2026-04-01`, { headers: H() })).status).toBe(400);
+  });
+});
