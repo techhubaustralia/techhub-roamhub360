@@ -8,7 +8,7 @@ import { inviteEmail, emailBrand } from "./email";
 // creation so nobody ever hand-sets or transmits a customer's password. Best-effort: never throws.
 export async function sendInvite(
   req: Request,
-  user: { id: string; email: string },
+  user: { id: string; email: string; name?: string | null },
   opts: { tenantId?: string; workspaceName?: string; inviter?: string } = {},
 ): Promise<boolean> {
   try {
@@ -17,7 +17,7 @@ export async function sendInvite(
     // Invited users are created passwordless — the fingerprint of "no password yet" means the link
     // dies the moment they set one (single-use).
     const url = `${origin}/set-password?token=${encodeURIComponent(signPwToken(user.id, pwFingerprint(null)))}`;
-    const mail = inviteEmail(url, { workspaceName: opts.workspaceName, inviter: opts.inviter }, await emailBrand(opts.tenantId));
+    const mail = inviteEmail(url, { workspaceName: opts.workspaceName, inviter: opts.inviter, recipientName: user.name ?? undefined }, await emailBrand(opts.tenantId));
     return await sendMail(user.email, mail.subject, mail.html, opts.tenantId);
   } catch {
     return false;
