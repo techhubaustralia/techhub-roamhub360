@@ -1,7 +1,15 @@
-# Security Penetration Checklist — Workspace Hub
+# Security Penetration Checklist — RoamHub360
 
-Each item: **Attack scenario → Expected behavior → Pass/Fail criteria**. Current status reflects
-code as of v64. Items marked (E2E) are covered by `tests/api-regression.test.ts`.
+Each item: **Attack scenario → Expected behavior → Pass/Fail criteria**. Items marked (E2E) are
+covered by `tests/api-regression.test.ts`.
+
+> **Read with `SECURITY.md` (2026-09).** The authentication items below were written when the app sat
+> behind Azure Easy Auth. Today there is no ingress auth: sessions are Auth.js JWTs, the route guard is
+> `proxy.ts` + the `auth.config.ts` public allowlist, and identity comes from `getUser()`. The
+> `x-ms-client-principal-name` header is **ignored** everywhere (the dev-only `x-dev-*` headers are
+> inert under `NODE_ENV=production`, unit-tested). Tenant isolation is covered by the "tenant
+> isolation" block of the live suite. The attack scenarios remain valid; re-read the "Expected"
+> column against the current auth model before running them.
 
 ## 1. Authentication
 - **Unauthenticated API access.** Attack: call any `/api/*` without an Easy Auth session.

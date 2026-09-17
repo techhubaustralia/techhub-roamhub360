@@ -1,36 +1,65 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# RoamHub360
 
-## Getting Started
+Multi-tenant desk, office, meeting-room and parking booking for workplaces — a TechHub Australia
+product. Employees book from a live floor plan, see who's in, and check in with a tap or the QR code
+at the desk; admins manage sites, users, Microsoft 365 integration and licensing. Each customer gets
+an isolated workspace at `<slug>.roamhub360.com`.
 
-First, run the development server:
+**Stack:** Next.js 16 (App Router) · React 19 · TypeScript strict · Prisma → PostgreSQL (JSON file
+backend for local dev) · Auth.js v5 (password, Microsoft Entra, Google, Teams SSO) · Tailwind.
+One process serves UI + API; deployed as a Docker image on a DigitalOcean droplet behind Caddy.
+
+## Start here
+
+| I want to… | Read |
+|---|---|
+| Understand the whole project (new engineer or new AI session) | `PROJECT_HANDOVER/README.md` → `16_AI_CONTEXT.md` first |
+| Set up a dev machine | `PROJECT_HANDOVER/15_SETUP_ON_NEW_MACHINE.md` |
+| Deploy / operate production | `docs/DEPLOY-DROPLET.md` |
+| See the API | `PROJECT_HANDOVER/07_API_DOCUMENTATION.md` |
+| Ship the Android app | `PROJECT_HANDOVER/21_ANDROID_APP.md` |
+| Know what's pending | `PROJECT_HANDOVER/10_PENDING_WORK.md` |
+
+Files named `ONBOARDING.md`, `RUNBOOK.md`, `DEPLOY.md`, `docs/DEPLOY.md` and `azure-pipelines.yml`
+describe the **retired** predecessor deployment and carry a SUPERSEDED banner.
+
+## Local development
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm ci
+cp .env.example .env.local          # set AUTH_SECRET + CHECKIN_SECRET; leave DATABASE_URL unset for the file backend
+npm run dev                         # http://localhost:3000 — no login needed locally (demo Workspace admin)
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Without `DATABASE_URL` the app stores plans/bookings under `./data` and user management pages report
+that they need the database — everything else works.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Quality gate (run before every commit; CI runs the same)
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+npx tsc --noEmit && npm run lint && npm test && npm run build
+```
 
-## Learn More
+Expect: no type errors, **0 lint errors** (warnings are tolerated by design), all unit tests green,
+clean build. The live API-regression suite (31 tests, tenant isolation included) runs against a dev
+server in a second terminal:
 
-To learn more about Next.js, take a look at the following resources:
+```bash
+E2E_BASE=http://localhost:3000 npm run test:api
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+`.github/workflows/ci.yml` runs both on every push and pull request. Nothing in CI deploys.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Conventions that matter
 
-## Deploy on Vercel
+- Tenancy, identity and data access go through `lib/server/*` choke-points (`currentTenantId`,
+  `getUser`, `db.ts`, `prisma.ts`, `store.ts`). Always scope by tenant.
+- Times are site-local wall-clock strings plus the site's IANA timezone; never the server clock.
+- Stored role `global-admin` is displayed as **Workspace admin** and administers one workspace only.
+  Only `BOOTSTRAP_ADMINS` (the platform operator) crosses workspaces.
+- New environment variables must be added to the `environment:` block of `docker-compose.cohost.yml`.
+- Read `node_modules/next/dist/docs/` before writing Next-specific code (`AGENTS.md`).
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Licence
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Proprietary — © TechHub Australia. Not for redistribution.

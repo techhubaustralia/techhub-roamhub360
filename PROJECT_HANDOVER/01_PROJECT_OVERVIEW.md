@@ -9,7 +9,7 @@
 
 | | |
 |---|---|
-| **Repository name** | `workspace-hub` (folder `C:\Projects\workspace-hub`) |
+| **Repository name** | `techhub-roamhub360` on GitHub; package `roamhub360`; local folder `C:\Projects\workspace-hub` (historical name, harmless) |
 | **Product name** | **RoamHub360** — "Smart Desk Booking & Workplace Management Platform" |
 | **Tagline** | "Space managed. Teams connected." |
 | **Provider / vendor** | **TechHub Australia** (MSP; RoamHub360 is its commercial sub-brand) |

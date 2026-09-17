@@ -2,7 +2,7 @@
 
 ## What this is
 
-**RoamHub360** — a multi-tenant **workplace/desk-booking SaaS** (repo `workspace-hub`), sold by the MSP
+**RoamHub360** — a multi-tenant **workplace/desk-booking SaaS** (repo `techhub-roamhub360`), sold by the MSP
 **TechHub Australia** at **AUD $2,000 per site/year**. Employees book desks/offices/rooms/parking from an
 interactive floor plan; admins manage plans, presence, analytics, and Microsoft 365 integration. Built
 as one **Next.js 16 / React 19 / TypeScript** app with **Prisma → PostgreSQL**, **Auth.js v5**, and deep

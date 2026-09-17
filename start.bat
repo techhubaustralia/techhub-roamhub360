@@ -1,5 +1,5 @@
 @echo off
-REM Start the Workspace Hub dev server
+REM Start the RoamHub360 dev server
 cd /d "%~dp0"
 if not exist "node_modules" (
   echo Installing dependencies...
