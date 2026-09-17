@@ -105,9 +105,9 @@ hand in Play Console (it creates the app record the API needs); every later rele
   work account. RoamHub360 is provided by your employer; contact your workplace admin for access.
 - **Category:** Business. **Contact:** support@techhubaustralia.com.au. **Privacy policy URL:**
   `https://app.roamhub360.com/privacy`.
-- **Assets needed:** 512×512 icon (use `public/icons/icon-512.png`), 1024×500 feature graphic, at
-  least 2 phone screenshots (Book, Who's in, My bookings) — take them from the deployed app on a
-  phone-sized viewport.
+- **Assets:** `node scripts/store-assets.mjs` renders the 512×512 icon and the 1024×500 feature
+  graphic (`store/feature-graphic.svg`) into `store/out/`; `node scripts/store-screenshots.mjs`
+  captures phone screenshots from a signed-in demo workspace (see `store/README.md`).
 - **App access:** "Restricted access" — provide a reviewer test account on a demo workspace
   (password sign-in) so Google can get past the sign-in screen.
 
