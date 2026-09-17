@@ -54,7 +54,7 @@ Effort: **S** <1d · **M** 1–3d · **L** >3d.
 
 | Item | Pri | Effort | Notes |
 |---|---|---|---|
-| **H3/H4** provision Redis before running >1 replica | P1 | S | Set `REDIS_URL`; both are already Redis-ready. |
+| **H3/H4** provision Redis before running >1 replica | P1 | S | `REDIS_URL` is now passed through by `docker-compose.cohost.yml` (was missing until 2026-09-17). Add a `redis` service (or managed Redis), set `REDIS_URL=redis://redis:6379`, verify rate-limit + SSE across two replicas. Single instance today needs nothing. |
 | Graph directory sync at scale (paging/backoff) | P3 | M | Already best-effort; validate on a large directory. |
 
 ## Security

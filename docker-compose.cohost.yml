@@ -97,6 +97,10 @@ services:
       # SHA-256 fingerprint(s) of the Play App Signing certificate, comma-separated. Blank = 404.
       ANDROID_ASSETLINKS_SHA256: ${ANDROID_ASSETLINKS_SHA256:-}
       ANDROID_PACKAGE_NAME: ${ANDROID_PACKAGE_NAME:-com.techhubaustralia.roamhub360}
+      # Redis (H3/H4) — ONLY needed before running more than one app replica: shared rate-limit
+      # counters + cross-replica SSE fan-out. Blank = in-process (single instance, today). Point at a
+      # Redis you run alongside (e.g. redis://redis:6379 after adding a `redis` service) — never public.
+      REDIS_URL: ${REDIS_URL:-}
       # SSO: unknown Microsoft/Google accounts may auto-join ONLY these email domains (comma-
       # separated, e.g. "techhubaustralia.com.au"). Blank = invite-only (safe default).
       SSO_AUTO_JOIN_DOMAINS: ${SSO_AUTO_JOIN_DOMAINS:-}

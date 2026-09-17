@@ -5,9 +5,12 @@
 #   cp .env.example .env   # then fill it in
 #   docker compose up -d --build
 #
-# NOTE: until the Easy-Auth replacement lands (next step), the app has NO login off
-# Azure — every visitor resolves to the break-glass admin. Keep the demo private
-# (enable Caddy basic_auth in the Caddyfile) until auth is added.
+# NOTE: this is the STANDALONE path (bundled Caddy on ports 80/443) for a box of its own. The
+# production droplet co-hosts behind an existing Caddy and uses docker-compose.cohost.yml, which is
+# the maintained, complete variable list (web push, Resend, Stripe, AI, Android asset links, Redis…).
+# If you deploy with THIS file, copy any optional variables you need from the cohost file's
+# `environment:` block — the app treats every optional variable as "off" when absent.
+# Login is built in (Auth.js: password, Microsoft, Google) — the old "no login off Azure" caveat is gone.
 
 services:
   db:

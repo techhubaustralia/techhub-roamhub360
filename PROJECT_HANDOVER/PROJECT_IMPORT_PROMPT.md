@@ -19,7 +19,8 @@ confirm you understand it:**
    `18_COMMAND_REFERENCE.md` — how to configure, run, and deploy.
 6. `PROJECT_HANDOVER/14_SECURITY_REVIEW.md`, `03_FOLDER_STRUCTURE.md`, `04_DEPENDENCIES.md`,
    `09_CHANGELOG.md`, `11_TESTING_GUIDE.md`, `13_COMMERCIAL_CONFIGURATION.md`, `19_FILE_MANIFEST.md`.
-7. Also read `AGENTS.md`, `prisma/migrations/README.md`, and `docs/C4-tenancy-hardening.md`.
+7. Also read `AGENTS.md`, `prisma/migrations/README.md`, `docs/C4-tenancy-hardening.md`, and
+   `21_ANDROID_APP.md` (the Google Play track — the web side is done, the operator steps are not).
 
 **Critical facts to internalise (details in the docs):**
 - Stack: Next.js 16 (App Router; route `params` are Promises — `await params`), React 19, TypeScript
@@ -30,19 +31,27 @@ confirm you understand it:**
   single `prisma.ts`, `store.ts`). There is a JSON/file data backend when `DATABASE_URL` is unset (dev).
 - Booking times are **site-local wall-clock strings**; always compare using the site's timezone (fallback
   `APP_DEFAULT_TZ`), never the server clock. The AI concierge only **proposes** bookings.
-- The project just finished an enterprise-hardening pass. **C4 (DB-level tenant isolation: FK + RLS) is
-  prepared but NOT applied** (`prisma/planned/`) — it must be applied and validated on a **staging
-  Postgres** with the leak test before production. This is the top pending item.
+- Enterprise-hardening pass (2026-07) and the predecessor-feature port + tenant-isolation hardening +
+  Android groundwork (2026-09) are done and deployed. **C4 (DB-level tenant isolation: FK + RLS)** is
+  prepared but NOT applied (`prisma/planned/`; `withTenant()` exists behind `TENANT_RLS`, off) — it must
+  be applied and validated on a **staging Postgres** with the leak test before production.
+- Only `BOOTSTRAP_ADMINS` is cross-tenant. A customer's `global-admin` (shown as **Workspace admin**)
+  administers their own workspace only; the live suite's tenant-isolation block must stay green.
+- The predecessor's code is **reference-only**: re-implement, never copy; nothing from that vendor
+  enters this repo. Changes are additive — existing behaviour stays unless a bug is named.
 
 **Ground rules (from the team's working agreements):**
 - Match existing code style. Keep lint at **0 errors** and add a runnable test for non-trivial changes.
-  Verify with `npx tsc --noEmit && npm run lint && npm test && npm run build` before calling anything done.
-- **Never push to GitHub or deploy automatically.** Provide exact git commands for the human to run, and
-  verify the target first (`git remote -v` + `git config user.email` → must be
-  `github.com/techhubaustralia/techhub-roamhub360` / `support@techhubaustralia.com.au`). The human runs
-  all deploys. Commit trailer: `Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>`.
-- Never echo secrets; don't add build-breaking optional deps; keep `*.sh` LF; add any new env var to the
-  `environment:` block of `docker-compose.cohost.yml`.
+  Verify with `npx tsc --noEmit; npm run lint; npm test; npm run build` (PowerShell: no `&&`) before
+  calling anything done. CI (`.github/workflows/ci.yml`) runs the same gate + the live suite.
+- **The human runs every command** — git, npm, deploys, scripts — one step at a time, and pastes the
+  output. Hand over exact commands with expected results; never chain a commit after checks in one
+  line. Never push or deploy. Verify the target first (`git remote -v` + `git config user.email` →
+  `github.com/techhubaustralia/techhub-roamhub360` / `support@techhubaustralia.com.au`; push needs
+  `gh auth switch --user techhubaustralia`). Commit trailer: `Co-Authored-By: <Claude model> <noreply@anthropic.com>`.
+- Explain a change before implementing it. Never echo secrets; don't add build-breaking optional deps;
+  keep `*.sh` LF; add any new env var to the `environment:` block of `docker-compose.cohost.yml`.
+- Don't run `npm ci`/`npm install` while `next dev` is running (Windows file locks gut `node_modules`).
 
 **First, do this:** read the files above, then give me a short summary of (a) the current production
 state, (b) the top 3 pending priorities, and (c) the exact next development task you'd start — and wait

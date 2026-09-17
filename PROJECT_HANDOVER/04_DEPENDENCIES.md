@@ -60,7 +60,8 @@
 ## Testing frameworks
 
 - **Vitest 4** — 29 unit test files (pure logic + server helpers with a `server-only` stub via `test/stubs/server-only.ts`). ~170 tests (≈151 pass, 19 skipped).
-- **Playwright** (`@playwright/test`) — E2E in `e2e/booking.spec.ts`. **Note:** `@playwright/test` is referenced by config but may need `npm i -D @playwright/test && npx playwright install` on a fresh machine (not in the default dependency set for the container).
+- **Playwright** (`@playwright/test`, devDependency since 2026-09-17) — E2E in `e2e/booking.spec.ts` and the Play-store screenshot script `scripts/store-screenshots.mjs`. Browsers still need a one-off `npx playwright install chromium` per machine; the container never installs them.
+- **`sharp`** is also used directly by `scripts/store-assets.mjs` to render the Play feature graphic.
 
 ## NOT present (despite the template asking)
 
