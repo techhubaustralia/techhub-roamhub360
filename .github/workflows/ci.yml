@@ -1,0 +1,97 @@
+# Quality gate on every push to main and every pull request — the same four checks the operator runs
+# by hand before a commit (tsc, lint, unit tests, build), plus the live API-regression suite against a
+# dev server and a production-dependency audit. Nothing here deploys: the droplet is still updated by
+# hand (docs/DEPLOY-DROPLET.md).
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Build/runtime placeholders so `next build` and the dev server start without a real .env.
+  # They are NOT secrets and are never used outside this job.
+  AUTH_SECRET: ci-only-placeholder-not-a-secret-0000000000000000
+  CHECKIN_SECRET: ci-only-placeholder-not-a-secret
+  JOBS_SECRET: ci-only-placeholder-not-a-secret
+  APP_URL: http://localhost:3000
+  AUTH_URL: http://localhost:3000
+  AUTH_TRUST_HOST: "true"
+  NEXT_TELEMETRY_DISABLED: "1"
+
+jobs:
+  quality:
+    name: tsc · lint · unit · build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22 # matches the container image (node:22-slim); local dev may run newer
+          cache: npm
+      - run: npm ci
+      - run: npx prisma generate
+      - run: npx tsc --noEmit
+      - run: npm run lint
+      - run: npm test
+      - run: npm run build
+
+  live-suite:
+    name: API regression (live, dev server)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: quality
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx prisma generate
+      # The suite impersonates users via the x-dev-* headers, which only the NO-session dev branch of
+      # getUser() honours (inert under NODE_ENV=production) — so it must run against `next dev`, not
+      # `next start`. No DATABASE_URL → the file backend under ./data, exactly like a local run.
+      - name: Start dev server
+        run: |
+          nohup npm run dev > dev.log 2>&1 &
+          for i in $(seq 1 60); do
+            if curl -sf http://localhost:3000/api/health > /dev/null; then echo "ready after ${i}x2s"; exit 0; fi
+            sleep 2
+          done
+          echo "dev server did not become ready"; tail -50 dev.log; exit 1
+      # Turbopack compiles routes on first hit. Touch every route the suite uses once so no test pays
+      # the cold-compile cost inside its own timeout.
+      - name: Warm routes
+        run: |
+          for p in /api/me /api/plans/warm /api/bookings /api/bookings/warm /api/bookings/recurring /api/buildings /api/office-bookings /api/users /api/audit /api/directory /api/tenants /api/locks/warm /api/checkin; do
+            curl -s -o /dev/null -w "$p %{http_code}\n" "http://localhost:3000$p" || true
+          done
+      - name: Run tests/api-regression.test.ts
+        run: npm run test:api
+        env:
+          E2E_BASE: http://localhost:3000
+      - name: Dev server log (on failure)
+        if: failure()
+        run: tail -100 dev.log
+
+  audit:
+    name: npm audit (production deps)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # Advisory only: a new upstream CVE must not block a fix from shipping. Review the job output.
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run audit:ci

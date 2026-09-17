@@ -81,5 +81,6 @@ Graph timeouts, redaction, AI guardrails, presence scoping), **Q1** lint-green, 
 2. Live checks still owed by the operator: invite email rendering in Outlook, Import from Microsoft
    365 on a real tenant, "Workspace admin" label on Users & roles.
 3. Provision a **staging Postgres**; apply `prisma/planned/01` + `02`; run the C4 leak test; wire `withTenant()`.
-4. Provision **Redis**; set `REDIS_URL`. Stand up **CI** (tsc + lint + vitest + audit:ci + live suite vs staging).
+4. Provision **Redis**; set `REDIS_URL`. (CI is in place: `.github/workflows/ci.yml` runs the gate + the
+   live suite on every push/PR.)
 5. iOS: PWA Add-to-Home-Screen today; an App Store shell (Capacitor) is a separate decision after Android.

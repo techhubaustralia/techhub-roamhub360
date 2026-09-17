@@ -24,6 +24,16 @@ npm i -D @playwright/test && npx playwright install   # first time on a new mach
 E2E_BASE=http://localhost:3000 npm run test:e2e
 ```
 
+## Continuous integration (`.github/workflows/ci.yml`, added 2026-09-17)
+
+Every push to `main` and every pull request runs three jobs on GitHub Actions (Node 22, same as the
+container): **quality** (`tsc` → lint → unit tests → `next build`), **live-suite** (starts `next dev`
+with placeholder secrets, waits for `/api/health`, runs `tests/api-regression.test.ts` — the 31 live
+tests, file backend, no database) and **audit** (`npm run audit:ci`, advisory-only so a fresh upstream
+CVE can't block a fix). Nothing in CI deploys; the droplet is still updated by hand. If a job fails,
+the run's log shows the same output you'd see locally; the live-suite job prints the dev-server log
+on failure.
+
 ## Simulating identities in the API regression suite
 
 The live suite needs to act as different users and roles (one-desk rule, admin-vs-owner cancel,

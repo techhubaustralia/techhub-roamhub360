@@ -57,26 +57,27 @@ critical: a plain `SET` persists on the pooled connection and leaks the last req
 next one — worse than no RLS. `set_config(..., true)` is transaction-scoped, so it's discarded on
 commit/rollback. Every tenant-scoped query must run inside such a transaction:
 
-```ts
-// lib/server/tenant-rls.ts — wire this in during the Phase B rollout (currently unused by design).
-import "server-only";
-import { prisma } from "./prisma";
-import { currentTenantId } from "./tenant";
+**Implemented (2026-09-17) in `lib/server/tenant-rls.ts`, shipped dark.** `withTenant(fn, tenantId?)`
+is gated by the `TENANT_RLS` env var: unset/`off` (default) runs `fn` on the shared client with no
+transaction — byte-for-byte today's behaviour — so data-access functions can be routed through it one
+at a time, on production, with zero effect. `TENANT_RLS=on` opens one interactive transaction, runs
+`SELECT set_config('app.tenant_id', $tenant, true)` and passes the transaction client to `fn`.
+Unit-tested (`tenant-rls.test.ts`) for the flag semantics and the is_local=true call.
 
-/** Run `fn` with the RLS tenant context set for the duration of ONE transaction.
- *  is_local=true → the setting is scoped to this transaction and never leaks onto the pooled
- *  connection. Pass the `tx` client to every query inside `fn`. */
-export async function withTenant<T>(fn: (tx: any) => Promise<T>, tenantId?: string): Promise<T> {
-  const p = await prisma();
-  const tid = tenantId ?? (await currentTenantId());
-  return p.$transaction(async (tx: any) => {
-    await tx.$executeRaw`SELECT set_config('app.tenant_id', ${tid}, true)`;
-    return fn(tx);
-  });
-}
+```ts
+import { withTenant } from "./tenant-rls";
+// inside a data-access function:
+return withTenant((tx) => tx.booking.findMany({ where: { tenantId, ... } }));
 ```
 
-Then each data-access function routes through it, e.g.
+Rollout order: (1) route every tenant-scoped read/write in `db.ts`, `users.ts`, `directory.ts`,
+`kb.ts`, `support.ts`, … through `withTenant` while the flag is off — deploy, no behaviour change;
+(2) on **staging**, apply Phase A then Phase B and set `TENANT_RLS=on`; run the leak test;
+(3) production in the same order. Add `TENANT_RLS` to the `environment:` block of
+`docker-compose.cohost.yml` when step 2 starts (deliberately not there yet — nothing should be able to
+switch it on before the SQL is applied).
+
+Each data-access function then routes through it, e.g.
 `return withTenant((tx) => tx.booking.findMany({ where: { ... } }));`. Platform-admin paths that must
 cross tenants (global KB authoring, the admin tenant list) run **without** `withTenant` under a DB role
 that is exempt from FORCE RLS — keep that role separate from the app's runtime role.

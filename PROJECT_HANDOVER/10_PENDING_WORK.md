@@ -27,7 +27,7 @@ Effort: **S** <1d · **M** 1–3d · **L** >3d.
 
 | Item | Pri | Effort | Notes |
 |---|---|---|---|
-| **C4 not applied** — no DB-level tenant isolation | P1 | M–L | Apply `prisma/planned/01`+`02` on **staging first**, wire `withTenant()` per-txn context, run the leak test. See `docs/C4-tenancy-hardening.md`. **Needs a staging Postgres.** |
+| **C4 not applied** — no DB-level tenant isolation | P1 | M–L | `withTenant()` now exists (`lib/server/tenant-rls.ts`, flag `TENANT_RLS`, off by default, unit-tested). Remaining: route data-access functions through it (no behaviour change while off), then on **staging** apply `prisma/planned/01`+`02`, set `TENANT_RLS=on`, run the leak test. See `docs/C4-tenancy-hardening.md`. **Needs a staging Postgres.** |
 | **M1** identity/membership split (users → User + Membership join for multi-workspace) | P2 | L | C4-adjacent data-model change. |
 | **M6** generic blob-write concurrency (whole-file read-modify-write in `store.ts` for push subs/plans) | P2 | M | Move hot config to SQL or add optimistic concurrency. |
 | **U3** floor-plan editor decomposition (`app/editor/[id]/page.tsx` is large) | P3 | M | Refactor, no behaviour change. |
@@ -47,7 +47,7 @@ Effort: **S** <1d · **M** 1–3d · **L** >3d.
 |---|---|---|---|
 | **Microsoft-dependent flows** (directory sync, room calendar, Teams SSO, Entra org consent) | P1 | M | Untested without a real Entra tenant + Graph consent. |
 | **C4 RLS leak test** on staging | P1 | M | Two-tenant isolation proof (in the C4 runbook). |
-| **E2E harness in CI** (Q2/Q3) | P2 | M | Playwright specs exist (`e2e/booking.spec.ts`); wire staging + CI. |
+| **E2E harness in CI** (Q2/Q3) | P3 | S | CI now runs tsc/lint/unit/build + the 31-test live API suite on every push/PR (`.github/workflows/ci.yml`, 2026-09-17). Only the Playwright UI spec (`e2e/booking.spec.ts`) is still outside CI — it needs seeded fixtures. |
 | Live billing (Stripe) end-to-end | P2 | M | After billing is wired. |
 
 ## Performance
@@ -72,7 +72,7 @@ Effort: **S** <1d · **M** 1–3d · **L** >3d.
 |---|---|---|
 | Live billing provider (Stripe / MS Marketplace / Xero / MYOB) | P2 | L |
 | Per-tenant sync-failure / credential-expiry push alerts (event-driven) | P3 | M |
-| Staging environment + CI/CD pipeline (currently manual `docker compose up`) | P2 | M |
+| Staging environment (CI exists as of 2026-09-17; deploys are still manual `docker compose up` by design) | P2 | M |
 
 ## The single tracked backlog item
 
