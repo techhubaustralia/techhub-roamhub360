@@ -94,6 +94,7 @@ export async function createUser(input: {
   multiBook?: boolean;
   tenantId?: string; // explicit tenant (e.g. self-serve signup provisioning a new workspace)
   mustVerify?: boolean; // self-serve signup: block sign-in until the email is verified
+  provider?: string; // "credentials" (default) or an SSO provider id for pre-provisioned SSO users
 }): Promise<Omit<UserRow, "tenantId"> & { id: string }> {
   const p = await prisma();
   let passwordHash: string | null = null;
@@ -106,7 +107,7 @@ export async function createUser(input: {
       role: input.role ?? "staff",
       sites: input.sites ?? [],
       multiBook: input.multiBook ?? false,
-      provider: "credentials",
+      provider: input.provider ?? "credentials",
       tenantId: input.tenantId ?? (await currentTenantId()),
       mustVerify: input.mustVerify ?? false,
     },

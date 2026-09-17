@@ -50,7 +50,8 @@ Common conventions:
 | `/api/me/2fa` | GET/POST | signed-in | TOTP enrol/confirm (`lib/server/totp.ts`). |
 | `/api/me/prefs` | GET/PATCH | signed-in | own presence prefs (hidePresence/notifyPresence). |
 | `/api/users`, `/api/users/[id]` | GET/POST/PATCH/DELETE | global-admin | user CRUD; last-global-admin guard; role change captures **before/after** audit. |
-| `/api/users/import` | POST | global-admin | bulk import. |
+| `/api/users/import` | POST | global-admin | bulk import from CSV rows; each row gets a set-password invite. |
+| `/api/users/import-directory` | POST | global-admin | `{ emails[], role }` → pre-provisions SSO users from the workspace's **synced Entra directory** (no password, no invite; they sign in with Microsoft). Emails not in this workspace's directory are skipped, never created. Returns `{ created, skipped[{email, reason}] }`. |
 | `/api/signup` | POST | public (gated by `ALLOW_PUBLIC_SIGNUP`); 5/hr/IP | provisions tenant + 14-day trial + first admin. |
 | `/api/onboarding` | GET | admin | setup-checklist status. |
 

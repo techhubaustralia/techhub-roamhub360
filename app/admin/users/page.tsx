@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import { toast } from "sonner";
 import { Trash2, Shield, MapPin } from "lucide-react";
 import { BUILDINGS } from "@/lib/data";
 import { getBuildingsMeta } from "@/lib/plan-store";
 import { PageHeader } from "@/components/page-header";
 import { UserCsvImport } from "@/components/user-csv-import";
+import { DirectoryImport } from "@/components/directory-import";
 import { StatusPill } from "@/components/status-pill";
 import { ROLE_LABELS, roleLabel } from "@/lib/role-labels";
 
@@ -53,6 +54,7 @@ export default function UsersPage() {
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const existingEmails = useMemo(() => rows.map((u) => u.email), [rows]);
 
   const loadUsers = useCallback(async () => {
     const r = await fetch("/api/users");
@@ -153,7 +155,12 @@ export default function UsersPage() {
       <PageHeader
         title="Users & roles"
         subtitle="Create accounts and set roles. Microsoft & Google sign-ins are added automatically on first login."
-        action={<UserCsvImport onImported={loadUsers} />}
+        action={
+          <span className="flex flex-wrap gap-2">
+            <DirectoryImport existingEmails={existingEmails} onImported={loadUsers} />
+            <UserCsvImport onImported={loadUsers} />
+          </span>
+        }
       />
 
       {loadError && (

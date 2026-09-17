@@ -327,6 +327,16 @@ export async function getDirectory(): Promise<{ status: DirectoryStatus; entries
     return { status: { configured: false, hasDb: false, count: 0, lastSync: null }, entries: [] };
   }
 }
+/** Pre-provision SSO users from the synced directory (Users & roles → Import from Microsoft 365). */
+export async function importDirectoryUsersApi(emails: string[], role: string): Promise<{ ok: boolean; created: number; skipped: { email: string; reason: string }[]; error?: string }> {
+  try {
+    const r = await fetch(`/api/users/import-directory`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ emails, role }) });
+    const b = (await r.json().catch(() => ({}))) as { created?: number; skipped?: { email: string; reason: string }[]; error?: string };
+    return { ok: r.ok, created: b.created ?? 0, skipped: b.skipped ?? [], error: b.error };
+  } catch {
+    return { ok: false, created: 0, skipped: [], error: "Network error" };
+  }
+}
 export async function syncDirectoryApi(): Promise<{ ok: boolean; synced: number; photos: number; error?: string }> {
   try {
     const r = await fetch(`/api/directory`, { method: "POST" });

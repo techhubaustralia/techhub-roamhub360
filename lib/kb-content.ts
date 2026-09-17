@@ -285,6 +285,9 @@ The app remembers your workspace, so next time it opens straight to sign-in.
 ## Invite someone
 Enter their email and send the invite — they'll get a link to set a password, or can sign in with Microsoft if your workspace uses it.
 
+## Import from Microsoft 365
+If your workspace is connected to Microsoft and the **Directory** has been synced, use **Import from Microsoft 365** to pick people from your organisation and add them in one go. They sign in with Microsoft straight away — no password to set and no invite email. **Import CSV** is the alternative for workspaces without Microsoft.
+
 ## Roles
 - **Staff** — book spaces for themselves.
 - **Site admin** — manage bookings and permanent desks for their site.
