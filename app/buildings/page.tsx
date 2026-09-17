@@ -87,8 +87,8 @@ export default function BuildingsPage() {
       <div className="animate-fade-up">
         <PageHeader title="Buildings" subtitle="Manage sites and floor plans" />
         <div className="rounded-[14px] border bg-card p-8 text-center shadow-sm">
-          <p className="text-[14px] font-semibold">Global Admin access required</p>
-          <p className="mt-1 text-[12.5px] text-txt-mute">Buildings and floor plans can only be managed by a Global Admin.</p>
+          <p className="text-[14px] font-semibold">Workspace admin access required</p>
+          <p className="mt-1 text-[12.5px] text-txt-mute">Buildings and floor plans can only be managed by a Workspace admin.</p>
         </div>
       </div>
     );

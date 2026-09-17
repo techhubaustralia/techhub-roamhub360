@@ -4,21 +4,26 @@ import { describe, it, expect, afterAll } from "vitest";
 //   E2E_BASE=http://localhost:3000 npx vitest run tests/api-regression.test.ts
 // Skipped by the normal unit run (no E2E_BASE) so `npm test` stays a pure unit suite.
 //
-// Identity is simulated via the dev-only x-dev-user / x-dev-role headers, honoured solely by the
-// no-session dev branch of getUser() (lib/server/auth.ts; inert under NODE_ENV=production). No
-// email = the base dev identity (demo global-admin) — used for seeding and admin actions. A named
-// user defaults to STAFF. Each test seeds its OWN building and uses per-run-unique identities, and
-// afterAll cancels every booking it made before deleting its buildings, so re-runs are idempotent.
+// Identity is simulated via the dev-only x-dev-user / x-dev-role / x-dev-tenant headers, honoured
+// solely by the no-session dev branch of getUser() (lib/server/auth.ts; inert under
+// NODE_ENV=production). No email = the base dev identity (demo admin + platform operator) — used
+// for seeding and admin actions. A named user defaults to STAFF and to the request's tenant;
+// x-dev-tenant makes them a member of ANOTHER workspace. The request's own tenant comes from the
+// Host, so `T(slug)` targets a workspace subdomain via x-forwarded-host (what the proxy sets).
+// Each test seeds its OWN building and uses per-run-unique identities, and afterAll cancels every
+// booking it made before deleting its buildings, so re-runs are idempotent.
 
 const BASE = process.env.E2E_BASE;
 const gate = BASE ? describe : describe.skip;
 
 type DevRole = "global-admin" | "site-admin" | "staff";
-const H = (email?: string, role?: DevRole) => ({
+const H = (email?: string, role?: DevRole, tenant?: string) => ({
   "Content-Type": "application/json",
   ...(email ? { "x-dev-user": email } : {}),
   ...(role ? { "x-dev-role": role } : {}),
+  ...(tenant ? { "x-dev-tenant": tenant } : {}),
 });
+const T = (slug: string) => ({ "x-forwarded-host": `${slug}.roamhub360.com` });
 async function api(path: string, opts: RequestInit = {}) {
   const r = await fetch(`${BASE}${path}`, opts);
   let body: any = null;
@@ -320,5 +325,87 @@ gate("API regression — recurring bookings", () => {
     const A = await freshBuilding();
     const r = await recur(E("rec.staff"), { buildingId: A, spaceKey: "office-1", kind: "office", durationType: "full", startDate: D, until: addDays(D, 7), weekdays: onlyDow(D), userEmail: E("rec.victim") });
     expect(r.status).toBe(403);
+  });
+});
+
+// ---- Tenant isolation (commercial multi-tenant guarantee) ----
+// A workspace admin ("global-admin") is the admin of THEIR workspace only. Only a platform operator
+// (BOOTSTRAP_ADMINS; the base dev identity here) crosses workspaces. Everything below runs on the
+// default host (localhost) versus a second workspace reached through its subdomain.
+gate("API regression — tenant isolation", () => {
+  const OTHER = `qa-${RUN}`; // a second workspace (file backend: its own data folder)
+  const otherAdmin = E("other.admin"); // global-admin OF the other workspace
+  const otherPlans: string[] = [];
+  const otherBookings: string[] = [];
+  const plan = (id: string) => ({ id, name: id, viewBox: "0 0 600 400", open: true, published: true, status: "open", tz: "UTC", maxDeskPerDay: 5, maxConcurrent: 50, els: DEFAULT_ELS });
+  async function otherBuilding(): Promise<string> {
+    const id = `qa-${Math.random().toString(36).slice(2, 8)}`;
+    const r = await api(`/api/plans/${id}`, { method: "PUT", headers: { ...H(), ...T(OTHER) }, body: JSON.stringify(plan(id)) });
+    expect(r.status).toBe(200);
+    otherPlans.push(id);
+    return id;
+  }
+  afterAll(async () => {
+    for (const id of otherBookings.splice(0)) await api(`/api/bookings/${id}`, { method: "PATCH", headers: { ...H(), ...T(OTHER) }, body: JSON.stringify({ status: "Cancelled" }) }).catch(() => {});
+    for (const id of otherPlans.splice(0)) await api(`/api/plans/${id}`, { method: "DELETE", headers: { ...H(), ...T(OTHER) } });
+    await cleanup();
+  });
+
+  it("a workspace admin of ANOTHER workspace is anonymous here — every admin surface refuses (403)", async () => {
+    const me = await api(`/api/me`, { headers: H(otherAdmin, "global-admin", OTHER) });
+    expect(me.status).toBe(200);
+    expect(me.body.authenticated).toBe(false);
+    expect(me.body.role).toBe("staff");
+    expect(me.body.platformAdmin).toBeFalsy();
+    expect((await api(`/api/users`, { headers: H(otherAdmin, "global-admin", OTHER) })).status).toBe(403);
+    expect((await api(`/api/audit`, { headers: H(otherAdmin, "global-admin", OTHER) })).status).toBe(403);
+    expect((await api(`/api/buildings`, { method: "POST", headers: H(otherAdmin, "global-admin", OTHER), body: JSON.stringify({ id: `qa-${RUN}-x`, name: "x" }) })).status).toBe(403);
+    expect((await api(`/api/plans/qa-${RUN}-x`, { method: "PUT", headers: H(otherAdmin, "global-admin", OTHER), body: JSON.stringify(plan(`qa-${RUN}-x`)) })).status).toBe(403);
+    expect((await api(`/api/directory`, { headers: H(otherAdmin, "global-admin", OTHER) })).status).toBe(403);
+  });
+  it("the same admin IS the workspace admin on their own subdomain — and still not a platform operator", async () => {
+    const me = await api(`/api/me`, { headers: { ...H(otherAdmin, "global-admin", OTHER), ...T(OTHER) } });
+    expect(me.body.role).toBe("global-admin");
+    expect(me.body.tenantId).toBe(OTHER);
+    expect(me.body.homeTenant).toBe(OTHER);
+    expect(me.body.platformAdmin).toBe(false);
+    // Control plane (tenant list, another workspace's users) is platform-only.
+    expect((await api(`/api/tenants`, { headers: { ...H(otherAdmin, "global-admin", OTHER), ...T(OTHER) } })).status).toBe(403);
+    expect((await api(`/api/admin/tenants/default/users`, { headers: { ...H(otherAdmin, "global-admin", OTHER), ...T(OTHER) } })).status).toBe(403);
+  });
+  it("buildings, plans and bookings written on one workspace do not exist on another", async () => {
+    const B = await otherBuilding();
+    const u = E("other.user");
+    // Booked on the OTHER workspace by one of its members.
+    const b = await api(`/api/bookings`, { method: "POST", headers: { ...H(u, undefined, OTHER), ...T(OTHER) }, body: JSON.stringify({ buildingId: B, spaceKey: "office-1", kind: "office", durationType: "full", start: `${D}T08:00`, end: `${D}T17:30`, spaceLabel: "office-1" }) });
+    expect(b.status).toBe(201);
+    otherBookings.push(b.body.id);
+    // The default workspace, even as its platform operator, sees none of it.
+    const buildings = (await api(`/api/buildings`, { headers: H() })).body as { custom: { id: string }[] };
+    expect(buildings.custom.some((x) => x.id === B)).toBe(false);
+    const p = (await api(`/api/plans/${B}`, { headers: H() })).body as { name?: string; els?: unknown[] };
+    expect(p.name).not.toBe(B); // blank fallback, not the stored plan
+    expect(p.els ?? []).toHaveLength(0);
+    expect((await api(`/api/bookings/${b.body.id}`, { method: "PATCH", headers: H(), body: JSON.stringify({ status: "Cancelled" }) })).status).toBe(404);
+    const mine = (await api(`/api/bookings`, { headers: H(u) })).body as { id: string }[]; // same email, home = default
+    expect(mine.some((x) => x.id === b.body.id)).toBe(false);
+    const feed = (await api(`/api/office-bookings?from=${D}&to=${D}`, { headers: H() })).body as { rows: { id?: string; site?: string }[] };
+    expect(feed.rows.some((r) => r.id === b.body.id)).toBe(false);
+    // …while on the other workspace it is all there.
+    const there = (await api(`/api/office-bookings?from=${D}&to=${D}`, { headers: { ...H(), ...T(OTHER) } })).body as { rows: { id?: string }[] };
+    expect(there.rows.some((r) => r.id === b.body.id)).toBe(true);
+  });
+  it("the platform operator reaches any workspace; a workspace's own admin reaches only theirs", async () => {
+    const B = await otherBuilding();
+    expect(((await api(`/api/plans/${B}`, { headers: { ...H(), ...T(OTHER) } })).body as { name: string }).name).toBe(B);
+    expect(((await api(`/api/plans/${B}`, { headers: { ...H(otherAdmin, "global-admin", OTHER), ...T(OTHER) } })).body as { name: string }).name).toBe(B);
+    // A DEFAULT-workspace admin (home = "default") pointed at the other subdomain is anonymous there.
+    const dflt = H(E("default.admin"), "global-admin", "default");
+    const me = await api(`/api/me`, { headers: { ...dflt, ...T(OTHER) } });
+    expect(me.body.role).toBe("staff");
+    expect(me.body.homeTenant).toBeUndefined();
+    expect((await api(`/api/plans/${B}`, { method: "PUT", headers: { ...dflt, ...T(OTHER) }, body: JSON.stringify(plan(B)) })).status).toBe(403);
+    // …and is the admin at home.
+    expect(((await api(`/api/me`, { headers: dflt })).body as { role: string }).role).toBe("global-admin");
   });
 });

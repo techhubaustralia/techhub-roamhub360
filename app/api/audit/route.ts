@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 export async function GET(req: Request) {
   const user = await getUser();
   if (user.role !== "global-admin") {
-    return NextResponse.json({ error: "Only a Global Admin can view the activity log." }, { status: 403 });
+    return NextResponse.json({ error: "Only a Workspace admin can view the activity log." }, { status: 403 });
   }
   const format = new URL(req.url).searchParams.get("format");
   // Surface the real cause instead of failing to an empty table (e.g. a missing AuditLog

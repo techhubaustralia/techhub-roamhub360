@@ -52,4 +52,17 @@ describe("devIdentityFromHeaders — dev-only identity simulation", () => {
     expect(devIdentityFromHeaders(get({ "x-dev-user": "a@example.com", "x-dev-role": "Global-Admin" }), "test")).toEqual({ email: "a@example.com", role: "global-admin" });
     expect(devIdentityFromHeaders(get({ "x-dev-user": "a@example.com", "x-dev-role": "superuser" }), "test")).toEqual({ email: "a@example.com", role: "staff" });
   });
+  it("carries a valid x-dev-tenant as the user's home workspace", () => {
+    expect(devIdentityFromHeaders(get({ "x-dev-user": "a@example.com", "x-dev-role": "global-admin", "x-dev-tenant": "Acme-Corp" }), "test"))
+      .toEqual({ email: "a@example.com", role: "global-admin", homeTenant: "acme-corp" });
+  });
+  it("omits homeTenant when x-dev-tenant is absent or not a subdomain label", () => {
+    expect(devIdentityFromHeaders(get({ "x-dev-user": "a@example.com" }), "test")).toEqual({ email: "a@example.com", role: "staff" });
+    expect(devIdentityFromHeaders(get({ "x-dev-user": "a@example.com", "x-dev-tenant": "" }), "test")).not.toHaveProperty("homeTenant");
+    expect(devIdentityFromHeaders(get({ "x-dev-user": "a@example.com", "x-dev-tenant": "acme.roamhub360.com" }), "test")).not.toHaveProperty("homeTenant");
+    expect(devIdentityFromHeaders(get({ "x-dev-user": "a@example.com", "x-dev-tenant": "../etc" }), "test")).not.toHaveProperty("homeTenant");
+  });
+  it("x-dev-tenant is inert in production too", () => {
+    expect(devIdentityFromHeaders(get({ "x-dev-user": "a@example.com", "x-dev-tenant": "acme" }), "production")).toBeNull();
+  });
 });

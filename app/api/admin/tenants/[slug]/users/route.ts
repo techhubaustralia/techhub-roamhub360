@@ -66,7 +66,7 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ slug:
   const target = await getUserById(id);
   if (!target || (target.tenantId ?? "default") !== slug) return NextResponse.json({ error: "User not found" }, { status: 404 });
   if (target.role === "global-admin" && (await globalAdminCount(slug)) <= 1) {
-    return NextResponse.json({ error: "Cannot delete the last Global Admin of this workspace." }, { status: 400 });
+    return NextResponse.json({ error: "Cannot delete the last Workspace admin of this workspace." }, { status: 400 });
   }
   await deleteUser(id);
   await audit(g.me!.email, "tenant.user.delete", `${target.email} in ${slug}`);

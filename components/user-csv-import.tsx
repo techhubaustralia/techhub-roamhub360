@@ -11,6 +11,7 @@ type Row = { email: string; name?: string; role?: string };
 
 const ROLE_MAP: Record<string, string> = {
   "global-admin": "global-admin", global: "global-admin", admin: "global-admin",
+  "workspace-admin": "global-admin", "workspace admin": "global-admin", workspace: "global-admin", // the displayed label
   "site-admin": "site-admin", site: "site-admin",
   staff: "staff", user: "staff", member: "staff",
 };

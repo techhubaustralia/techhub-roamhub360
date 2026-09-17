@@ -67,7 +67,7 @@ export default function AssignPage() {
         <PageHeader title="Permanent desk assignments" subtitle="Reserved spaces" />
         <div className="rounded-[14px] border bg-card p-8 text-center shadow-sm">
           <p className="text-[14px] font-semibold">Admin access required</p>
-          <p className="mt-1 text-[12.5px] text-txt-mute">Permanent desk assignments are managed by Site or Global Admins.</p>
+          <p className="mt-1 text-[12.5px] text-txt-mute">Permanent desk assignments are managed by Site admins or Workspace admins.</p>
         </div>
       </div>
     );

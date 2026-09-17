@@ -7,7 +7,7 @@ import { audit, cancelActiveBookingsForBuilding } from "@/lib/server/db";
 export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const user = await getUser();
   if (user.role !== "global-admin") {
-    return NextResponse.json({ error: "Only a Global Admin can remove a building." }, { status: 403 });
+    return NextResponse.json({ error: "Only a Workspace admin can remove a building." }, { status: 403 });
   }
   const { id } = await params;
   // Cancel active bookings across all of this building's floors first, so they don't linger
@@ -22,7 +22,7 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
 export async function POST(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const user = await getUser();
   if (user.role !== "global-admin") {
-    return NextResponse.json({ error: "Only a Global Admin can restore a building." }, { status: 403 });
+    return NextResponse.json({ error: "Only a Workspace admin can restore a building." }, { status: 403 });
   }
   const { id } = await params;
   await unhideBuilding(id);

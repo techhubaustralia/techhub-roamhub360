@@ -23,22 +23,34 @@ export function canAccessBuilding(user: ScopedUser, floorOrBuildingId: string): 
 }
 
 // ---- Dev-only identity simulation (API regression suite) ----
-// `x-dev-user` / `x-dev-role` let a local test act as a named user with a given role. Kept pure
-// so the production guarantee is unit-testable: returns null under NODE_ENV=production no matter
-// what headers arrive. The server additionally only consults this inside the no-session dev branch
-// of getUser(), so the gate is doubled. A named user defaults to the LEAST-privileged role.
+// `x-dev-user` / `x-dev-role` let a local test act as a named user with a given role, and
+// `x-dev-tenant` says which workspace that user BELONGS to (their home tenant) — so the suite can
+// prove a member of one workspace is refused on another's subdomain. Kept pure so the production
+// guarantee is unit-testable: returns null under NODE_ENV=production no matter what headers arrive.
+// The server additionally only consults this inside the no-session dev branch of getUser(), so the
+// gate is doubled. A named user defaults to the LEAST-privileged role and to the request's tenant.
 export const DEV_USER_HEADER = "x-dev-user";
 export const DEV_ROLE_HEADER = "x-dev-role";
+export const DEV_TENANT_HEADER = "x-dev-tenant";
 const ROLES: readonly Role[] = ["global-admin", "site-admin", "staff"];
+const TENANT_SLUG_RE = /^[a-z0-9][a-z0-9-]{0,62}$/; // same alphabet as a subdomain label
+
+export interface DevIdentity {
+  email: string;
+  role: Role;
+  homeTenant?: string; // undefined = the request's own tenant
+}
 
 export function devIdentityFromHeaders(
   get: (name: string) => string | null | undefined,
   nodeEnv: string | undefined,
-): { email: string; role: Role } | null {
+): DevIdentity | null {
   if (nodeEnv === "production") return null;
   const email = (get(DEV_USER_HEADER) ?? "").trim().toLowerCase();
   if (!email || !email.includes("@")) return null;
   const roleRaw = (get(DEV_ROLE_HEADER) ?? "").trim().toLowerCase();
   const role = (ROLES as readonly string[]).includes(roleRaw) ? (roleRaw as Role) : "staff";
-  return { email, role };
+  const tenantRaw = (get(DEV_TENANT_HEADER) ?? "").trim().toLowerCase();
+  const homeTenant = TENANT_SLUG_RE.test(tenantRaw) ? tenantRaw : undefined;
+  return homeTenant ? { email, role, homeTenant } : { email, role };
 }

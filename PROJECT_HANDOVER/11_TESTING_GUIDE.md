@@ -27,13 +27,19 @@ E2E_BASE=http://localhost:3000 npm run test:e2e
 ## Simulating identities in the API regression suite
 
 The live suite needs to act as different users and roles (one-desk rule, admin-vs-owner cancel,
-staff RBAC). It sends two **dev-only** headers: `x-dev-user: <email>` and optionally
-`x-dev-role: global-admin | site-admin | staff` (default **staff**). They are honoured solely by
-the no-session dev branch of `getUser()` (`lib/server/auth.ts`) and parsed by the pure
-`devIdentityFromHeaders()` in `lib/authz.ts`, which is unit-tested to return `null` under
-`NODE_ENV=production` — so they can never work against the container. No `x-dev-user` = the base
-dev identity (demo global-admin), used for seeding buildings and admin actions. The suite cancels
-every booking it made and deletes its `qa-*` buildings in `afterAll`, so re-runs are idempotent.
+staff RBAC, tenant isolation). It sends three **dev-only** headers: `x-dev-user: <email>`,
+optionally `x-dev-role: global-admin | site-admin | staff` (default **staff**), and optionally
+`x-dev-tenant: <slug>` = the workspace that user *belongs to* (default: the request's own tenant).
+They are honoured solely by the no-session dev branch of `getUser()` (`lib/server/auth.ts`) and
+parsed by the pure `devIdentityFromHeaders()` in `lib/authz.ts`, which is unit-tested to return
+`null` under `NODE_ENV=production` — so they can never work against the container. No `x-dev-user`
+= the base dev identity (demo workspace admin **and** platform operator), used for seeding
+buildings and admin actions; a named user is never a platform operator. The *request's* tenant
+comes from the Host, so the suite targets a second workspace with `x-forwarded-host:
+<slug>.roamhub360.com` (what the reverse proxy sets in production). The dev branch applies the
+same membership guard as a real session: a simulated member of another workspace is anonymous on
+this one. The suite cancels every booking it made and deletes its `qa-*` buildings in `afterAll`,
+so re-runs are idempotent.
 
 ## What's covered (unit tests)
 

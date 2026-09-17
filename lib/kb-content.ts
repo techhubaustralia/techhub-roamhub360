@@ -280,15 +280,15 @@ The app remembers your workspace, so next time it opens straight to sign-in.
     title: "Admin: inviting people and setting roles",
     category: "For administrators",
     summary: "Add colleagues and choose what they can do.",
-    body: `Open **Users & roles** in the sidebar (Global Admins only).
+    body: `Open **Users & roles** in the sidebar (Workspace admins only).
 
 ## Invite someone
 Enter their email and send the invite — they'll get a link to set a password, or can sign in with Microsoft if your workspace uses it.
 
 ## Roles
 - **Staff** — book spaces for themselves.
-- **Site Admin** — manage bookings and permanent desks for their site.
-- **Global Admin** — full control: buildings, users, integrations, and settings.
+- **Site admin** — manage bookings and permanent desks for their site.
+- **Workspace admin** — full control of your workspace: buildings, users, integrations, and settings. Nothing outside it.
 
 You can also mark someone as an **Office Manager** so they can book multiple desks per day (for a team or visitors).`,
   },
@@ -296,7 +296,7 @@ You can also mark someone as an **Office Manager** so they can book multiple des
     title: "Admin: adding buildings and floor plans",
     category: "For administrators",
     summary: "Set up your sites, spaces, and interactive floor plans.",
-    body: `Open **Buildings** in the sidebar (Global Admins only).
+    body: `Open **Buildings** in the sidebar (Workspace admins only).
 
 1. **Add a building** — give it a name and pick its **timezone** so booking dates follow local time.
 2. **Add floors and spaces** — desks, rooms, offices, and parking bays.
@@ -309,7 +309,7 @@ Once desks are set up, print scannable check-in labels from **QR labels** in the
     title: "Admin: assigning permanent desks",
     category: "For administrators",
     summary: "Reserve a desk permanently for a specific person.",
-    body: `Some people need the same desk every day. Open **Permanent desks** in the sidebar (Global or Site Admins).
+    body: `Some people need the same desk every day. Open **Permanent desks** in the sidebar (Workspace admins or Site admins).
 
 1. Choose the building and desk.
 2. Assign it to a person.
@@ -320,7 +320,7 @@ That desk is then reserved for them and won't appear in the hot-desk pool for ot
     title: "Admin: connect Microsoft 365 and company sign-in",
     category: "For administrators",
     summary: "Sync your directory, send calendar invites, and enable one-click sign-in.",
-    body: `Open **Microsoft 365** in the sidebar (Global Admins only).
+    body: `Open **Microsoft 365** in the sidebar (Workspace admins only).
 
 ## Company sign-in (recommended)
 Tap **Connect your organisation**. Your IT admin approves RoamHub360 once for the whole company — after that, everyone signs in with their Microsoft account, no invites needed.
@@ -336,7 +336,7 @@ You'll need your organisation's **Directory (tenant) ID**, an **app registration
     title: "Admin: understanding insights and reports",
     category: "For administrators",
     summary: "See how your spaces are actually used.",
-    body: `Open **Insights** in the sidebar (Global Admins only) to see how your workplace is used:
+    body: `Open **Insights** in the sidebar (Workspace admins only) to see how your workplace is used:
 
 - Busiest and quietest days.
 - Desk, room, and office **utilisation**.
@@ -399,7 +399,7 @@ Run it again whenever your team changes. Directory sync needs the **User.Read.Al
     title: "Admin: your plan, licence and renewal",
     category: "For administrators",
     summary: "Check your subscription, usage, and renewal date.",
-    body: `Open **Plan & licence** in the sidebar (Global Admins only) to see:
+    body: `Open **Plan & licence** in the sidebar (Workspace admins only) to see:
 
 - your current **plan**,
 - **usage** against it, and
@@ -415,7 +415,7 @@ To renew or change plan, contact your RoamHub360 provider (use the **Help → Co
     title: "Admin: automating with the API, webhooks and Slack",
     category: "For administrators",
     summary: "Connect RoamHub360 to your own tools.",
-    body: `Open **Developer & API** in the sidebar (Global Admins only).
+    body: `Open **Developer & API** in the sidebar (Workspace admins only).
 
 ## API keys
 Create a key to use the RoamHub360 **REST API** from your own scripts or systems. Keep keys secret; revoke and re-create them any time.
@@ -432,7 +432,7 @@ Paste a Slack **Incoming Webhook** URL to post booking activity straight into a 
     title: "Admin: viewing the activity log",
     category: "For administrators",
     summary: "See who did what, and when.",
-    body: `The **Activity log** (sidebar, Global Admins only) records key actions in your workspace — bookings, cancellations, user and role changes, integration updates, and more.
+    body: `The **Activity log** (sidebar, Workspace admins only) records key actions in your workspace — bookings, cancellations, user and role changes, integration updates, and more.
 
 Use it to answer "who changed this?" and to keep an audit trail. Entries show the person, the action, and the time.`,
   },
@@ -499,7 +499,7 @@ If enabled, the **Ask Hubbi** button lets you book in plain English.`,
 - the **daily digest** email, and
 - the **Hubbi** AI assistant.
 
-If a page or button in this help centre isn't showing for you, it's likely switched off for your workspace, or your role doesn't include it. Ask your workspace's Global Admin, or use **Help → Contact support**.`,
+If a page or button in this help centre isn't showing for you, it's likely switched off for your workspace, or your role doesn't include it. Ask your Workspace admin, or use **Help → Contact support**.`,
   },
   {
     title: "Using RoamHub360 in Microsoft Teams",

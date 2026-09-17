@@ -330,8 +330,8 @@ export default function EditorPage() {
     return (
       <div className="animate-fade-up grid h-full place-items-center">
         <div className="max-w-md rounded-[14px] border bg-card p-8 text-center shadow-sm">
-          <p className="text-[14px] font-semibold">Global Admin access required</p>
-          <p className="mt-1 text-[12.5px] text-txt-mute">Floor plans and layouts can only be edited by a Global Admin.</p>
+          <p className="text-[14px] font-semibold">Workspace admin access required</p>
+          <p className="mt-1 text-[12.5px] text-txt-mute">Floor plans and layouts can only be edited by a Workspace admin.</p>
           <button onClick={() => router.push("/book")} className="mt-4 rounded-[10px] bg-primary px-4 py-2.5 text-[13px] font-semibold text-primary-foreground">
             Go to Book a space
           </button>

@@ -20,7 +20,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
 
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { role } = await getUser();
-  if (role !== "global-admin") return NextResponse.json({ error: "Only a Global Admin can upload floor plans." }, { status: 403 });
+  if (role !== "global-admin") return NextResponse.json({ error: "Only a Workspace admin can upload floor plans." }, { status: 403 });
   const { id } = await params;
   const form = await req.formData();
   const file = form.get("file");

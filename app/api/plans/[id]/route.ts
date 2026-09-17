@@ -22,7 +22,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
 
 export async function PUT(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { role, email } = await getUser();
-  if (role !== "global-admin") return NextResponse.json({ error: "Only a Global Admin can edit floor plans." }, { status: 403 });
+  if (role !== "global-admin") return NextResponse.json({ error: "Only a Workspace admin can edit floor plans." }, { status: 403 });
   const rl = await rateLimit(`admin:plan:${email}`, 120, 60_000);
   if (!rl.ok) return tooMany(rl.retryAfter);
   const { id } = await params;
@@ -56,7 +56,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
 
 export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { role } = await getUser();
-  if (role !== "global-admin") return NextResponse.json({ error: "Only a Global Admin can edit floor plans." }, { status: 403 });
+  if (role !== "global-admin") return NextResponse.json({ error: "Only a Workspace admin can edit floor plans." }, { status: 403 });
   const { id } = await params;
   await deletePlan(id);
   return NextResponse.json(getFloorPlan(id));

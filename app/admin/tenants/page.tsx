@@ -6,6 +6,7 @@ import { Shield, Settings2, ExternalLink, UserPlus, Trash2, Download } from "luc
 import { PageHeader } from "@/components/page-header";
 import { StatusPill } from "@/components/status-pill";
 import { getTenantDetail, patchTenant, impersonateTenant, getTenantUsers, createTenantUser, deleteTenantUser, tenantExportUrl, deleteTenant, type TenantDetail, type TenantUser } from "@/lib/api";
+import { ROLE_LABELS, roleLabel } from "@/lib/role-labels";
 
 interface Tenant {
   id: string;
@@ -305,7 +306,7 @@ function ManagePanel({ slug, onClose, onChanged }: { slug: string; onClose: () =
                   <div key={u.id} className="flex items-center justify-between gap-2 py-2">
                     <div className="min-w-0">
                       <div className="truncate text-[13px] font-medium">{u.name || u.email}</div>
-                      <div className="truncate text-[11.5px] text-txt-mute">{u.email} · {u.role}{u.provider && u.provider !== "credentials" ? ` · ${u.provider}` : ""}</div>
+                      <div className="truncate text-[11.5px] text-txt-mute">{u.email} · {roleLabel(u.role)}{u.provider && u.provider !== "credentials" ? ` · ${u.provider}` : ""}</div>
                     </div>
                     <button onClick={() => removeUser(u)} className="grid size-7 shrink-0 place-items-center rounded-lg text-txt-mute hover:bg-panel-2 hover:text-destructive" aria-label="Remove user"><Trash2 className="size-3.5" /></button>
                   </div>
@@ -315,9 +316,9 @@ function ManagePanel({ slug, onClose, onChanged }: { slug: string; onClose: () =
                 <input value={nu.email} onChange={(e) => setNu((s) => ({ ...s, email: e.target.value }))} placeholder="admin@client.com" className="rounded-[9px] border bg-panel-2 px-2 py-1.5 text-[13px]" />
                 <input value={nu.name} onChange={(e) => setNu((s) => ({ ...s, name: e.target.value }))} placeholder="Full name (optional)" className="rounded-[9px] border bg-panel-2 px-2 py-1.5 text-[13px]" />
                 <select value={nu.role} onChange={(e) => setNu((s) => ({ ...s, role: e.target.value }))} className="rounded-[9px] border bg-panel-2 px-2 py-1.5 text-[13px]">
-                  <option value="global-admin">Global admin</option>
-                  <option value="site-admin">Site admin</option>
-                  <option value="staff">Staff</option>
+                  <option value="global-admin">{ROLE_LABELS["global-admin"]}</option>
+                  <option value="site-admin">{ROLE_LABELS["site-admin"]}</option>
+                  <option value="staff">{ROLE_LABELS.staff}</option>
                 </select>
                 {!nu.invite && (
                   <input type="password" value={nu.password} onChange={(e) => setNu((s) => ({ ...s, password: e.target.value }))} placeholder="Temp password (8+ chars)" className="rounded-[9px] border bg-panel-2 px-2 py-1.5 text-[13px]" />

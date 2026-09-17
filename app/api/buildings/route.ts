@@ -27,7 +27,7 @@ export async function GET() {
 export async function POST(req: Request) {
   const { role } = await getUser();
   if (role !== "global-admin") {
-    return NextResponse.json({ error: "Only a Global Admin can create buildings." }, { status: 403 });
+    return NextResponse.json({ error: "Only a Workspace admin can create buildings." }, { status: 403 });
   }
   const body = (await req.json()) as CustomBuilding;
   if (!body?.id || !body?.name) {

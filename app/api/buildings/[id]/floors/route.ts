@@ -15,7 +15,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
 export async function PUT(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const user = await getUser();
   if (user.role !== "global-admin") {
-    return NextResponse.json({ error: "Only a Global Admin can manage floors." }, { status: 403 });
+    return NextResponse.json({ error: "Only a Workspace admin can manage floors." }, { status: 403 });
   }
   const { id } = await params;
   const floors = (await req.json()) as FloorRoom[];

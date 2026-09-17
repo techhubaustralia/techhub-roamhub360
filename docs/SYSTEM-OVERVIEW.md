@@ -143,14 +143,17 @@ sequenceDiagram
 4. **Middleware** — never redirects across subdomains; an unauthenticated or wrong-workspace request always lands on **that subdomain's** `/signin` (built from the forwarded host, never `AUTH_URL`).
 
 ### 5.4 Roles
-| Role | Scope |
-|---|---|
-| **staff** | Book for themselves; raise/track support requests. |
-| **site-admin** | Manage bookings + permanent desks for their site(s). |
-| **global-admin** | Full workspace control: users, buildings, integrations, KB, support queue, insights, API keys. |
-| **platform operator** | `BOOTSTRAP_ADMINS` env — may access any workspace, manage tenants, licences, global KB. Not a stored role. |
+| Stored role | Shown as | Scope |
+|---|---|---|
+| **staff** | Staff | Book for themselves; raise/track support requests. |
+| **site-admin** | Site admin | Manage bookings + permanent desks for their site(s). |
+| **global-admin** | **Workspace admin** | Full control of **their own workspace only**: users, buildings, integrations, KB, support queue, insights, API keys. Never another tenant's data. |
+| *(none)* | **Platform operator** | `BOOTSTRAP_ADMINS` env — may access any workspace, manage tenants, licences, global KB. Not a stored role; TechHub Australia only. |
 
-Break-glass: emails in `BOOTSTRAP_ADMINS` are always treated as global-admin.
+The stored value `global-admin` is an API/DB contract and stays as-is; the UI reads it as "Workspace admin"
+(`lib/role-labels.ts`) so nobody mistakes it for cross-tenant access. Break-glass: emails in
+`BOOTSTRAP_ADMINS` are always treated as global-admin *and* platform operator. Tenant isolation is
+covered by the "tenant isolation" block of `tests/api-regression.test.ts`.
 
 ### 5.5 Company sign-in (Entra admin consent)
 A customer's IT admin clicks **Connect your organisation** → Microsoft's org-consent screen → the directory (`tid`) is linked to the workspace. Afterwards **any** user in that directory who signs in with Microsoft auto-joins the workspace — no invites. The `tid` is read from the Microsoft-attested id_token, never from the email domain.

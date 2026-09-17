@@ -45,7 +45,7 @@ export default function AuditPage() {
         <PageHeader title="Activity log" subtitle="System audit trail" />
         <div className="rounded-[14px] border bg-card p-8 text-center shadow-sm">
           <Shield className="mx-auto mb-3 size-7 text-txt-mute" />
-          <p className="text-[14px] font-semibold">Global Admin access required</p>
+          <p className="text-[14px] font-semibold">Workspace admin access required</p>
         </div>
       </div>
     );

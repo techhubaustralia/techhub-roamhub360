@@ -31,7 +31,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   if (!target || !reachable(me, targetTenant)) return NextResponse.json({ error: "User not found" }, { status: 404 });
   // Don't allow demoting a workspace's last global-admin (lockout guard, scoped to that tenant).
   if (parsed.data.role && parsed.data.role !== "global-admin" && target.role === "global-admin" && (await globalAdminCount(targetTenant)) <= 1) {
-    return NextResponse.json({ error: "Cannot demote the last Global Admin." }, { status: 400 });
+    return NextResponse.json({ error: "Cannot demote the last Workspace admin." }, { status: 400 });
   }
   await updateUser(id, parsed.data);
   // Capture the permission-relevant transition (role/sites/multiBook) so the audit trail records
@@ -55,7 +55,7 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
     return NextResponse.json({ error: "You cannot delete your own account." }, { status: 400 });
   }
   if (target.role === "global-admin" && (await globalAdminCount(targetTenant)) <= 1) {
-    return NextResponse.json({ error: "Cannot delete the last Global Admin." }, { status: 400 });
+    return NextResponse.json({ error: "Cannot delete the last Workspace admin." }, { status: 400 });
   }
   await deleteUser(id);
   await audit(me.email, "user.delete", target.email);

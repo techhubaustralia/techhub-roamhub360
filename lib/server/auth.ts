@@ -1,7 +1,7 @@
 import "server-only";
 import { auth as getSession } from "@/auth";
 import { headers } from "next/headers";
-import { canAccessBuilding, devIdentityFromHeaders } from "../authz";
+import { canAccessBuilding, devIdentityFromHeaders, type DevIdentity } from "../authz";
 import { currentTenantId, DEFAULT_TENANT } from "./tenant";
 import { getTenantContext, type TenantBrand } from "./tenants";
 
@@ -82,6 +82,12 @@ export async function getUser(): Promise<AppUser> {
     // runs there, so the gate is doubled. Outside a request scope (cron) headers() throws → demo.
     const dev = await devIdentity();
     if (dev) {
+      // Same membership guard as the session path above: a simulated member of ANOTHER workspace
+      // gets the anonymous shape on this one. Simulated users are never platform operators.
+      const homeTenant = dev.homeTenant ?? tenantId;
+      if (homeTenant !== tenantId) {
+        return { name: "", email: dev.email, role: "staff", groups: [], roleSource: "anonymous", entraConfigured, setupMode: true, authenticated: false, tenantId };
+      }
       return {
         name: dev.email.split("@")[0],
         email: dev.email,
@@ -91,7 +97,7 @@ export async function getUser(): Promise<AppUser> {
         entraConfigured,
         authenticated: false,
         tenantId,
-        homeTenant: tenantId,
+        homeTenant,
         platformAdmin: false,
       };
     }
@@ -114,7 +120,7 @@ export async function getUser(): Promise<AppUser> {
 }
 
 /** The ambient x-dev-* identity, or null when absent / not permitted / outside a request scope. */
-async function devIdentity(): Promise<{ email: string; role: Role } | null> {
+async function devIdentity(): Promise<DevIdentity | null> {
   try {
     const h = await headers();
     return devIdentityFromHeaders((n) => h.get(n), process.env.NODE_ENV);

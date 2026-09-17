@@ -8,6 +8,7 @@ import { getBuildingsMeta } from "@/lib/plan-store";
 import { PageHeader } from "@/components/page-header";
 import { UserCsvImport } from "@/components/user-csv-import";
 import { StatusPill } from "@/components/status-pill";
+import { ROLE_LABELS, roleLabel } from "@/lib/role-labels";
 
 type Role = "global-admin" | "site-admin" | "staff";
 interface User {
@@ -38,9 +39,6 @@ interface FormState {
 const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 const blank = (): FormState => ({ email: "", name: "", password: "", role: "staff", sites: [], multiBook: false, invite: true });
 
-function roleLabel(r: Role): string {
-  return r === "global-admin" ? "Global Admin" : r === "site-admin" ? "Site Admin" : "Staff";
-}
 function providerLabel(p: string): string {
   if (p === "google") return "Google";
   if (p === "microsoft-entra-id" || p === "entra") return "Microsoft";
@@ -143,8 +141,8 @@ export default function UsersPage() {
         <PageHeader title="Users & roles" subtitle="Manage who can access and administer RoamHub360" />
         <div className="rounded-[14px] border bg-card p-8 text-center shadow-sm">
           <Shield className="mx-auto mb-3 size-7 text-txt-mute" />
-          <p className="text-[14px] font-semibold">Global Admin access required</p>
-          <p className="mt-1 text-[12.5px] text-txt-mute">Only a Global Admin can view and manage users.</p>
+          <p className="text-[14px] font-semibold">Workspace admin access required</p>
+          <p className="mt-1 text-[12.5px] text-txt-mute">Only a Workspace admin can view and manage users.</p>
         </div>
       </div>
     );
@@ -187,8 +185,8 @@ export default function UsersPage() {
             <span className="mb-1 block text-[11.5px] font-medium text-txt-mute">Role</span>
             <select value={form.role} onChange={(e) => setForm((f) => ({ ...f, role: e.target.value as Role }))} className="w-full rounded-[10px] border bg-panel-2 px-3 py-2 text-[13px]">
               <option value="staff">Staff — can book spaces</option>
-              <option value="site-admin">Site Admin — manages assigned site(s)</option>
-              <option value="global-admin">Global Admin — full control</option>
+              <option value="site-admin">{ROLE_LABELS["site-admin"]} — manages assigned site(s)</option>
+              <option value="global-admin">{ROLE_LABELS["global-admin"]} — full control of this workspace</option>
             </select>
           </label>
           <label className="block">
@@ -290,7 +288,7 @@ export default function UsersPage() {
                   </td>
                   <td className="border-b px-3 py-3">
                     <span className="flex flex-wrap items-center gap-1.5">
-                      {u.role === "global-admin" ? <StatusPill variant="soon">Global Admin</StatusPill> : u.role === "site-admin" ? <StatusPill variant="ok">Site Admin</StatusPill> : <StatusPill>Staff</StatusPill>}
+                      {u.role === "global-admin" ? <StatusPill variant="soon">{ROLE_LABELS["global-admin"]}</StatusPill> : u.role === "site-admin" ? <StatusPill variant="ok">{ROLE_LABELS["site-admin"]}</StatusPill> : <StatusPill>{ROLE_LABELS.staff}</StatusPill>}
                       {u.multiBook && <StatusPill variant="soon">Office Manager</StatusPill>}
                     </span>
                   </td>

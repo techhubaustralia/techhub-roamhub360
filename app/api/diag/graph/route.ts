@@ -15,7 +15,7 @@ const msg = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
 export async function GET(req: Request) {
   const { role, email } = await getUser();
-  if (role !== "global-admin") return NextResponse.json({ error: "Global admins only." }, { status: 403 });
+  if (role !== "global-admin") return NextResponse.json({ error: "Workspace admins only." }, { status: 403 });
   const sp = new URL(req.url).searchParams;
 
   const send = sp.get("send");
@@ -45,7 +45,7 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
   const { role, email } = await getUser();
-  if (role !== "global-admin") return NextResponse.json({ error: "Global admins only." }, { status: 403 });
+  if (role !== "global-admin") return NextResponse.json({ error: "Workspace admins only." }, { status: 403 });
   const body = (await req.json().catch(() => ({}))) as { action?: string; to?: string; mailbox?: string };
 
   if (body.action === "mail") {
