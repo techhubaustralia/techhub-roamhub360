@@ -1,15 +1,38 @@
-# 17 · Current State (as of 2026-07-22)
+# 17 · Current State (as of 2026-09-17; original snapshot 2026-07-22)
 
 ## Snapshot
 
 - **Live in production** at `https://app.roamhub360.com` on a DigitalOcean droplet (Docker + Postgres +
-  Caddy), co-hosted with the BlueShift helpdesk. Real users are signing in (SSO into e.g. the `mssodali`
-  workspace observed in logs).
-- **Latest deploy** ran the schema migration successfully ("database in sync") and the app is serving
-  traffic. The migrator was switched to `migrate deploy` (H6 follow-up, commit `d2a80ce`) — on the next
-  deploy the container self-baselines and uses versioned migrations.
-- **Codebase health:** `tsc` clean, **0 lint errors**, ~151 unit tests pass (~19 skipped), production
-  `npm audit` = 0 high/critical. ~104 commits on `main`, all pushed.
+  host Caddy), co-hosted with the helpdesk. Real customer workspaces are on their own subdomains.
+- **Deploys 2026-09-15 → 17** (`f4d0245` … the housekeeping commit after `1393568`): the container base
+  image is **`node:22-slim`** (mandatory — `undici` 8 breaks `next build` on Node 20), the migrator
+  self-baselined on first run and now takes the fast path, and the DB role is **`roamhub`** (not
+  `postgres`). Password + Microsoft sign-in verified on the live subdomain by the operator.
+- **Codebase health:** `tsc` clean, **0 lint errors** (44 warnings, all `react-hooks/set-state-in-effect`
+  / `no-img-element` style), **220 unit tests** pass + **31 live API-regression tests** (skipped unless
+  `E2E_BASE` is set). `next build` clean on the Next 16 `proxy` convention (no deprecation warnings).
+
+## Added 2026-09-14 → 17 (legacy-feature port + commercial hardening)
+
+Everything below is additive; no existing behaviour changed except where a bug is named.
+- **Booking policy per site:** check-in opening time + auto-release time (30-min ticks), enforced on
+  QR and in-app check-in, `maxAdvanceDate` caps date pickers. Booking date input on the map toolbar.
+- **Repeat weekly:** one request books every matching date (≤ 60), per-date rule checks, one summary
+  email/push. `POST /api/bookings/recurring`.
+- **Office bookings** cross-site overview (`/office-booking`, `/api/office-bookings`, feature flag
+  `office-booking`), attendance stack on the map, shared `Avatar` with directory photos.
+- **Dev identity simulation** for the live suite (`x-dev-user` / `x-dev-role` / `x-dev-tenant`, inert in
+  production) and the 31-test regression suite with self-cleaning fixtures.
+- **Transactional email redesign** (table layout, preheader, details card, personalised invite,
+  white-label aware).
+- **Tenant isolation (Phase 6):** stored role `global-admin` is displayed as **"Workspace admin"**
+  (`lib/role-labels.ts`); "Platform operator" = `BOOTSTRAP_ADMINS` only; 4 cross-tenant live tests.
+- **Import from Microsoft 365** on Users & roles (`POST /api/users/import-directory`): pre-provisions
+  SSO users from the synced directory; no password, no invite email.
+- **Android groundwork:** `/.well-known/assetlinks.json` (from `ANDROID_ASSETLINKS_SHA256`), manifest
+  shortcuts, public PWA routes, `21_ANDROID_APP.md`, store feature graphic + render script.
+- **Fixes:** map occupant search honours "hide me"; deleting a floor plan releases its bookings; tenants
+  control plane exposes the `assistant` flag; reschedule modal uses the site's calendar day.
 
 ## Completed features
 
@@ -49,9 +72,14 @@ Graph timeouts, redaction, AI guardrails, presence scoping), **Q1** lint-green, 
 - **Enterprise GA: not yet.** Gate on: apply+validate C4 RLS, external pen-test, Redis for scale, CI +
   staging, and full Microsoft-integration testing.
 
-## Immediate next actions (recommended)
+## Immediate next actions (recommended, 2026-09-17)
 
-1. Finish the in-flight **deploy verification** (app is up; re-issue API keys in Admin → Developer & API).
-2. Provision a **staging Postgres**; apply `prisma/planned/01` + `02`; run the C4 leak test; wire `withTenant()`.
-3. Provision **Redis**; set `REDIS_URL`.
-4. Stand up **CI** (tsc + lint + vitest + audit:ci + Playwright vs staging).
+1. **Android app (Google Play)** — operator side: Play developer account → app record
+   `com.techhubaustralia.roamhub360` → App Signing fingerprints + VAPID keys into the droplet `.env` →
+   Bubblewrap project (tenant subdomains in `additionalTrustedOrigins`) → `android-cicd` → internal
+   testing → production. Runbook: `21_ANDROID_APP.md`. The web side is complete.
+2. Live checks still owed by the operator: invite email rendering in Outlook, Import from Microsoft
+   365 on a real tenant, "Workspace admin" label on Users & roles.
+3. Provision a **staging Postgres**; apply `prisma/planned/01` + `02`; run the C4 leak test; wire `withTenant()`.
+4. Provision **Redis**; set `REDIS_URL`. Stand up **CI** (tsc + lint + vitest + audit:ci + live suite vs staging).
+5. iOS: PWA Add-to-Home-Screen today; an App Store shell (Capacitor) is a separate decision after Android.

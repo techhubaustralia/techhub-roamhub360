@@ -5,7 +5,42 @@ The app is versioned `0.1.0` in package.json; there are no git tags. This change
 recent first. Deploy model note: earlier phases assumed Azure; the app then migrated to a DigitalOcean
 droplet. Everything below is committed to `main` on `github.com/techhubaustralia/techhub-roamhub360`.
 
-## Enterprise-hardening pass (2026-07-21/22) — latest
+## Feature port, tenant isolation, M365 import, Android groundwork (2026-09-14 → 17) — latest
+
+Re-implementation (never copied) of the remaining features from the retired single-tenant predecessor,
+then commercial hardening. Gate at every commit: `tsc` clean, 0 lint errors, unit + live suites green,
+`next build` clean. Deployed to the droplet at each step.
+
+**Bookings**
+- Per-site **booking policy**: check-in opening time + auto-release time (`FloorPlan.checkInOpenTime`,
+  `autoReleaseTime`, editor validates open < release); enforced on QR + in-app check-in
+  (`checkInWindowError`); date pickers capped by `maxAdvanceDate`. Booking date input on the map.
+- **Repeat weekly** — `POST /api/bookings/recurring`, `lib/recurrence.ts` (`expandWeekly`, ≤ 60
+  occurrences), per-date rules, created/skipped report, one summary email/push.
+- **Office bookings** cross-site overview (`/office-booking`, `/api/office-bookings`, 62-day cap,
+  presence privacy, feature flag `office-booking`); attendance stack on the map; shared `Avatar`.
+- `lib/server/bookings.ts` — `checkBookingRules` / `createCalendarEvent` extracted verbatim from the
+  route so the recurring route reuses them.
+
+**Platform**
+- **Dev identity simulation** (`x-dev-user` / `x-dev-role` / `x-dev-tenant`; inert under
+  `NODE_ENV=production`) + 31-test live regression suite with self-cleaning fixtures.
+- **Email redesign** — table-based, preheader, details card, personalised invite, white-label aware
+  (`lib/server/email.ts`, 8 tests).
+- **Tenant isolation (Phase 6)** — `global-admin` displayed as **Workspace admin**, **Platform operator**
+  = `BOOTSTRAP_ADMINS`; dev branch applies the real membership guard; 4 cross-tenant live tests.
+- **Import from Microsoft 365** — `POST /api/users/import-directory` + picker on Users & roles;
+  `createUser` gains optional `provider`.
+- **Android (TWA) groundwork** — `/.well-known/assetlinks.json` (env-driven, 404 until set), manifest
+  shortcuts/categories, `/.well-known` + manifest + `sw.js` public, `21_ANDROID_APP.md`, store assets.
+- `middleware.ts` → `proxy.ts` (Next 16). Deploy: `Dockerfile` base **`node:22-slim`** (undici 8).
+
+**Fixes**
+- Map occupant search honours `hidePresence`; `DELETE /api/plans/[id]` releases active bookings;
+  tenants page exposes the `assistant` flag; `/mine` reschedule uses the site's day; docs: backup role
+  `roamhub`, `/api/version` is signed-in.
+
+## Enterprise-hardening pass (2026-07-21/22)
 
 External code review → all Critical/High/Medium/UX/Quality items fixed except infra-gated ones.
 Verified each: `tsc` clean, **0 lint errors**, ~151 tests pass, prod `npm audit` = 0 high/critical.

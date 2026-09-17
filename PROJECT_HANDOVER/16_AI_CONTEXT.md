@@ -7,9 +7,17 @@ most important brief. Read it fully, then skim the numbered docs before touching
 
 Turn a former single-tenant desk-booking app into a **commercial multi-tenant SaaS** sold by an MSP
 (TechHub Australia) at **$2,000/site/year**, differentiated by Microsoft 365 depth, presence/collab
-features, an AI concierge, and per-tenant white-label branding. It is **live in production** (demo/pilot)
-and has just completed an **enterprise-hardening pass**. The near-term goal is enterprise-readiness:
-DB-level tenant isolation, staging + CI, Redis for scale, and a pen-test.
+features, an AI concierge, and per-tenant white-label branding. It is **live in production** with real
+customer workspaces, completed an **enterprise-hardening pass** (2026-07) and the **port of the remaining
+predecessor features + tenant-isolation hardening + Android groundwork** (2026-09; see `17_CURRENT_STATE.md`).
+The near-term goals: ship the **Android (Play) app** as a Trusted Web Activity (`21_ANDROID_APP.md`),
+then DB-level tenant isolation on staging, CI, Redis for scale, and a pen-test.
+
+**Hard rules the operator set (2026-09):** the predecessor's code is **reference-only** — re-implement,
+never copy; nothing from that vendor enters this repo. Changes are **additive**: existing behaviour stays
+unless a bug is named. **Only `BOOTSTRAP_ADMINS` is cross-tenant**; a customer's "global-admin" (shown as
+**Workspace admin**) administers their own workspace only — the live suite's tenant-isolation block
+enforces this and must stay green.
 
 ## Architecture philosophy
 
@@ -37,11 +45,17 @@ DB-level tenant isolation, staging + CI, Redis for scale, and a pen-test.
 - **Lint must stay green (0 errors).** The `react-hooks/set-state-in-effect` rule is intentionally
   `warn` (mount-fetch pattern); don't "fix" those by refactoring 30 components.
 - **Every non-trivial change gets a runnable check** (a small vitest). Verify with
-  `tsc --noEmit` + `npm test` + `npm run lint` + `npm run build` before considering it done.
+  `tsc --noEmit` + `npm test` + `npm run lint` + `npm run build` before considering it done. Behaviour
+  that crosses routes gets a case in `tests/api-regression.test.ts` (live, `E2E_BASE=http://localhost:3000`
+  against `npm run dev` in another terminal; identities via `x-dev-user` / `x-dev-role` / `x-dev-tenant`).
+  Clear `E2E_BASE` afterwards or `npm test` fails with ECONNREFUSED.
 - **Commit author:** `TechHub Australia <support@techhubaustralia.com.au>`; trailer
-  `Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>`. **Never push automatically** — hand the
-  user exact git commands; verify `git remote -v` + `git config user.email` first (they use multiple
-  GitHub accounts). The user runs all deploys.
+  `Co-Authored-By: <the Claude model in use> <noreply@anthropic.com>`. **Never run git, deploys or
+  scripts for the operator** — they run every command themselves, one step at a time, and paste the
+  output; hand over exact commands with expected results. Pushing needs
+  `gh auth switch --user techhubaustralia` first (multiple GitHub accounts on the machine). The local
+  shell is PowerShell: no `&&`, use `;`. New env vars go in `docker-compose.cohost.yml`'s
+  `environment:` block or they never reach the container.
 - **Never echo secrets.** Don't burn API quota on throwaway calls.
 
 ## Business & booking rules

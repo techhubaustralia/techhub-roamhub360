@@ -10,7 +10,9 @@ Legend: ✅ Complete · 🟡 Partial · 📅 Planned · ⛔ Disabled/off-by-defa
 | Interactive booking floor plan | ✅ | SVG; desk/office/room names hidden on-plan, shown on hover. |
 | Check-in / check-out (email links) | ✅ | `CHECKIN_SECRET`-signed. |
 | QR desk check-in + printable labels | ✅ | `/checkin`, `/labels`, `/api/qr-checkin` (site-tz today). |
-| Auto-release (no-show) + auto-checkout | ✅ | Scheduler; idempotent via status filter. |
+| Auto-release (no-show) + auto-checkout | ✅ | Scheduler; idempotent via status filter. Per-site release time + check-in opening time (2026-09). |
+| Repeat weekly bookings (one request, ≤ 60 dates) | ✅ | `POST /api/bookings/recurring`; per-date rules; summary email/push (2026-09). |
+| Office bookings — cross-site overview | ✅ | `/office-booking`; flag `office-booking`; presence-privacy aware (2026-09). |
 | **Who's-in presence** (Team Build-Up A) | ✅ | `/team`, per-site, privacy-aware. |
 | Microsoft directory sync (B) — names/photos/dept/manager | ✅🔧 | Per-tenant Graph; untested without a real Entra tenant. |
 | Presence privacy opt-outs (C) | ✅ | `hidePresence`. |
@@ -18,7 +20,8 @@ Legend: ✅ Complete · 🟡 Partial · 📅 Planned · ⛔ Disabled/off-by-defa
 | Teams "Who's in" widget (E) | ✅🔧 | Teams-runtime only; untested locally. |
 | Presence analytics + recommendations (F) | ✅ | Weekday patterns. |
 | **AI concierge "Hubbi"** | ✅ | Anthropic or OpenAI-compatible; propose-only; injection-guarded; daily cap; audited; verified live on Gemini free tier. |
-| **Multi-tenancy** (subdomain, data + storage isolation) | ✅ | App-code enforced. |
+| **Multi-tenancy** (subdomain, data + storage isolation) | ✅ | App-code enforced; **4 cross-tenant live tests** guard it (2026-09). Roles shown as "Workspace admin" / "Platform operator". |
+| Import users from Microsoft 365 (synced directory → SSO users) | ✅🔧 | `POST /api/users/import-directory`; needs a synced directory (2026-09). |
 | DB-level tenant isolation (FK + RLS) | 📅🔧 | **Prepared, not applied** — `prisma/planned/`, C4; needs staging DB. |
 | Per-tenant Microsoft integration (encrypted) | ✅ | CP1; AES-256-GCM. |
 | Entra org sign-in (admin consent auto-join) | ✅🔧 | CP; needs real Entra org to fully test. |
@@ -38,7 +41,10 @@ Legend: ✅ Complete · 🟡 Partial · 📅 Planned · ⛔ Disabled/off-by-defa
 | Support Centre (tickets, attachments, replies, unread) | ✅ | Requester sees status; admins answer in-app. |
 | Email (Graph central mailbox + Resend fallback) | ✅ | Per-tenant branding; redacted logs. |
 | Room calendar events (Graph) | ✅🔧 | Per-tenant; needs Graph creds. |
-| Web push (VAPID) | ✅⛔ | Off until VAPID keys set. |
+| Web push (VAPID) | ✅⛔ | Off until VAPID keys set (now part of the Android track). |
+| Transactional email templates (invite, confirmation, recurring, cancellation) | ✅ | Table-based, preheader, white-label aware; 8 tests (2026-09). |
+| **Android app (Google Play, Trusted Web Activity)** | 🟡 | Web side ✅ (`/.well-known/assetlinks.json`, manifest, public routes); Play account + Bubblewrap project pending — `21_ANDROID_APP.md`. |
+| iOS app | 📅 | PWA Add-to-Home-Screen works; App Store shell deferred. |
 | Outbound webhooks + Slack | ✅ | SSRF-guarded (C2). |
 | Public REST API v1 + API keys | ✅ | H2 governance (scopes/expiry/hashed/last-used). |
 | SAML SSO / SCIM provisioning | 📅 | Deliberately deferred (Entra OAuth covers enterprise SSO). |

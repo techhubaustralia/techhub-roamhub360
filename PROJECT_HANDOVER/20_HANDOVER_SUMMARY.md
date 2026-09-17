@@ -12,11 +12,15 @@ Microsoft (Graph/Teams/Entra) + AI-concierge features.
 
 - **Live in production** at `https://app.roamhub360.com` on a **DigitalOcean droplet** (Docker + Postgres
   + Caddy), co-hosted with the BlueShift helpdesk. Real users are signing in.
-- Just completed a large **enterprise-hardening pass** (external code review → all
-  Critical/High/Medium/UX/Quality items fixed except infrastructure-gated ones).
-- **Health:** `tsc` clean, **0 lint errors**, ~151 tests pass, prod `npm audit` = 0 high/critical. ~104
-  commits, all pushed to `main`.
-- ⚠️ **Migrated off Azure** — ignore the template's Azure sections; the real infra is the droplet.
+- Completed a large **enterprise-hardening pass** (2026-07) and, in **2026-09**, the port of the
+  remaining features from the retired single-tenant predecessor (booking policy, repeat weekly, office
+  bookings), **tenant-isolation labelling + cross-tenant regression tests**, **Import from Microsoft 365**,
+  a **transactional-email redesign**, and the **web-side groundwork for the Android (Play) app**.
+  See `17_CURRENT_STATE.md` and `09_CHANGELOG.md`.
+- **Health (2026-09-17):** `tsc` clean, **0 lint errors**, **220 unit + 31 live** tests pass, `next build`
+  clean on Next 16's `proxy` convention. All pushed to `main`; the droplet runs the latest commit.
+- ⚠️ **Migrated off Azure** — ignore the template's Azure sections; the real infra is the droplet
+  (`node:22-slim` image, DB role `roamhub`, migrator self-baselined 2026-09-15).
 
 ## Architecture (one paragraph)
 
@@ -43,9 +47,11 @@ today; DB-level FK + RLS are **prepared but not applied** (C4).
 4. **Microsoft-integration paths** untested against a real Entra tenant.
 5. **Billing not live**; demo data not in repo.
 
-## Next priorities (in order)
+## Next priorities (in order, 2026-09-17)
 
-1. **Verify the current deploy** (app is up) and re-issue API keys in Admin → Developer & API.
+1. **Ship the Android app** — the web side is done; the operator creates the Play account/app record,
+   puts the App Signing fingerprints + VAPID keys in the droplet `.env`, then Bubblewrap + `android-cicd`
+   (`21_ANDROID_APP.md`). iOS stays PWA-only until a separate decision.
 2. **Stand up a staging Postgres** → apply `prisma/planned/01`+`02` → run the **C4 RLS leak test** → wire
    `withTenant()` per-transaction context → schedule production rollout. (`docs/C4-tenancy-hardening.md`.)
 3. **Provision Redis** (`REDIS_URL`) so the app is multi-replica-safe (H3/H4).

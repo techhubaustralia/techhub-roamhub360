@@ -3,10 +3,23 @@
 Priority: **P1** (do before scaling / enterprise GA) · **P2** (important) · **P3** (nice-to-have).
 Effort: **S** <1d · **M** 1–3d · **L** >3d.
 
+## Android app — operator steps (2026-09-17; web side complete, see `21_ANDROID_APP.md`)
+
+| Item | Pri | Effort | Notes / dependency |
+|---|---|---|---|
+| Google Play developer account (TechHub Australia) + app record `com.techhubaustralia.roamhub360`, Play App Signing | P1 | S (+ days of Google verification) | Blocks everything below. |
+| `ANDROID_ASSETLINKS_SHA256` (app-signing + upload fingerprints) and VAPID keys into the droplet `.env` | P1 | S | `/.well-known/assetlinks.json` returns 404 until set; push stays off until VAPID set. |
+| Bubblewrap project in its own repo; `additionalTrustedOrigins` = current tenant subdomains (option a) | P1 | S–M | Needs JDK 17 + Android SDK locally. Adding a customer = app release. |
+| `android-cicd` pipeline; first internal-testing upload by hand; listing + Data safety | P1 | M | Drafts in `21_ANDROID_APP.md` §6–7; screenshots from the deployed app. |
+| iOS App Store shell (Capacitor) | P3 | L | Decision deferred; PWA Add-to-Home-Screen works today. |
+
 ## Outstanding bugs / correctness
 
 | Item | Pri | Effort | Notes / dependency |
 |---|---|---|---|
+| Stale docs still describe Azure / the predecessor deployment (`ONBOARDING.md`, `RUNBOOK.md`, `teams/README.md`, some `graph.test.ts` fixture names) | P3 | S | Doc-only cleanup; `PROJECT_HANDOVER/` and `docs/DEPLOY-DROPLET.md` are current. |
+| `.env.example` vs `05_ENVIRONMENT_CONFIGURATION.md` disagree on `AUTH_MICROSOFT_ENTRA_ID_ISSUER` (`/common/v2.0` is correct for multi-tenant) | P3 | S | Align the example file. |
+| `npm audit` advisory on `prisma`/`deepmerge-ts` (dev tooling path) | P3 | S | Accepted 2026-09-14; revisit on the next Prisma minor. |
 | Billing is a stub — no live Stripe flow | P2 | M | `lib/server/billing.ts`, `/api/billing`. Needs a Stripe account + product/price + webhook. |
 | Demo data not in repo (`data/*.json` gitignored) | P3 | S | Create via editor UI on the new host, or seed the volume. |
 | Cosmetic: assistant proposal card shows short label when model passes a terse `space_label` | P3 | S | `assistant-widget.tsx` / `resolveSpaceLabel`. |
@@ -27,7 +40,7 @@ Effort: **S** <1d · **M** 1–3d · **L** >3d.
 |---|---|---|
 | **U2** guided onboarding / dashboards (beyond the checklist) | P2 | L |
 | SAML SSO / SCIM (deferred; only for a specific enterprise deal) | P3 | L |
-| Web push is built but off until VAPID keys are set | P3 | S |
+| Web push is built but off until VAPID keys are set (now a P1 under the Android track above) | P1 | S |
 
 ## Areas requiring testing
 
