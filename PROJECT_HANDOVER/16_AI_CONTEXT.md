@@ -111,7 +111,8 @@ See `10_PENDING_WORK.md`. Headline P1s: apply/validate **C4 RLS** on staging; **
   lazy-import + `shadcn` CSS import + `sharp`/`fast-xml-parser` overrides are all deliberate — see history).
 - Shell scripts must be **LF** (`.gitattributes`) or the container migrator breaks.
 - New env vars **must** be added to the `environment:` block of `docker-compose.cohost.yml`.
-- `AUTH_MICROSOFT_ENTRA_ID_ISSUER` must be **blank** (a value breaks multi-tenant sign-in).
+- `AUTH_MICROSOFT_ENTRA_ID_ISSUER` stays blank or `https://login.microsoftonline.com/common/v2.0`
+  (equivalent — `auth.ts` normalises). A **tenant-specific** issuer breaks multi-tenant sign-in.
 - Don't throw at module top-level for prod-env checks (breaks `next build`); check at runtime (see `token.ts`).
 
 ## Important files

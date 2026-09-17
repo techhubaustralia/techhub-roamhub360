@@ -1,5 +1,9 @@
 # Workspace Hub — Onboarding & Handover
 
+> **SUPERSEDED (2026-09).** This describes the retired predecessor deployment (Azure, single-tenant).
+> RoamHub360 lives on a DigitalOcean droplet and is multi-tenant — read `PROJECT_HANDOVER/README.md`
+> and `docs/DEPLOY-DROPLET.md` instead. Kept only for history; nothing below should be followed.
+
 Master handover document. Read this first, then the linked docs. No secret **values** appear here — only names and where they live.
 
 > **Moving to another Claude account?** The code lives in git (below), independent of any Claude account. The new owner clones the repo, gets access to the Azure resources, and reads this file. Claude's local memory (`~/.claude/…`) does **not** transfer — this document is the durable replacement.

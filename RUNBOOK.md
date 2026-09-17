@@ -1,5 +1,8 @@
 # Workspace Hub — Go-Live Runbook (Phases A–E)
 
+> **SUPERSEDED (2026-09).** Retired Azure deployment of the predecessor app. The live runbook is
+> `docs/DEPLOY-DROPLET.md` (+ `PROJECT_HANDOVER/12_DEPLOYMENT_GUIDE.md`). Kept for history only.
+
 Everything below is **ready in code** and builds clean. These are the **Azure / Entra steps** to flip it on. Run in order. Vars:
 
 ```powershell

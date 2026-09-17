@@ -17,8 +17,7 @@ Effort: **S** <1d · **M** 1–3d · **L** >3d.
 
 | Item | Pri | Effort | Notes / dependency |
 |---|---|---|---|
-| Stale docs still describe Azure / the predecessor deployment (`ONBOARDING.md`, `RUNBOOK.md`, `teams/README.md`, some `graph.test.ts` fixture names) | P3 | S | Doc-only cleanup; `PROJECT_HANDOVER/` and `docs/DEPLOY-DROPLET.md` are current. |
-| `.env.example` vs `05_ENVIRONMENT_CONFIGURATION.md` disagree on `AUTH_MICROSOFT_ENTRA_ID_ISSUER` (`/common/v2.0` is correct for multi-tenant) | P3 | S | Align the example file. |
+| Retired-deployment docs (`ONBOARDING.md`, `RUNBOOK.md`, `DEPLOY.md`, `docs/DEPLOY.md`, `azure-pipelines.yml`) carry a SUPERSEDED banner but still exist | P3 | S | Delete once nobody needs the history; `docs/DEPLOY-DROPLET.md` + `PROJECT_HANDOVER/` are current. |
 | `npm audit` advisory on `prisma`/`deepmerge-ts` (dev tooling path) | P3 | S | Accepted 2026-09-14; revisit on the next Prisma minor. |
 | Billing is a stub — no live Stripe flow | P2 | M | `lib/server/billing.ts`, `/api/billing`. Needs a Stripe account + product/price + webhook. |
 | Demo data not in repo (`data/*.json` gitignored) | P3 | S | Create via editor UI on the new host, or seed the volume. |

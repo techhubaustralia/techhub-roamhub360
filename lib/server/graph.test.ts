@@ -27,20 +27,20 @@ describe("graph booking events", () => {
 
     const { createBookingEvent } = await import("./graph");
     const id = await createBookingEvent({
-      ownerEmail: "user@sodali.com",
+      ownerEmail: "user@example.com",
       subject: "s",
       startLocal: "2026-06-01T09:00",
       endLocal: "2026-06-01T10:00",
-      roomMailbox: "room@sodali.com",
+      roomMailbox: "room@example.com",
       online: true,
     });
 
     expect(id).toBe("EVT-123");
     const [url, init] = fetchMock.mock.calls[1];
-    expect(url).toContain("/users/user%40sodali.com/events"); // owner's calendar, not the room's
+    expect(url).toContain("/users/user%40example.com/events"); // owner's calendar, not the room's
     expect(init.method).toBe("POST");
     const body = JSON.parse(init.body);
-    expect(body.attendees).toContainEqual({ emailAddress: { address: "room@sodali.com" }, type: "resource" });
+    expect(body.attendees).toContainEqual({ emailAddress: { address: "room@example.com" }, type: "resource" });
     expect(body.isOnlineMeeting).toBe(true);
     expect(body.onlineMeetingProvider).toBe("teamsForBusiness");
   });
@@ -54,15 +54,15 @@ describe("graph booking events", () => {
 
     const { createBookingEvent } = await import("./graph");
     await createBookingEvent({
-      ownerEmail: "user@sodali.com",
+      ownerEmail: "user@example.com",
       subject: "s",
       startLocal: "2026-06-01T09:00",
       endLocal: "2026-06-01T10:00",
-      attendees: ["user@sodali.com", "colleague@sodali.com"],
+      attendees: ["user@example.com", "colleague@example.com"],
     });
     const body = JSON.parse(fetchMock.mock.calls[1][1].body);
     const addrs = body.attendees.map((a: { emailAddress: { address: string } }) => a.emailAddress.address);
-    expect(addrs).toEqual(["colleague@sodali.com"]);
+    expect(addrs).toEqual(["colleague@example.com"]);
   });
 
   it("cancelBookingEvent calls /cancel on the owner's event", async () => {
@@ -73,11 +73,11 @@ describe("graph booking events", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     const { cancelBookingEvent } = await import("./graph");
-    const result = await cancelBookingEvent("user@sodali.com", "EVT-123");
+    const result = await cancelBookingEvent("user@example.com", "EVT-123");
 
     expect(result).toBe(true);
     const [url, init] = fetchMock.mock.calls[1];
-    expect(url).toContain("/users/user%40sodali.com/events/EVT-123/cancel");
+    expect(url).toContain("/users/user%40example.com/events/EVT-123/cancel");
     expect(init.method).toBe("POST");
   });
 

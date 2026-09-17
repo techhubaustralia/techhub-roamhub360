@@ -25,7 +25,7 @@
 |---|---|---|---|
 | `AUTH_MICROSOFT_ENTRA_ID_ID` | Entra app (client) id — platform sign-in + org consent app. | For MS SSO | reuses the mail app id on the droplet |
 | `AUTH_MICROSOFT_ENTRA_ID_SECRET` | Entra app **secret value** (not the Secret ID GUID — common trap). | For MS SSO | — |
-| `AUTH_MICROSOFT_ENTRA_ID_ISSUER` | **Deprecated/keep blank.** Built-in provider re-discovers issuer per tenant; a non-blank value breaks multi-tenant. | No | normalise to blank |
+| `AUTH_MICROSOFT_ENTRA_ID_ISSUER` | Leave **blank** or set to `https://login.microsoftonline.com/common/v2.0` (both mean the same — `auth.ts` normalises blank to that). **Never a tenant-specific issuer**: that pins sign-in to one directory and every other company is refused. | No | `/common/v2.0` |
 | `AUTH_GOOGLE_ID` / `AUTH_GOOGLE_SECRET` | Optional Google sign-in. | No | provider added only when set |
 | `TEAMS_SSO_AUDIENCE` | Optional explicit audience for Teams token verification. | No | auto-derived from `APP_URL`/app id otherwise |
 | `SSO_AUTO_JOIN_DOMAINS` | Comma-separated email domains that auto-provision as staff on SSO. Blank = invite-only. | No | invite-only |

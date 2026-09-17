@@ -3,9 +3,9 @@ import { defineConfig, devices } from "@playwright/test";
 // Playwright UI E2E config. Requires: `npm i -D @playwright/test && npx playwright install`.
 // Run against a running app: E2E_BASE=http://localhost:3000 npx playwright test
 //
-// NOTE: the app sits behind Entra Easy Auth in prod. For local/staging E2E, run the app
-// with a dev identity (no Easy Auth) or inject the x-ms-client-principal-name header via a
-// proxy. The specs below assume the dev server (default identity = global-admin).
+// NOTE: production requires a real session. For local E2E run `npm run dev`, where the no-session
+// dev branch of getUser() supplies a demo Workspace admin (or impersonate via the x-dev-user /
+// x-dev-role / x-dev-tenant headers — see PROJECT_HANDOVER/11_TESTING_GUIDE.md).
 export default defineConfig({
   testDir: "./e2e",
   timeout: 30_000,

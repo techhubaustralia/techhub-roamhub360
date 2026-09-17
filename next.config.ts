@@ -1,7 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // standalone server bundle for the container image (Azure Container Apps)
+  // standalone server bundle for the container image (Dockerfile → droplet)
   output: "standalone",
   // There is no CDN/Front Door in front of the custom domain, and the app is
   // embedded in Teams (which caches aggressively). Force browsers to revalidate

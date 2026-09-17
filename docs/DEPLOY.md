@@ -1,5 +1,8 @@
 # Deployment runbook — Workspace Hub
 
+> **SUPERSEDED (2026-09).** Azure Container Apps process for the predecessor app. The current
+> deployment is `docs/DEPLOY-DROPLET.md`.
+
 How to ship a change to the production Azure Container App. Based on the actual
 process used (build image in ACR → point the Container App at the new tag).
 

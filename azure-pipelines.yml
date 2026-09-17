@@ -1,3 +1,7 @@
+# SUPERSEDED (2026-09): RoamHub360 deploys to a DigitalOcean droplet with docker compose
+# (docs/DEPLOY-DROPLET.md). This Azure DevOps pipeline belongs to the retired predecessor
+# deployment and is never triggered (`trigger: none`). Kept for history only.
+#
 # Azure DevOps pipeline: build image -> push to ACR -> deploy to Azure Container Apps.
 #
 # IMPORTANT: auto-trigger is DISABLED. The previous config triggered on every push

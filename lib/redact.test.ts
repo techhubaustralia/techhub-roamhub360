@@ -3,7 +3,7 @@ import { redactEmail } from "./redact";
 
 describe("redactEmail", () => {
   it("masks the local part but keeps first char + domain", () => {
-    expect(redactEmail("abin.raju@mssodali.com")).toBe("a********@mssodali.com");
+    expect(redactEmail("abin.raju@example.com")).toBe("a********@example.com");
     expect(redactEmail("jo@x.io")).toBe("j**@x.io");
   });
   it("never leaks on missing/garbage input", () => {

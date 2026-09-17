@@ -1,5 +1,7 @@
 # Deploy — Workspace Hub (Azure)
 
+> **SUPERSEDED (2026-09).** RoamHub360 no longer runs on Azure. See `docs/DEPLOY-DROPLET.md`.
+
 Architecture: **Azure Container Apps** (host) · **Azure Blob Storage** (floor-plan JSON + images) · **Azure SQL Serverless** (bookings/locks/buildings) · **Azure Container Registry** (image) · **Azure DevOps Pipelines** (CI/CD). Sized for ~50 concurrent / ~500 users; serverless SQL + consumption Container Apps keep idle cost low (~$30–50/mo).
 
 ## 1. One-time provisioning (az CLI)

@@ -105,7 +105,7 @@ pull && docker compose -f docker-compose.cohost.yml up -d --build`.
 |---|---|
 | `npx prisma …` wants to install prisma@7 | You're outside the repo / no node_modules. `cd` into the repo, `npm ci` first. |
 | Build fails `Can't resolve 'shadcn/tailwind.css'` | `shadcn` devDep is used via CSS import — keep it; run `npm ci`. |
-| Auth errors locally | Set `AUTH_SECRET`. Leave `AUTH_MICROSOFT_ENTRA_ID_ISSUER` **blank**. |
+| Auth errors locally | Set `AUTH_SECRET`. Leave `AUTH_MICROSOFT_ENTRA_ID_ISSUER` blank or at `/common/v2.0` — never a tenant-specific issuer. |
 | Container migrator "P3005" | Expected on a pre-migrations DB; `scripts/migrate.sh` self-baselines. |
 | Shell script "bad interpreter" in container | Ensure `*.sh` is LF (`.gitattributes` enforces it). |
 | App shows no data locally | Normal — JSON backend is empty; create plans via `/editor`. |
