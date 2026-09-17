@@ -22,7 +22,7 @@ const nextConfig: NextConfig = {
       // frame-ancestors for Teams embedding. script/style keep 'unsafe-inline' because Next's
       // App Router injects inline bootstrap scripts and Tailwind emits inline styles; the res.cdn
       // host is the Teams JS SDK (loaded at runtime by the /teams tab). NONCE-based script-src is
-      // the stricter follow-up (needs middleware + Turbopack nonce propagation) — tracked, not here.
+      // the stricter follow-up (needs proxy.ts + Turbopack nonce propagation) — tracked, not here.
       {
         key: "Content-Security-Policy",
         value: [

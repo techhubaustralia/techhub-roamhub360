@@ -21,8 +21,9 @@ const FEATURES = [
   { key: "presence", label: "Who's in (team presence)" },
   { key: "directory", label: "Directory sync" },
   { key: "digest", label: "Daily who's-in digest" },
+  { key: "assistant", label: "Hubbi (AI booking assistant)" },
   { key: "office-booking", label: "Office bookings (cross-site overview)" },
-];
+]; // keep in step with FEATURES in lib/server/tenants.ts (server-only, so not importable here)
 const TIERS = ["trial", "standard", "professional", "enterprise"];
 
 export default function TenantsPage() {

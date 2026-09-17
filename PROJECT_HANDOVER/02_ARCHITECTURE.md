@@ -15,7 +15,7 @@ flowchart TB
   B & T -->|HTTPS| Caddy[Caddy reverse proxy<br/>*.roamhub360.com auto-TLS]
   Caddy --> APP[Next.js app<br/>127.0.0.1:3100 in Docker]
   subgraph APP_internals[Next.js process]
-    MW[middleware.ts<br/>edge auth guard] --> RH[Route handlers /api/**]
+    MW[proxy.ts<br/>route guard] --> RH[Route handlers /api/**]
     RH --> AUTH[getUser / Auth.js]
     RH --> DB[(lib/server/db.ts<br/>tenant-scoped)]
     RH --> STORE[lib/server/store.ts<br/>files/blob]
@@ -70,7 +70,7 @@ row-level security are **designed and prepared** in `prisma/planned/` (C4) but n
 ```mermaid
 sequenceDiagram
   participant U as User
-  participant MW as middleware (edge)
+  participant MW as proxy.ts (route guard)
   participant AJ as Auth.js (auth.ts, node)
   participant DB as User table
   U->>MW: request <slug>.roamhub360.com/*

@@ -12,6 +12,7 @@ import { confirmationEmail, emailBrand } from "@/lib/server/email";
 import { sendPushToUser } from "@/lib/server/push";
 import { dispatchEvent } from "@/lib/server/webhooks";
 import { getStoredPlan } from "@/lib/server/store";
+import { getHiddenPresenceEmails } from "@/lib/server/users";
 import { getFloorPlan } from "@/lib/floorplans";
 import { z } from "zod";
 
@@ -49,8 +50,12 @@ export async function GET(req: Request) {
     // occupant name and (for admins) no cancel action on the covered days.
     const dayStart = `${date}T00:00`;
     const dayEnd = `${date}T23:59`;
-    const rows = (await listBookings({ buildingId: building })).filter(
-      (b) => ACTIVE_STATUSES.includes(b.status) && overlaps(b.start, b.end, dayStart, dayEnd),
+    // Presence opt-out (same policy as /api/presence and /api/office-bookings): someone who hid
+    // themselves is never named on the map — except to themselves. The desk still shows as taken.
+    const [all, hidden] = await Promise.all([listBookings({ buildingId: building }), getHiddenPresenceEmails()]);
+    const meEmail = me.email.toLowerCase();
+    const rows = all.filter(
+      (b) => ACTIVE_STATUSES.includes(b.status) && overlaps(b.start, b.end, dayStart, dayEnd) && (!hidden.has(b.userEmail.toLowerCase()) || b.userEmail.toLowerCase() === meEmail),
     );
     const rl = await rateLimit(`occ:ip:${clientIp(req)}`, 120, 60_000); // search endpoint throttle
     if (!rl.ok) return tooMany(rl.retryAfter);

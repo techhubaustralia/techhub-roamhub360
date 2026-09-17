@@ -5,7 +5,7 @@ import Link from "next/link";
 import { toast } from "sonner";
 import { getBookings, setBookingStatusApi, editBookingApi, isActiveBooking, displayStatus, type Booking } from "@/lib/api";
 import { getBuildingsMeta, fetchPlan } from "@/lib/plan-store";
-import { deriveTimes, checkInWindowError, maxAdvanceDate, type DurationType, type Kind } from "@/lib/booking-rules";
+import { deriveTimes, checkInWindowError, maxAdvanceDate, todayInTz, type DurationType, type Kind } from "@/lib/booking-rules";
 import { PageHeader } from "@/components/page-header";
 import { StatusPill } from "@/components/status-pill";
 
@@ -193,7 +193,9 @@ export default function MinePage() {
 function EditModal({ b, buildingName, onClose, onSaved }: { b: Booking; buildingName: string; onClose: () => void; onSaved: () => void }) {
   const kind = b.kind as Kind;
   const dur = b.durationType as DurationType;
-  const today = new Date().toISOString().slice(0, 10);
+  // "Today" is the SITE's calendar day (platform-default zone until the plan's tz loads) — never
+  // the UTC date, which is already tomorrow in Australia every evening (H7).
+  const [today, setToday] = useState(() => todayInTz());
   const [startDate, setStartDate] = useState(b.start.slice(0, 10));
   const [endDate, setEndDate] = useState(b.end.slice(0, 10));
   const [startTime, setStartTime] = useState(b.start.slice(11) || "09:00");
@@ -206,7 +208,7 @@ function EditModal({ b, buildingName, onClose, onSaved }: { b: Booking; building
   useEffect(() => {
     let alive = true;
     fetchPlan(b.buildingId)
-      .then((p) => { if (alive) setMaxDate(maxAdvanceDate(p.advanceDays, p.tz)); })
+      .then((p) => { if (alive) { setMaxDate(maxAdvanceDate(p.advanceDays, p.tz)); setToday(todayInTz(p.tz)); } })
       .catch(() => {});
     return () => { alive = false; };
   }, [b.buildingId]);

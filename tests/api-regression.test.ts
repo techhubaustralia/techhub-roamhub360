@@ -50,8 +50,8 @@ const book = async (email: string | undefined, bldg: string, spaceKey: string, k
 };
 const patch = (email: string | undefined, id: string, status: string, reason?: string) =>
   api(`/api/bookings/${id}`, { method: "PATCH", headers: H(email), body: JSON.stringify({ status, ...(reason ? { reason } : {}) }) });
-// Deleting a plan does not release its bookings (only removing spaces via PUT does), so cancel
-// every booking this run made first — otherwise leftovers accumulate in the local store.
+// Cancel every booking this run made before deleting its plans. DELETE /api/plans/[id] now releases
+// a plan's active bookings itself, but cancelling explicitly keeps the cleanup independent of that.
 async function cleanup() {
   for (const id of booked.splice(0)) await patch(undefined, id, "Cancelled").catch(() => {});
   for (const id of created.splice(0)) await api(`/api/plans/${id}`, { method: "DELETE", headers: H() });

@@ -59,7 +59,7 @@ docker compose -f docker-compose.cohost.yml down                     # stop
 # host Caddy (only when adding a subdomain/site):
 sudo nano /etc/caddy/Caddyfile && sudo systemctl reload caddy
 # backups:
-docker compose -f docker-compose.cohost.yml exec db pg_dump -U postgres roamhub360 > backup.sql
+docker compose -f docker-compose.cohost.yml exec -T db pg_dump -U roamhub roamhub360 > backup-$(date +%F).sql   # DB role is `roamhub`, not postgres
 ```
 
 ## Git (push policy: verify target, user runs pushes)

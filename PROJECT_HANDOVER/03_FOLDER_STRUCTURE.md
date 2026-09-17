@@ -20,7 +20,7 @@ workspace-hub/
 ├─ docker-compose.yml     # standalone (with Caddy) — NOT used on the co-host droplet
 ├─ docker-compose.cohost.yml  # ACTUAL prod compose (no Caddy; app on 127.0.0.1:3100)
 ├─ Caddyfile              # standalone Caddy config (droplet uses host /etc/caddy/Caddyfile)
-├─ auth.ts / auth.config.ts / middleware.ts   # Auth.js node + edge + route guard
+├─ auth.ts / auth.config.ts / proxy.ts   # Auth.js node config + DB-free config + route guard (Next 16 "proxy", ex-middleware)
 ├─ next.config.ts, tsconfig.json, eslint.config.mjs, vitest.config.ts, playwright.config.ts
 ├─ .env.example, .dockerignore, .gitignore, .gitattributes
 ├─ CLAUDE.md → AGENTS.md  # instructions for AI assistants working in the repo

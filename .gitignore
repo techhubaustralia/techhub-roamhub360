@@ -53,3 +53,6 @@ deverr.log
 # installed agent skills (local tooling, not app source)
 .agents/
 skills-lock.json
+
+# rendered Play-store assets (sources in store/*.svg; render with scripts/store-assets.mjs)
+/store/out/

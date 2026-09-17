@@ -1,0 +1,75 @@
+<svg width="1024" height="500" viewBox="0 0 1024 500" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="RoamHub360 — Space managed. Teams connected.">
+  <!-- Google Play feature graphic (1024×500). Render to PNG with: node scripts/store-assets.mjs -->
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#12294a"/>
+      <stop offset="1" stop-color="#0a1830"/>
+    </linearGradient>
+    <linearGradient id="orbit" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#2B7DD1"/>
+      <stop offset="1" stop-color="#29C5EE"/>
+    </linearGradient>
+    <linearGradient id="tile" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#1a3a66"/>
+      <stop offset="1" stop-color="#0f2140"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.78" cy="0.5" r="0.45">
+      <stop offset="0" stop-color="#2B7DD1" stop-opacity="0.35"/>
+      <stop offset="1" stop-color="#2B7DD1" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <rect width="1024" height="500" fill="url(#bg)"/>
+  <rect width="1024" height="500" fill="url(#glow)"/>
+
+  <!-- faint floor-plan grid, right side -->
+  <g stroke="#27395C" stroke-width="1" opacity="0.55">
+    <path d="M660 90h300M660 150h300M660 210h300M660 270h300M660 330h300M660 390h300"/>
+    <path d="M660 90v300M720 90v300M780 90v300M840 90v300M900 90v300M960 90v300"/>
+  </g>
+  <!-- desks: available / booked / occupied -->
+  <g rx="8">
+    <rect x="672" y="102" width="36" height="36" rx="8" fill="#2FBE86"/>
+    <rect x="732" y="102" width="36" height="36" rx="8" fill="#2FBE86"/>
+    <rect x="792" y="102" width="36" height="36" rx="8" fill="#F5821F"/>
+    <rect x="852" y="102" width="36" height="36" rx="8" fill="#2FBE86"/>
+    <rect x="912" y="102" width="36" height="36" rx="8" fill="#2B7DD1"/>
+    <rect x="672" y="162" width="36" height="36" rx="8" fill="#F5821F"/>
+    <rect x="732" y="162" width="36" height="36" rx="8" fill="#2B7DD1"/>
+    <rect x="792" y="162" width="36" height="36" rx="8" fill="#2FBE86"/>
+    <rect x="852" y="162" width="36" height="36" rx="8" fill="#2FBE86"/>
+    <rect x="912" y="162" width="36" height="36" rx="8" fill="#F5821F"/>
+    <!-- meeting room -->
+    <rect x="672" y="222" width="156" height="96" rx="12" fill="url(#tile)" stroke="#2B7DD1" stroke-width="2"/>
+    <text x="750" y="278" text-anchor="middle" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="16" font-weight="600" fill="#EDF3FC">Boardroom</text>
+    <!-- parking -->
+    <rect x="852" y="222" width="96" height="96" rx="12" fill="url(#tile)" stroke="#29C5EE" stroke-width="2"/>
+    <text x="900" y="278" text-anchor="middle" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="26" font-weight="700" fill="#29C5EE">P</text>
+    <rect x="672" y="342" width="36" height="36" rx="8" fill="#2FBE86"/>
+    <rect x="732" y="342" width="36" height="36" rx="8" fill="#2B7DD1"/>
+    <rect x="792" y="342" width="36" height="36" rx="8" fill="#2FBE86"/>
+    <rect x="852" y="342" width="36" height="36" rx="8" fill="#F5821F"/>
+    <rect x="912" y="342" width="36" height="36" rx="8" fill="#2FBE86"/>
+  </g>
+
+  <!-- logomark -->
+  <g transform="translate(72 118) scale(2.2)">
+    <rect x="3" y="3" width="58" height="58" rx="15" fill="url(#tile)" stroke="#27395C"/>
+    <circle cx="32" cy="32" r="18" fill="none" stroke="url(#orbit)" stroke-width="3.4" stroke-linecap="round" stroke-dasharray="94 19" transform="rotate(-58 32 32)"/>
+    <rect x="24.5" y="24.5" width="15" height="15" rx="4.2" fill="#EDF3FC"/>
+    <circle cx="49" cy="21.6" r="4.1" fill="#29C5EE"/>
+  </g>
+
+  <!-- wordmark + tagline -->
+  <text x="236" y="182" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="64" font-weight="800" fill="#EDF3FC" letter-spacing="-1">RoamHub<tspan fill="#29C5EE">360</tspan></text>
+  <text x="238" y="230" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="26" font-weight="600" fill="#9fb3c8">Space managed. Teams connected.</text>
+
+  <!-- three value points -->
+  <g font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="20" fill="#EDF3FC">
+    <circle cx="86" cy="318" r="6" fill="#2FBE86"/><text x="104" y="325">Book desks, rooms, offices and parking from a live floor plan</text>
+    <circle cx="86" cy="362" r="6" fill="#F5821F"/><text x="104" y="369">See who's in and sit with your team</text>
+    <circle cx="86" cy="406" r="6" fill="#2B7DD1"/><text x="104" y="413">Check in with a tap or the QR code at your desk</text>
+  </g>
+
+  <text x="72" y="462" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="15" fill="#7a8b96">by TechHub Australia · sign in with your Microsoft work account</text>
+</svg>

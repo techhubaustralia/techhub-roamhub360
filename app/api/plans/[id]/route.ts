@@ -5,7 +5,7 @@ import { getFloorPlan } from "@/lib/floorplans";
 import { getStoredPlan, putPlan, deletePlan, syncCustomBuildingMeta } from "@/lib/server/store";
 import { getUser } from "@/lib/server/auth";
 import { rateLimit, tooMany } from "@/lib/server/rate-limit";
-import { cancelBookingsForSpaces, audit } from "@/lib/server/db";
+import { cancelBookingsForSpaces, cancelActiveBookingsForBuilding, audit } from "@/lib/server/db";
 
 const spaceKeysOf = (p: { els?: FloorPlan["els"] } | null) =>
   new Set(
@@ -55,9 +55,13 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
 }
 
 export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string }> }) {
-  const { role } = await getUser();
+  const { role, email } = await getUser();
   if (role !== "global-admin") return NextResponse.json({ error: "Only a Workspace admin can edit floor plans." }, { status: 403 });
   const { id } = await params;
+  // Removing a floor plan removes its spaces; release their active bookings so nothing stays
+  // "active" against a layout that no longer exists (mirrors DELETE /api/buildings/[id]).
+  const cancelled = await cancelActiveBookingsForBuilding(id, email, "Floor plan removed.");
   await deletePlan(id);
+  if (cancelled) await audit(email, "plan.delete", `${id}: cancelled ${cancelled} active booking(s)`);
   return NextResponse.json(getFloorPlan(id));
 }

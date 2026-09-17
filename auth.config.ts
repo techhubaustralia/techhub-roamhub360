@@ -4,9 +4,9 @@ import { tenantFromHost, requestHost } from "@/lib/tenant-host";
 
 export { tenantFromHost, requestHost } from "@/lib/tenant-host";
 
-// Edge-safe base config, shared with middleware. NO database, bcrypt, or provider
-// secrets here (middleware runs on the edge runtime). The full provider list +
-// credential/DB logic lives in ./auth.ts (Node runtime).
+// DB-free base config, shared with the route guard (proxy.ts). NO database, bcrypt, or provider
+// secrets here — the guard only needs to verify the JWT, and keeping it dependency-free keeps it
+// fast and portable. The full provider list + credential/DB logic lives in ./auth.ts.
 
 // Paths reachable without a session. Everything else requires auth.
 // (checkin/checkout/jobs are self-secured by HMAC / JOBS_SECRET; /teams is the SSO bridge;
@@ -38,7 +38,7 @@ export const authConfig = {
   pages: { signIn: "/signin" },
   providers: [], // real providers are added in ./auth.ts
   callbacks: {
-    // Map JWT claims onto the session (edge-safe — token reads only). Shared by middleware + node.
+    // Map JWT claims onto the session (token reads only). Shared by the route guard + auth.ts.
     session({ session, token }) {
       if (session.user) {
         session.user.role = token.role as string | undefined;

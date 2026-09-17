@@ -102,7 +102,7 @@ See `10_PENDING_WORK.md`. Headline P1s: apply/validate **C4 RLS** on staging; **
 
 ## Important files
 
-`auth.ts` / `auth.config.ts` / `middleware.ts` (auth), `lib/server/db.ts` + `prisma.ts` (data),
+`auth.ts` / `auth.config.ts` / `proxy.ts` (auth; `proxy.ts` is Next 16's rename of `middleware.ts`), `lib/server/db.ts` + `prisma.ts` (data),
 `lib/server/tenant.ts` + `lib/tenant-host.ts` (tenancy), `lib/server/auth.ts` (`getUser`),
 `lib/booking-rules.ts` (booking + tz), `app/api/bookings/route.ts` (the booking engine),
 `lib/server/graph.ts` (Microsoft), `lib/server/assistant.ts` + `lib/assistant-policy.ts` (AI),

@@ -105,7 +105,7 @@ flowchart LR
 
 ## 5. Authentication & authorization
 
-The most intricate part of the system. Auth.js v5 with a **split config**: `auth.config.ts` (edge-safe, used by middleware) and `auth.ts` (Node runtime, providers + DB logic).
+The most intricate part of the system. Auth.js v5 with a **split config**: `auth.config.ts` (DB-free, used by the `proxy.ts` route guard — Next 16's successor to `middleware.ts`) and `auth.ts` (providers + DB logic).
 
 ### 5.1 Providers
 | Provider | Purpose |

@@ -97,7 +97,9 @@ Auth: `Authorization: Bearer <key>` or `x-api-key`. `apiGuard(req, scope)` → `
 | Route | Method | Auth | Notes |
 |---|---|---|---|
 | `/api/jobs/[task]` | GET | `x-jobs-secret: JOBS_SECRET` (fail-closed) | tasks: `tick`, `reminder`, `checkin`, `checkout`, `auto-release`, `auto-checkout`, `digest`, `license-check`, `audit-prune`, `report`. Idempotent (H8). |
-| `/api/health`, `/api/version` | GET | public | liveness + build version. |
+| `/api/health` | GET | public | liveness (+ DB ping). |
+| `/api/version` | GET | signed-in | build version (not in the public allowlist — by design, it reveals the deployed SHA). |
+| `/.well-known/assetlinks.json`, `/manifest.webmanifest`, `/sw.js` | GET | public | Android Digital Asset Links (404 until `ANDROID_ASSETLINKS_SHA256` is set), PWA manifest, service worker. |
 | `/api/diag/audit`, `/api/diag/graph`, `/api/diag/[id]` | GET | admin | diagnostics (audit backend probe, Graph test). |
 | `/api/billing`, `/api/billing/webhook` | POST | signed-in / Stripe sig | billing hooks (stub). |
 

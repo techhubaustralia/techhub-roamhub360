@@ -33,8 +33,9 @@ un-bypassable. This is the reference for the CP5 hardening pass.
 - Auth.js (JWT sessions). Providers are env-gated; local password hashes use bcrypt.
 - **Teams SSO** tokens are verified server-side against Microsoft's JWKS (signature + audience +
   Microsoft-issuer shape) in `lib/server/teams-token.ts` — lookalike issuers are rejected.
-- Middleware (`auth.config.ts`) requires a session for everything except an explicit public
-  allowlist (`/signin`, `/privacy`, `/terms`, auth/checkin/checkout/jobs/teams/verify).
+- The route guard (`proxy.ts` + `auth.config.ts`) requires a session for everything except an
+  explicit public allowlist (`/signin`, `/privacy`, `/terms`, auth/checkin/checkout/jobs/teams/verify,
+  `/.well-known`, the web manifest and service worker).
 
 ## Data minimisation & visibility
 - The presence board exposes a **display name** to colleagues, and a raw email only to a building

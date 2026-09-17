@@ -6,9 +6,9 @@ Criticality: 🔴 critical (breaks app/deploy/security if wrong) · 🟠 importa
 
 | Path | Purpose | Referenced by | Crit |
 |---|---|---|---|
-| `auth.ts` | Auth.js node config: providers (password/Entra/Google/Teams), callbacks, tenant lock. | middleware, `/api/auth` | 🔴 |
-| `auth.config.ts` | Edge-safe auth config: public-route allowlist, `authorized` guard. | middleware, auth.ts | 🔴 |
-| `middleware.ts` | Edge route guard (NextAuth). | all requests | 🔴 |
+| `auth.ts` | Auth.js node config: providers (password/Entra/Google/Teams), callbacks, tenant lock. | proxy.ts, `/api/auth` | 🔴 |
+| `auth.config.ts` | DB-free auth config: public-route allowlist, `authorized` guard. | proxy.ts, auth.ts | 🔴 |
+| `proxy.ts` | Route guard (NextAuth) — Next 16's `proxy` convention, formerly `middleware.ts`. | all requests | 🔴 |
 | `next.config.ts` | standalone output, headers/CSP, cache. | build/runtime | 🔴 |
 | `tsconfig.json`, `eslint.config.mjs`, `vitest.config.ts`, `playwright.config.ts` | Type/lint/test config. | tooling | 🟠 |
 | `Dockerfile` | Multi-stage build (deps/build/runner/migrator). | deploy | 🔴 |
