@@ -30,6 +30,7 @@ in the order it lists (beginning with `16_AI_CONTEXT.md`).
 | 18 | `18_COMMAND_REFERENCE.md` | Every useful command. |
 | 19 | `19_FILE_MANIFEST.md` | Important files: path, purpose, criticality. |
 | 20 | `20_HANDOVER_SUMMARY.md` | Executive summary + exact next tasks. |
+| 21 | `21_ANDROID_APP.md` | Google Play app as a Trusted Web Activity: asset links, tenant origins, Bubblewrap, CI, listing + Data safety drafts. |
 | — | `PROJECT_IMPORT_PROMPT.md` | Paste-into-Claude-Code prompt for the new machine. |
 
 ## One-line status

@@ -300,7 +300,7 @@ flowchart TB
 
 **Microsoft:** `AUTH_MICROSOFT_ENTRA_ID_ID/_SECRET/_ISSUER` (keep issuer at `/common/v2.0` for multi-tenant), `AZURE_TENANT_ID`, `GRAPH_CLIENT_ID/_SECRET`, `MAIL_FROM`, `GRAPH_TIMEZONE`.
 
-**Optional:** `RESEND_API_KEY/_FROM`, `STRIPE_*`, `VAPID_*`, `ANTHROPIC_API_KEY`/`AI_*`, `SSO_AUTO_JOIN_DOMAINS`, `CREDENTIAL_KEY`, `OPS_EMAIL`, `ALLOW_PUBLIC_SIGNUP`, `AUTH_DEBUG`, `AUTH_GOOGLE_ID/_SECRET`.
+**Optional:** `RESEND_API_KEY/_FROM`, `STRIPE_*`, `VAPID_*`, `ANTHROPIC_API_KEY`/`AI_*`, `SSO_AUTO_JOIN_DOMAINS`, `CREDENTIAL_KEY`, `OPS_EMAIL`, `ALLOW_PUBLIC_SIGNUP`, `AUTH_DEBUG`, `AUTH_GOOGLE_ID/_SECRET`, `ANDROID_ASSETLINKS_SHA256` / `ANDROID_PACKAGE_NAME` (Android TWA — `/.well-known/assetlinks.json`, 404 until set).
 
 > **Operational note:** a `.env` with **duplicate keys** silently takes the *last* value — this caused an empty-Microsoft-secret outage in the field. Keys should be unique.
 

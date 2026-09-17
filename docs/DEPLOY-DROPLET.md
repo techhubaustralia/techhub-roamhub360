@@ -338,3 +338,33 @@ caching them per-tenant in `DirectoryUser`. Re-run it whenever the directory cha
 
 > Per-**customer** Graph credentials (so each tenant syncs *their own* directory) arrive with the
 > Customer Admin Portal in the commercial phase; today the sync uses the deployment's single Graph app.
+
+---
+
+## 15. Android app on Google Play (Trusted Web Activity)
+
+The Android app is a **Trusted Web Activity**: a thin Play-store wrapper that opens the deployed
+web app full-screen (no browser chrome) and inherits everything — sign-in, tenants, push, QR
+check-in. There is no second codebase to maintain; the app updates when the web app deploys.
+
+The one thing Android insists on is proof that the app and the website belong together, checked on
+**every origin the app opens** — `app.roamhub360.com` *and* each `<customer>.roamhub360.com`.
+The web app serves that proof from one env setting on all hosts:
+
+1. **Play Console** → *Setup → App signing* → copy the **SHA-256 certificate fingerprint** of the
+   *App signing key* (and, while testing internal builds, the *Upload key* fingerprint too).
+2. On the droplet, add to `/root/roamhub360/.env`:
+   ```
+   ANDROID_ASSETLINKS_SHA256=AA:BB:…:ZZ,11:22:…:99      # comma-separated, upper or lower case
+   ANDROID_PACKAGE_NAME=com.techhubaustralia.roamhub360
+   ```
+   then `docker compose -f docker-compose.cohost.yml up -d` (no rebuild needed — env only).
+3. Verify: `curl -s https://app.roamhub360.com/.well-known/assetlinks.json` returns the statement
+   (`404 Not configured.` until step 2). The same URL works on any customer subdomain.
+
+The Android project itself (package name, launch URL `https://app.roamhub360.com/`, the list of
+allowed origins = the tenant subdomains, icons, splash colours from `app/manifest.ts`) lives in a
+separate repo generated with Bubblewrap; see `PROJECT_HANDOVER/21_ANDROID_APP.md`.
+
+> The web manifest (`/manifest.webmanifest`), the service worker (`/sw.js`) and `/.well-known/*`
+> are public routes (no session) — Android and the browser fetch them anonymously.

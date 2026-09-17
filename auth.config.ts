@@ -13,7 +13,9 @@ export { tenantFromHost, requestHost } from "@/lib/tenant-host";
 //  /api/v1 is the public REST API, self-secured by per-tenant API keys.)
 // /api/admin/entra/callback is the Entra admin-consent return URL — the consenting IT admin may
 // have no session on the main host; it is self-secured by an HMAC-signed state parameter.
-const PUBLIC = ["/signin", "/signup", "/forgot", "/set-password", "/verify-email", "/sso", "/privacy", "/terms", "/api/auth", "/api/account", "/api/signup", "/api/checkin", "/api/checkout", "/api/jobs", "/api/v1", "/api/health", "/api/billing/webhook", "/teams", "/api/tenants/verify", "/api/admin/entra/callback"];
+// /.well-known is Digital Asset Links for the Android app (Android's verifier has no session);
+// /manifest.webmanifest and /sw.js are fetched by the browser without credentials on install.
+const PUBLIC = ["/signin", "/signup", "/forgot", "/set-password", "/verify-email", "/sso", "/privacy", "/terms", "/api/auth", "/api/account", "/api/signup", "/api/checkin", "/api/checkout", "/api/jobs", "/api/v1", "/api/health", "/api/billing/webhook", "/teams", "/api/tenants/verify", "/api/admin/entra/callback", "/.well-known", "/manifest.webmanifest", "/sw.js"];
 
 function isPublic(pathname: string): boolean {
   return PUBLIC.some((p) => pathname === p || pathname.startsWith(p + "/"));
