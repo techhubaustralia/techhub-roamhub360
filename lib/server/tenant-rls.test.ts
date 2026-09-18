@@ -11,7 +11,7 @@ const { executed, client } = vi.hoisted(() => {
 vi.mock("./prisma", () => ({ prisma: async () => client }));
 vi.mock("./tenant", () => ({ currentTenantId: async () => "acme" }));
 
-import { withTenant, rlsEnabled } from "./tenant-rls";
+import { withTenant, setTenantContext, rlsEnabled } from "./tenant-rls";
 
 describe("tenant-rls (C4 Phase B plumbing, shipped dark)", () => {
   const prev = process.env.TENANT_RLS;
@@ -51,5 +51,18 @@ describe("tenant-rls (C4 Phase B plumbing, shipped dark)", () => {
     await withTenant(async () => null, "globex");
     const [, ...values] = executed[0] as [TemplateStringsArray, ...unknown[]];
     expect(values).toEqual(["globex"]);
+  });
+
+  it("setTenantContext: no-op off; on, one set_config on the GIVEN tx (for functions with their own transaction)", async () => {
+    const own = { $executeRaw: vi.fn(async (...a: unknown[]) => { executed.push(a); return 1; }) };
+    delete process.env.TENANT_RLS;
+    await setTenantContext(own);
+    expect(own.$executeRaw).not.toHaveBeenCalled();
+    process.env.TENANT_RLS = "on";
+    await setTenantContext(own);
+    expect(own.$executeRaw).toHaveBeenCalledTimes(1);
+    expect(client.$transaction).not.toHaveBeenCalled(); // never opens its own transaction
+    const [, ...values] = executed[0] as [TemplateStringsArray, ...unknown[]];
+    expect(values).toEqual(["acme"]);
   });
 });

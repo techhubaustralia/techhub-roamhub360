@@ -22,6 +22,18 @@ export function rlsEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
 }
 
 /**
+ * Set the RLS tenant context on a transaction client you ALREADY hold — for functions that run
+ * their own `$transaction` (createBooking / updateBookingTimes use Serializable isolation and
+ * retries; interactive transactions can't nest, so they can't be wrapped in `withTenant`). Call it
+ * as the first statement inside the transaction callback. No-op while the flag is off.
+ */
+export async function setTenantContext(tx: TenantTx, tenantId?: string): Promise<void> {
+  if (!rlsEnabled()) return;
+  const tid = tenantId ?? (await currentTenantId());
+  await tx.$executeRaw`SELECT set_config('app.tenant_id', ${tid}, true)`;
+}
+
+/**
  * Run `fn` with the row-level-security tenant context set for ONE transaction. Pass the `tx` it
  * receives to every query inside `fn` — queries on the shared client would run outside the
  * transaction and, under FORCE RLS, see no rows.
@@ -31,7 +43,7 @@ export async function withTenant<T>(fn: (tx: TenantTx) => Promise<T>, tenantId?:
   if (!rlsEnabled()) return fn(p);
   const tid = tenantId ?? (await currentTenantId());
   return p.$transaction(async (tx: TenantTx) => {
-    await tx.$executeRaw`SELECT set_config('app.tenant_id', ${tid}, true)`;
+    await setTenantContext(tx, tid);
     return fn(tx);
   });
 }

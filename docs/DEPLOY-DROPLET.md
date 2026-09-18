@@ -134,11 +134,15 @@ Set `AZURE_TENANT_ID`, `GRAPH_CLIENT_ID`, `GRAPH_CLIENT_SECRET`, `MAIL_FROM` (se
 Leave blank to disable — the app no-ops (bookings still work, just no email/calendar).
 
 ## 8. Scheduled jobs (check-in reminders, auto-cancel, the "who's in" digest, etc.)
-Add a host cron that pings the tick endpoint every 30 min:
+**Nothing runs unless the host cron fires the tick endpoint.** (Found unset on the droplet on
+2026-09-18 — no reminders, auto-release, digests or licence warnings had ever run.) Use the repo
+script, which reads `JOBS_SECRET` from `.env` and logs every run to `/var/log/roamhub360-jobs.log`:
 ```bash
-*/30 * * * * curl -fsS -H "x-jobs-secret: <JOBS_SECRET>" https://app.roamhub360.com/api/jobs/tick >/dev/null 2>&1
+*/30 * * * * sh /root/roamhub360/scripts/jobs-tick.sh tick
+0 7 1 * *    sh /root/roamhub360/scripts/jobs-tick.sh report
 ```
-(In Coolify, use a Scheduled Task instead.) Each site fires its tasks at its own local time:
+Test by hand first: `sh /root/roamhub360/scripts/jobs-tick.sh tick; tail -1 /var/log/roamhub360-jobs.log`
+→ `HTTP 200`. (In Coolify, use a Scheduled Task instead.) Each site fires its tasks at its own local time:
 `digest` 07:30 (Team Build-Up D — the daily "who's in" email, opt-in per user under **Settings**),
 `checkin` 08:00, `auto-release` 09:30, `checkout` 17:00, `auto-checkout` 17:30, `reminder` 18:00.
 All emails need Microsoft Graph (§7); without it they no-op. You can trigger one task for every
@@ -149,10 +153,7 @@ Each `tick` also runs **licence-expiry checks** (CP4): customer workspaces are w
 demand with `curl -H "x-jobs-secret: …" https://app.roamhub360.com/api/jobs/license-check`.
 
 **Monthly ROI report (G4):** a separate task emails last month's utilisation (bookings, check-in %,
-no-show %, utilisation by type, busiest day) to a workspace's admins. Schedule it on the 1st:
-```bash
-0 7 1 * * curl -fsS -H "x-jobs-secret: <JOBS_SECRET>" https://app.roamhub360.com/api/jobs/report >/dev/null 2>&1
-```
+no-show %, utilisation by type, busiest day) to a workspace's admins — the `report` cron line above.
 
 ## 9. Private demo gate (before real auth is in front of prospects)
 To password-protect the whole site (plain-compose path), uncomment `basic_auth` in `Caddyfile`:
@@ -162,11 +163,16 @@ docker compose restart caddy
 ```
 
 ## 10. Backups
-Back up the Postgres volume regularly:
+`scripts/backup-droplet.sh` dumps Postgres (`pg_dump --no-owner`, gzip) **and** tars the `appdata`
+volume (floor plans, images, push subscriptions) into `/root/backups/roamhub360/`, keeps 14 days,
+and fails loudly if the dump is empty. Nightly at 16:30 UTC (02:30 Sydney):
 ```bash
-docker compose exec -T db pg_dump -U roamhub roamhub360 | gzip > roamhub360-$(date +%F).sql.gz
+30 16 * * * sh /root/roamhub360/scripts/backup-droplet.sh >> /var/log/roamhub360-backup.log 2>&1
 ```
-Also back up the `appdata` volume (floor plans / images).
+Run once by hand and read the last log line before trusting the cron. **Restore** commands are at
+the top of the script; do a restore drill on a throwaway database after the first backup.
+**Offsite:** the script keeps copies on the same droplet only — sync `/root/backups/roamhub360` to
+DO Spaces / OneDrive with `rclone` so a lost droplet isn't a lost customer.
 
 ---
 

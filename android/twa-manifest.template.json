@@ -1,0 +1,51 @@
+{
+  "_comment": "Reference for the Bubblewrap project (which lives in its OWN repo, see PROJECT_HANDOVER/21_ANDROID_APP.md §4). After `bubblewrap init --manifest https://app.roamhub360.com/manifest.webmanifest` compare the generated twa-manifest.json with this file and align the values; fill the two <PLACEHOLDER>s. Do not commit the keystore or its passwords anywhere.",
+  "packageId": "com.techhubaustralia.roamhub360",
+  "host": "app.roamhub360.com",
+  "name": "RoamHub360",
+  "launcherName": "RoamHub360",
+  "display": "standalone",
+  "orientation": "portrait",
+  "themeColor": "#0a1830",
+  "themeColorDark": "#0a1830",
+  "navigationColor": "#0a1830",
+  "navigationColorDark": "#0a1830",
+  "navigationDividerColor": "#0a1830",
+  "navigationDividerColorDark": "#0a1830",
+  "backgroundColor": "#0a1830",
+  "enableNotifications": true,
+  "startUrl": "/?src=twa",
+  "iconUrl": "https://app.roamhub360.com/icons/icon-512.png",
+  "maskableIconUrl": "https://app.roamhub360.com/icons/maskable-512.png",
+  "splashScreenFadeOutDuration": 300,
+  "signingKey": {
+    "path": "./android.keystore",
+    "alias": "roamhub360"
+  },
+  "appVersionName": "1.0.0",
+  "appVersionCode": 1,
+  "shortcuts": [
+    { "name": "Book a space", "shortName": "Book", "url": "/book?src=shortcut", "chosenIconUrl": "https://app.roamhub360.com/icons/icon-192.png" },
+    { "name": "My bookings", "shortName": "Mine", "url": "/mine?src=shortcut", "chosenIconUrl": "https://app.roamhub360.com/icons/icon-192.png" },
+    { "name": "Who's in", "shortName": "Team", "url": "/team?src=shortcut", "chosenIconUrl": "https://app.roamhub360.com/icons/icon-192.png" }
+  ],
+  "generatorApp": "bubblewrap-cli",
+  "webManifestUrl": "https://app.roamhub360.com/manifest.webmanifest",
+  "fullScopeUrl": "https://app.roamhub360.com/",
+  "fallbackType": "customtabs",
+  "features": {},
+  "alphaDependencies": { "enabled": false },
+  "enableSiteSettingsShortcut": true,
+  "isChromeOSOnly": false,
+  "isMetaQuest": false,
+  "minSdkVersion": 21,
+  "fingerprints": [
+    { "name": "Play App Signing", "value": "<PLAY_APP_SIGNING_SHA256>" },
+    { "name": "Upload key", "value": "<UPLOAD_KEY_SHA256>" }
+  ],
+  "additionalTrustedOrigins": [
+    "<tenant-slug-1>.roamhub360.com",
+    "<tenant-slug-2>.roamhub360.com"
+  ],
+  "retainedBundles": []
+}

@@ -70,8 +70,21 @@ import { withTenant } from "./tenant-rls";
 return withTenant((tx) => tx.booking.findMany({ where: { tenantId, ... } }));
 ```
 
-Rollout order: (1) route every tenant-scoped read/write in `db.ts`, `users.ts`, `directory.ts`,
-`kb.ts`, `support.ts`, … through `withTenant` while the flag is off — deploy, no behaviour change;
+A second primitive, **`setTenantContext(tx, tenantId?)`**, sets the same `set_config` on a
+transaction client the caller already holds — for functions that run their own `$transaction`
+(interactive transactions cannot nest). No-op while the flag is off.
+
+**Wiring map for `lib/server/db.ts`** (decided 2026-09-17 from reading the code; apply on the
+staging branch, not blind — the SQL branches only execute with `DATABASE_URL`):
+
+| Function | Wiring | Why |
+|---|---|---|
+| `listBookings`, `cancelBookingsForSpaces`, `cancelActiveBookingsForBuilding`, `setBookingStatus`, `setBookingEventId`, `getBooking`, `listLocks`, `setLock`, `audit`, `auditSelfTest`, `listAudit` | `return withTenant((p) => …existing SQL branch…)` | single statement(s) on the shared client today |
+| `createBooking`, `updateBookingTimes` | keep their `p.$transaction(async (tx) => …, { isolationLevel: "Serializable" })`; add `await setTenantContext(tx, tenantId)` as the **first** statement in the callback | already transactional with retries; nesting is impossible |
+| `pruneAudit` | **no** tenant context — runs under the FORCE-RLS-exempt admin role (or `TENANT_RLS` off for the jobs runner) | cross-tenant by design (retention); under RLS with no context it would silently prune nothing |
+| `users.ts`, `directory.ts`, `kb.ts`, `support.ts`, `tenants.ts`, `apikeys.ts`, `tenant-integration.ts` | same split: shared-client functions → `withTenant`; own-transaction functions → `setTenantContext`; platform-operator paths (tenant list, global KB, purge/export) → admin role | audit each file the same way before flipping the flag |
+
+Rollout order: (1) apply the map above with the flag off — deploy, no behaviour change;
 (2) on **staging**, apply Phase A then Phase B and set `TENANT_RLS=on`; run the leak test;
 (3) production in the same order. Add `TENANT_RLS` to the `environment:` block of
 `docker-compose.cohost.yml` when step 2 starts (deliberately not there yet — nothing should be able to

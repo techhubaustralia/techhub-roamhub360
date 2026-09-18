@@ -13,6 +13,15 @@ Effort: **S** <1d · **M** 1–3d · **L** >3d.
 | `android-cicd` pipeline; first internal-testing upload by hand; listing + Data safety | P1 | M | Drafts in `21_ANDROID_APP.md` §6–7; screenshots from the deployed app. |
 | iOS App Store shell (Capacitor) | P3 | L | Decision deferred; PWA Add-to-Home-Screen works today. |
 
+## Operations (found 2026-09-18)
+
+| Item | Pri | Effort | Notes / dependency |
+|---|---|---|---|
+| **Scheduled-jobs cron was never installed on the droplet** — reminders, auto-release, digests, licence warnings never ran | P1 | S | `scripts/jobs-tick.sh` + two cron lines (`docs/DEPLOY-DROPLET.md` §8). Verify `/var/log/roamhub360-jobs.log` shows `HTTP 200` every 30 min. |
+| **No backups of the RoamHub360 database or appdata volume** | P1 | S | `scripts/backup-droplet.sh` + cron (§10). Then a restore drill, then an **offsite** copy (rclone → DO Spaces/OneDrive). |
+| No uptime monitoring / alerting | P2 | S | External checker on `https://app.roamhub360.com/api/health` (expects `{"status":"ok","db":"ok"}`), alert to OPS_EMAIL. |
+| Email authentication for the sending domain (SPF/DKIM/DMARC) unverified | P2 | S | Check `Authentication-Results` on a received invite; fix DNS for the Resend/Graph sender. |
+
 ## Outstanding bugs / correctness
 
 | Item | Pri | Effort | Notes / dependency |

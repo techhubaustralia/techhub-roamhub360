@@ -76,7 +76,9 @@ Answer the prompts with:
 | Play Billing / location delegation | no |
 | Include support for Play Billing | no |
 
-Then edit `twa-manifest.json`:
+Then compare the generated `twa-manifest.json` with **`android/twa-manifest.template.json`** in this
+repo (every known value is pre-filled) and align it; the two things only you can fill are the
+fingerprints and:
 
 ```json
 "additionalTrustedOrigins": ["acme.roamhub360.com", "<every-other-tenant>.roamhub360.com"],
