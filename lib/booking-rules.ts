@@ -224,3 +224,13 @@ export function overlaps(aStart: string, aEnd: string, bStart: string, bEnd: str
 }
 
 export const ACTIVE_STATUSES = ["Booked", "Checked in"];
+
+/**
+ * Does the set of bookings already on a space for one day take the WHOLE day? Only a full-day (or
+ * legacy half-day) booking does; hourly bookings leave gaps, so the space stays bookable — hourly —
+ * around them and the server's overlap check decides each attempt. An empty list means the caller
+ * has no slot data (older feed), so it stays conservative and treats "booked" as the whole day.
+ */
+export function blocksWholeDay(slots: { durationType: string }[]): boolean {
+  return slots.length === 0 || slots.some((s) => s.durationType !== "hourly");
+}

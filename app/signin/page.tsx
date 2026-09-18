@@ -26,12 +26,15 @@ const SLUG_OK = /^[a-z0-9][a-z0-9-]{1,30}[a-z0-9]$/;
 export default async function SignInPage({ searchParams }: { searchParams: Promise<{ workspace?: string }> }) {
   const entraEnabled = Boolean(process.env.AUTH_MICROSOFT_ENTRA_ID_ID);
   const googleEnabled = Boolean(process.env.AUTH_GOOGLE_ID);
+  const signupOpen = process.env.ALLOW_PUBLIC_SIGNUP === "true"; // self-serve trials are opt-in
   const raw = (await searchParams)?.workspace;
   // Validate before echoing into the page (never render an unvalidated query param as a link).
   const otherWorkspace = raw && SLUG_OK.test(raw) && raw !== "default" ? raw : null;
   return (
     <div className="fixed inset-0 z-[100] overflow-auto bg-background">
-      <div className="mx-auto flex min-h-full w-full max-w-6xl flex-col lg:flex-row">
+      {/* Phones: the sign-in form comes FIRST (column-reverse) so nobody scrolls past the pitch to
+          find it — this is also the Android app's first screen. Desktop keeps pitch-left, form-right. */}
+      <div className="mx-auto flex min-h-full w-full max-w-6xl flex-col-reverse lg:flex-row">
         {/* Marketing */}
         <div className="flex flex-1 flex-col justify-center gap-8 p-8 lg:p-14">
           <div className="flex items-center gap-3">
@@ -69,7 +72,7 @@ export default async function SignInPage({ searchParams }: { searchParams: Promi
         </div>
 
         {/* Sign-in */}
-        <div className="flex flex-1 flex-col items-center justify-center border-t p-8 lg:border-l lg:border-t-0">
+        <div className="flex flex-1 flex-col items-center justify-center border-b p-8 lg:border-b-0 lg:border-l">
           {otherWorkspace && (
             <div className="mb-4 w-full max-w-[380px] rounded-[12px] border border-primary/40 bg-primary/10 px-4 py-3 text-[13px]">
               <div className="flex items-start gap-2">
@@ -89,7 +92,12 @@ export default async function SignInPage({ searchParams }: { searchParams: Promi
           )}
           <SignInForm entraEnabled={entraEnabled} googleEnabled={googleEnabled} bare />
           <p className="mt-4 text-center text-[12.5px] text-txt-mute">
-            New to {brand.productName}? <Link href="/signup" className="font-semibold text-primary">Start a free trial</Link>
+            New to {brand.productName}?{" "}
+            {signupOpen ? (
+              <Link href="/signup" className="font-semibold text-primary">Start a free trial</Link>
+            ) : (
+              <Link href="/signup" className="font-semibold text-primary">Get it for your organisation</Link>
+            )}
           </p>
         </div>
       </div>

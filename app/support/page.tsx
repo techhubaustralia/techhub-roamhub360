@@ -144,7 +144,7 @@ export default function SupportPage() {
           <>
             <div className="mb-3 flex items-center gap-2">
               <StatusPill status={thread.request.status} />
-              <span className="text-[12px] text-txt-mute">{thread.request.category} · raised {new Date(thread.request.createdAt).toLocaleString()}</span>
+              <span className="text-[12px] text-txt-mute">{thread.request.category} · raised {new Date(thread.request.createdAt).toLocaleString("en-AU")}</span>
             </div>
             <h1 className="font-heading text-[20px] font-bold leading-snug">{thread.request.subject}</h1>
 
@@ -232,7 +232,7 @@ export default function SupportPage() {
                   {r.unread && <span className="shrink-0 rounded-full bg-primary px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-primary-foreground">New reply</span>}
                 </div>
                 <div className="mt-0.5 text-[12px] text-txt-mute">
-                  {r.category} · {new Date(r.createdAt).toLocaleDateString()}
+                  {r.category} · {new Date(r.createdAt).toLocaleDateString("en-AU")}
                   {r.replyCount ? ` · ${r.replyCount} repl${r.replyCount === 1 ? "y" : "ies"}` : " · no reply yet"}
                 </div>
               </div>
@@ -259,7 +259,7 @@ function StatusIcon({ status }: { status: string }) {
 function Bubble({ who, when, body, mine, attachment }: { who: string; when: string; body: string; mine?: boolean; attachment?: { name: string; href: string } | null }) {
   return (
     <div className={`rounded-[12px] px-3.5 py-2.5 text-[13.5px] ${mine ? "bg-panel-2/60" : "border border-primary/25 bg-primary/8"}`}>
-      <div className="mb-0.5 text-[11.5px] text-txt-mute">{who} · {new Date(when).toLocaleString()}</div>
+      <div className="mb-0.5 text-[11.5px] text-txt-mute">{who} · {new Date(when).toLocaleString("en-AU")}</div>
       <div className="whitespace-pre-wrap leading-relaxed">{body}</div>
       {attachment && (
         <a href={attachment.href} download className="mt-2 inline-flex items-center gap-1.5 rounded-[8px] border bg-card px-2.5 py-1.5 text-[12.5px] font-semibold hover:border-primary">

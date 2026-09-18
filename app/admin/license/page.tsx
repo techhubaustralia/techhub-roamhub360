@@ -9,7 +9,7 @@ const TIER_LABEL: Record<string, string> = { trial: "Trial", standard: "Standard
 
 function fmtDate(iso: string | null): string {
   if (!iso) return "No expiry";
-  return new Date(iso).toLocaleDateString(undefined, { day: "numeric", month: "long", year: "numeric" });
+  return new Date(iso).toLocaleDateString("en-AU", { day: "numeric", month: "long", year: "numeric" });
 }
 
 function StatusBanner({ s }: { s: LicenseSummary }) {

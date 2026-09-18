@@ -28,7 +28,9 @@ function shiftDay(date: string, n: number): string {
 }
 function prettyDate(date: string): string {
   const [y, m, d] = date.split("-").map(Number);
-  return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long", timeZone: "UTC" });
+  // Fixed locale: this string is server-rendered, so a browser-default locale (en-AU vs the server's
+  // en-US) would produce different text and a hydration error for every Australian visitor.
+  return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString("en-AU", { weekday: "long", day: "numeric", month: "long", timeZone: "UTC" });
 }
 const timeRange = (start: string, end: string) => {
   const sameDay = start.slice(0, 10) === end.slice(0, 10);

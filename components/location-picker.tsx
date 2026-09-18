@@ -30,7 +30,7 @@ export function LocationPicker() {
   // region === country, which rendered an ugly "Australia › Australia").
   const full = office
     ? [office.region, office.country, office.b]
-        .filter((s) => s && s !== "—")
+        .filter((s) => s && s !== "—" && s !== "Other sites") // the no-region bucket is a grouping aid, not a place
         .filter((s, i, a) => s !== a[i - 1])
         .join(" › ")
     : "No buildings";

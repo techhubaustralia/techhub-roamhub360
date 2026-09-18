@@ -131,7 +131,7 @@ function Detail({ row, onClose, onPatch }: { row: SupportRequestRow; onClose: ()
               <span className="text-[12px] text-txt-mute">{row.category}</span>
             </div>
             <h2 className="mt-1.5 font-heading text-[16px] font-bold leading-snug">{row.subject}</h2>
-            <div className="mt-1 text-[12px] text-txt-mute">From {row.userName ? `${row.userName} · ` : ""}<a href={`mailto:${row.userEmail}`} className="text-primary hover:underline">{row.userEmail}</a> · {new Date(row.createdAt).toLocaleString()}</div>
+            <div className="mt-1 text-[12px] text-txt-mute">From {row.userName ? `${row.userName} · ` : ""}<a href={`mailto:${row.userEmail}`} className="text-primary hover:underline">{row.userEmail}</a> · {new Date(row.createdAt).toLocaleString("en-AU")}</div>
           </div>
           <button onClick={onClose} className="grid size-8 place-items-center rounded-[8px] hover:bg-panel-2" aria-label="Close"><X className="size-4" /></button>
         </div>
@@ -156,7 +156,7 @@ function Detail({ row, onClose, onPatch }: { row: SupportRequestRow; onClose: ()
               <div className="flex flex-col gap-2">
                 {replies.map((r) => (
                   <div key={r.id} className={`rounded-[10px] border px-3 py-2 text-[13px] ${r.fromAdmin ? "bg-primary/8 border-primary/25" : "bg-panel-2/50"}`}>
-                    <div className="mb-0.5 text-[11.5px] text-txt-mute">{r.fromAdmin ? (r.authorName || "Support") : (r.authorName || r.authorEmail)} · {new Date(r.createdAt).toLocaleString()}</div>
+                    <div className="mb-0.5 text-[11.5px] text-txt-mute">{r.fromAdmin ? (r.authorName || "Support") : (r.authorName || r.authorEmail)} · {new Date(r.createdAt).toLocaleString("en-AU")}</div>
                     <div className="whitespace-pre-wrap leading-relaxed">{r.body}</div>
                     {r.attachmentName && (
                       <a href={`/api/support/${row.id}/attachment?reply=${r.id}`} download className="mt-1.5 inline-flex items-center gap-1.5 rounded-[8px] border bg-card px-2.5 py-1 text-[12px] font-semibold hover:border-primary">

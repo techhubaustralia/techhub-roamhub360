@@ -12,6 +12,7 @@ import { SetupChecklist } from "@/components/setup-checklist";
 import { UpgradeNudge } from "@/components/upgrade-nudge";
 import { getBookings, setBookingStatusApi, isActiveBooking, type Booking } from "@/lib/api";
 import { getBuildingsMeta } from "@/lib/plan-store";
+import { checkInWindowError } from "@/lib/booking-rules";
 
 const kindTag = (k: string) => (k === "room" ? "room" : k === "office" ? "office" : k === "parking" ? "parking" : "desk") as "desk" | "room" | "office" | "parking";
 
@@ -19,6 +20,7 @@ export default function HomePage() {
   const [user, setUser] = useState<{ name: string }>({ name: "there" });
   const [rows, setRows] = useState<Booking[]>([]);
   const [names, setNames] = useState<Record<string, string>>({});
+  const [tzs, setTzs] = useState<Record<string, string>>({});
   const [sites, setSites] = useState(0);
   const [loading, setLoading] = useState(true);
   // Set on the client only, with a fixed locale, so SSR and hydration agree
@@ -35,12 +37,17 @@ export default function HomePage() {
     getBuildingsMeta().then((m) => {
       const visible = m.custom.filter((c) => !m.hidden.includes(c.id));
       setNames(Object.fromEntries(m.custom.map((c) => [c.id, c.name])));
+      setTzs(Object.fromEntries(m.custom.filter((c) => c.tz).map((c) => [c.id, c.tz as string])));
       setSites(visible.length);
     });
-    setToday(new Date().toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" }));
+    setToday(new Date().toLocaleDateString("en-AU", { weekday: "long", year: "numeric", month: "long", day: "numeric" }));
   }, []);
 
   const bName = (id: string) => names[id] ?? names[id.split("__")[0]] ?? id;
+  const tzOf = (id: string) => tzs[id] ?? tzs[id.split("__")[0]];
+  // Same UI hint as My bookings: "Check in" is greyed until the booking's day in the site's zone.
+  // The server stays the authority (it also applies the site's check-in opening time).
+  const checkInBlock = (r: Booking) => checkInWindowError(r.start, r.end, tzOf(r.buildingId));
 
   // Active = live, non-cancelled, not yet ended. Past/cancelled/declined live in My bookings → History.
   const active = useMemo(
@@ -53,7 +60,13 @@ export default function HomePage() {
 
   async function checkIn(id: string) {
     setRows((rs) => rs.map((r) => (r.id === id ? { ...r, status: "Checked in" } : r)));
-    await setBookingStatusApi(id, "Checked in");
+    const res = await setBookingStatusApi(id, "Checked in");
+    if (!res.ok) {
+      // Undo the optimistic flip and show the server's reason rather than a false success.
+      setRows((rs) => rs.map((r) => (r.id === id ? { ...r, status: "Booked" } : r)));
+      toast.error("Not yet", { description: res.error ?? "Could not check in." });
+      return;
+    }
     toast.success("Checked in", { description: "Booking confirmed" });
   }
 
@@ -105,6 +118,10 @@ export default function HomePage() {
               trailing={
                 r.status === "Checked in" ? (
                   <StatusPill variant="ok">Checked in</StatusPill>
+                ) : checkInBlock(r) ? (
+                  <span className="rounded-[10px] border px-3 py-1.5 text-[13px] font-semibold text-txt-mute" title={checkInBlock(r) ?? undefined}>
+                    Check in
+                  </span>
                 ) : (
                   <button onClick={() => checkIn(r.id)} className="rounded-[10px] bg-primary px-3 py-1.5 text-[13px] font-semibold text-primary-foreground hover:bg-orange-soft">
                     Check in

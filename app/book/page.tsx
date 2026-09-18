@@ -10,12 +10,15 @@ import { usePlan, getFloors, type FloorRoom } from "@/lib/plan-store";
 import { getLocks, setLockApi, createBookingApi, createRecurringBookingApi, getOccupied, setBookingStatusApi, getPresence, type PresenceEntry } from "@/lib/api";
 import { expandWeekly } from "@/lib/recurrence";
 import { groupAttendance } from "@/lib/attendance";
-import { deriveTimes, validateBooking, todayInTz, maxAdvanceDate, DURATION_LABELS, type DurationType, type Kind } from "@/lib/booking-rules";
+import { deriveTimes, validateBooking, todayInTz, maxAdvanceDate, blocksWholeDay, DURATION_LABELS, type DurationType, type Kind } from "@/lib/booking-rules";
 import { spaceKey, type SpaceEl, type SpaceKind, type SpaceStatus } from "@/lib/types";
 import { FloorSvg } from "@/components/floorplan/floor-svg";
 import { Legend } from "@/components/floorplan/legend";
 import { PageHeader } from "@/components/page-header";
 import { AttendanceStack } from "@/components/attendance-stack";
+
+// One booking on a space for the selected day, as the occupant feed reports it (no emails).
+interface Slot { start: string; end: string; durationType: string; name: string }
 
 const TABS: { label: string; kind: SpaceKind }[] = [
   { label: "Desks", kind: "desk" },
@@ -48,6 +51,7 @@ export default function BookPage() {
   const [kind, setKind] = useState<SpaceKind>("desk");
   const [query, setQuery] = useState("");
   const [occupants, setOccupants] = useState<Record<string, string>>({});
+  const [slots, setSlots] = useState<Record<string, Slot[]>>({});
   // admin-only: booking id + owner per occupied space, so an admin can cancel on their behalf
   const [adminBookings, setAdminBookings] = useState<Record<string, { id: string; user: string }>>({});
   const [status, setStatus] = useState<Record<string, SpaceStatus>>({});
@@ -154,25 +158,34 @@ export default function BookPage() {
     };
   }, [planId, selDate]);
 
-  // occupants for the floor+date (so search can find "where is <colleague>")
+  // occupants for the floor+date (so search can find "where is <colleague>"), plus each space's
+  // booked slots. Reloaded on every booking change (ours or anyone's, via the live bus) so the
+  // panel never shows a stale "booked on this day" list after you just booked.
   useEffect(() => {
-    if (!planId) { setOccupants({}); return; }
+    if (!planId) { setOccupants({}); setSlots({}); return; }
     let alive = true;
-    fetch(`/api/bookings?building=${encodeURIComponent(planId)}&date=${selDate}`)
-      .then((r) => (r.ok ? r.json() : []))
-      .then((bk: { spaceKey: string; name?: string; userEmail?: string; id?: string }[]) => {
-        if (!alive) return;
-        const m: Record<string, string> = {};
-        const adm: Record<string, { id: string; user: string }> = {};
-        bk.forEach((b) => {
-          m[b.spaceKey] = b.name ?? b.userEmail ?? "";
-          if (b.id) adm[b.spaceKey] = { id: b.id, user: b.userEmail ?? b.name ?? "" };
-        });
-        setOccupants(m);
-        setAdminBookings(adm);
-      })
-      .catch(() => {});
-    return () => { alive = false; };
+    const load = () =>
+      fetch(`/api/bookings?building=${encodeURIComponent(planId)}&date=${selDate}`)
+        .then((r) => (r.ok ? r.json() : []))
+        .then((bk: { spaceKey: string; name?: string; userEmail?: string; id?: string; start?: string; end?: string; durationType?: string }[]) => {
+          if (!alive) return;
+          const m: Record<string, string> = {};
+          const adm: Record<string, { id: string; user: string }> = {};
+          const sl: Record<string, Slot[]> = {};
+          bk.forEach((b) => {
+            m[b.spaceKey] = b.name ?? b.userEmail ?? "";
+            if (b.id) adm[b.spaceKey] = { id: b.id, user: b.userEmail ?? b.name ?? "" };
+            if (b.start && b.end) (sl[b.spaceKey] ??= []).push({ start: b.start, end: b.end, durationType: b.durationType ?? "full", name: b.name ?? "" });
+          });
+          Object.values(sl).forEach((list) => list.sort((a, b) => a.start.localeCompare(b.start)));
+          setOccupants(m);
+          setAdminBookings(adm);
+          setSlots(sl);
+        })
+        .catch(() => {});
+    load();
+    window.addEventListener("bookings:changed", load);
+    return () => { alive = false; window.removeEventListener("bookings:changed", load); };
   }, [planId, selDate]);
 
   // "Who's coming in" to this site on the selected date — from /api/presence, which applies the
@@ -204,6 +217,9 @@ export default function BookPage() {
   function pick(el: SpaceEl) {
     setSelected(el);
     setKind(el.t);
+    // A partly-booked space (hourly bookings only) can only take another hourly booking.
+    const k = spaceKey(el);
+    if (status[k] === "booked" && !blocksWholeDay(slots[k] ?? [])) setDuration("hourly");
   }
   function switchKind(k: SpaceKind) {
     setKind(k);
@@ -323,7 +339,7 @@ export default function BookPage() {
     <div className="animate-fade-up flex h-full flex-col">
       <PageHeader
         title="Book a space"
-        subtitle={`${office.b} · ${plan.name}`}
+        subtitle={`${office.b} · ${floors.find((f) => f.id === planId)?.name ?? plan.name}`}
         action={
           <div className="flex gap-2">
             {canAdmin && (
@@ -502,6 +518,7 @@ export default function BookPage() {
               <Detail
                 el={selected}
                 spaceStatus={selStatus}
+                slots={selKey ? slots[selKey] ?? [] : []}
                 admin={admin}
                 office={office.b}
                 officeOpen={plan.openTime || "08:00"}
@@ -552,6 +569,7 @@ function spaceLabel(el: SpaceEl): string {
 function Detail({
   el,
   spaceStatus,
+  slots,
   admin,
   office,
   officeOpen,
@@ -585,6 +603,7 @@ function Detail({
 }: {
   el: SpaceEl;
   spaceStatus: SpaceStatus;
+  slots: Slot[]; // this space's bookings on the selected day (times only)
   admin: boolean;
   office: string;
   officeOpen: string;
@@ -618,11 +637,15 @@ function Detail({
 }) {
   const label = spaceLabel(el);
   const isLocked = spaceStatus === "locked";
-  const isBooked = spaceStatus === "booked";
+  // "booked" on the map means SOMETHING is booked today. Only a whole-day booking takes the space
+  // out; hourly bookings leave gaps, so the space stays bookable (hourly) around them and the
+  // server's conflict check remains the authority on overlaps.
+  const isBooked = spaceStatus === "booked" && blocksWholeDay(slots);
+  const partlyBooked = spaceStatus === "booked" && !isBooked;
   // Half-day is retired from the UI (Full Day = office hours, Hourly covers shorter slots).
   // The "half" DurationType is kept in the model so existing/historical bookings still
   // display, validate, reschedule, report and export correctly.
-  const durations: DurationType[] = ["full", "hourly"];
+  const durations: DurationType[] = partlyBooked ? ["hourly"] : ["full", "hourly"]; // pick() already switched to hourly
 
   return (
     <>
@@ -664,6 +687,20 @@ function Detail({
         </div>
       ) : (
         <>
+          {partlyBooked && (
+            <div className="mt-4 rounded-[10px] border border-amber/40 bg-amber/10 p-3 text-[12.5px]">
+              <div className="mb-1 font-semibold">Booked on this day</div>
+              <ul className="space-y-0.5 text-txt-dim">
+                {slots.map((s, i) => (
+                  <li key={i}>
+                    {s.start.slice(11)}–{s.end.slice(11)}
+                    {s.name ? ` · ${s.name}` : ""}
+                  </li>
+                ))}
+              </ul>
+              <div className="mt-1.5 text-txt-mute">Other times are free — pick an hourly slot below.</div>
+            </div>
+          )}
           <div className="mt-3 text-[11px] font-semibold uppercase tracking-[0.05em] text-txt-mute">Duration</div>
           <div className="my-2 flex overflow-hidden rounded-[9px] border bg-panel-2">
             {durations.map((d) => (

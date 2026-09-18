@@ -60,8 +60,17 @@ export async function GET(req: Request) {
     const rl = await rateLimit(`occ:ip:${clientIp(req)}`, 120, 60_000); // search endpoint throttle
     if (!rl.ok) return tooMany(rl.retryAfter);
     return NextResponse.json(
+      // Times + duration type let the map tell "booked 10:00–11:30" from "booked all day" so a room
+      // (or desk) with one hourly booking stays bookable for the rest of the day. Not PII.
       // Admins additionally get the booking id + email so they can cancel on the user's behalf.
-      rows.map((b) => ({ spaceKey: b.spaceKey, name: displayName(b.userEmail), ...(adminHere ? { id: b.id, userEmail: b.userEmail } : {}) })),
+      rows.map((b) => ({
+        spaceKey: b.spaceKey,
+        name: displayName(b.userEmail),
+        start: b.start,
+        end: b.end,
+        durationType: b.durationType,
+        ...(adminHere ? { id: b.id, userEmail: b.userEmail } : {}),
+      })),
     );
   }
   // Otherwise return the signed-in user's own bookings (My bookings / Home / bell).

@@ -1,5 +1,19 @@
 import { describe, it, expect } from "vitest";
-import { validateBooking, deriveTimes, overlaps, daysBetween, todayInTz, nowInTz, DEFAULT_TZ, checkInWindowError, maxAdvanceDate, autoReleaseTimeFor, AUTO_RELEASE_DEFAULT } from "./booking-rules";
+import { validateBooking, deriveTimes, overlaps, daysBetween, todayInTz, nowInTz, DEFAULT_TZ, checkInWindowError, maxAdvanceDate, autoReleaseTimeFor, AUTO_RELEASE_DEFAULT, blocksWholeDay } from "./booking-rules";
+
+describe("blocksWholeDay — is a 'booked' space out for the whole day?", () => {
+  it("hourly bookings only → the space stays bookable around them", () => {
+    expect(blocksWholeDay([{ durationType: "hourly" }])).toBe(false);
+    expect(blocksWholeDay([{ durationType: "hourly" }, { durationType: "hourly" }])).toBe(false);
+  });
+  it("any full-day or legacy half-day booking takes the whole day", () => {
+    expect(blocksWholeDay([{ durationType: "full" }])).toBe(true);
+    expect(blocksWholeDay([{ durationType: "hourly" }, { durationType: "half" }])).toBe(true);
+  });
+  it("no slot data → conservative (whole day), so an older feed never over-promises", () => {
+    expect(blocksWholeDay([])).toBe(true);
+  });
+});
 
 const day = (n: number) => new Date(Date.now() + n * 864e5).toISOString().slice(0, 10);
 const nextWeekday = (start: number) => {
