@@ -1,0 +1,43 @@
+# External uptime check — runs on GitHub's infrastructure, so it still fires when the droplet is down.
+# Probes the public health endpoint every 15 minutes; a failed run triggers GitHub's workflow-failure
+# email to the person who last committed this file (make sure notifications are on for this repo).
+# Free, no third-party account. GitHub pauses scheduled workflows after 60 days without a commit —
+# any push to main re-enables it. Check the Actions tab → "Uptime" for history.
+name: Uptime
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: uptime
+  cancel-in-progress: false
+
+jobs:
+  probe:
+    name: app.roamhub360.com health
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Probe /api/health (3 attempts, 20 s apart)
+        run: |
+          URL="https://app.roamhub360.com/api/health"
+          for i in 1 2 3; do
+            BODY=$(curl -sS -m 15 -w '\n%{http_code}' "$URL" 2>&1) && CODE=$(printf '%s' "$BODY" | tail -n1) || CODE=000
+            JSON=$(printf '%s' "$BODY" | sed '$d')
+            echo "attempt $i: HTTP $CODE $JSON"
+            if [ "$CODE" = "200" ] && printf '%s' "$JSON" | grep -q '"status":"ok"' && printf '%s' "$JSON" | grep -q '"db":"ok"'; then
+              exit 0
+            fi
+            sleep 20
+          done
+          echo "::error::RoamHub360 health check failed 3 times — app or database down at $URL"
+          exit 1
+      - name: TLS certificate expiry (warn under 14 days)
+        run: |
+          END=$(echo | openssl s_client -servername app.roamhub360.com -connect app.roamhub360.com:443 2>/dev/null | openssl x509 -noout -enddate | cut -d= -f2)
+          echo "certificate expires: $END"
+          LEFT=$(( ( $(date -d "$END" +%s) - $(date +%s) ) / 86400 ))
+          echo "days left: $LEFT"
+          if [ "$LEFT" -lt 14 ]; then echo "::error::TLS certificate for app.roamhub360.com expires in $LEFT days"; exit 1; fi

@@ -61,6 +61,7 @@ sudo nano /etc/caddy/Caddyfile && sudo systemctl reload caddy
 # backups:
 sh /root/roamhub360/scripts/backup-droplet.sh          # DB dump + appdata tar -> /root/backups/roamhub360 (cron 16:30 UTC)
 sh /root/roamhub360/scripts/jobs-tick.sh tick          # fire scheduled jobs now; log: /var/log/roamhub360-jobs.log
+sh /root/roamhub360/scripts/offsite-sync.sh            # push backups to the rclone remote (cron 17:00 UTC)
 tail -3 /var/log/roamhub360-jobs.log /var/log/roamhub360-backup.log
 ```
 

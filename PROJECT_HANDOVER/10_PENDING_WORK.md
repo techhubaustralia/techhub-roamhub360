@@ -17,10 +17,12 @@ Effort: **S** <1d · **M** 1–3d · **L** >3d.
 
 | Item | Pri | Effort | Notes / dependency |
 |---|---|---|---|
-| **Scheduled-jobs cron was never installed on the droplet** — reminders, auto-release, digests, licence warnings never ran | P1 | S | `scripts/jobs-tick.sh` + two cron lines (`docs/DEPLOY-DROPLET.md` §8). Verify `/var/log/roamhub360-jobs.log` shows `HTTP 200` every 30 min. |
-| **No backups of the RoamHub360 database or appdata volume** | P1 | S | `scripts/backup-droplet.sh` + cron (§10). Then a restore drill, then an **offsite** copy (rclone → DO Spaces/OneDrive). |
-| No uptime monitoring / alerting | P2 | S | External checker on `https://app.roamhub360.com/api/health` (expects `{"status":"ok","db":"ok"}`), alert to OPS_EMAIL. |
-| Email authentication for the sending domain (SPF/DKIM/DMARC) unverified | P2 | S | Check `Authentication-Results` on a received invite; fix DNS for the Resend/Graph sender. |
+| ~~Scheduled-jobs cron was never installed on the droplet~~ | — | done 2026-09-18 | `scripts/jobs-tick.sh`, cron every 30 min + monthly report; log `/var/log/roamhub360-jobs.log`. |
+| ~~No backups of the RoamHub360 database or appdata volume~~ | — | done 2026-09-18 | `scripts/backup-droplet.sh`, cron 16:30 UTC, 14-day retention. First backup verified. |
+| **Restore drill** never performed | P1 | S | Command in `docs/DEPLOY-DROPLET.md` §10 (throwaway DB inside the same container). Repeat quarterly. |
+| **Offsite backup copy** | P1 | S | `scripts/offsite-sync.sh` ready; needs `rclone config` for a `roamhub-offsite` remote (DO Spaces or OneDrive) + the 17:00 UTC cron line (§10). |
+| ~~No uptime monitoring / alerting~~ | — | done 2026-09-18 | `.github/workflows/uptime.yml` every 15 min + TLS-expiry check; failure email via GitHub (§16). Keep repo notifications on. |
+| ~~Email authentication unverified~~ | — | checked 2026-09-18 | SPF/DKIM (Microsoft)/DMARC quarantine all present for Graph sending. Add Resend DKIM before ever enabling Resend. |
 
 ## Outstanding bugs / correctness
 

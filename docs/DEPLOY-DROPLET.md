@@ -170,9 +170,27 @@ and fails loudly if the dump is empty. Nightly at 16:30 UTC (02:30 Sydney):
 30 16 * * * sh /root/roamhub360/scripts/backup-droplet.sh >> /var/log/roamhub360-backup.log 2>&1
 ```
 Run once by hand and read the last log line before trusting the cron. **Restore** commands are at
-the top of the script; do a restore drill on a throwaway database after the first backup.
-**Offsite:** the script keeps copies on the same droplet only — sync `/root/backups/roamhub360` to
-DO Spaces / OneDrive with `rclone` so a lost droplet isn't a lost customer.
+the top of the script.
+
+**Restore drill** (do it after the first backup, and every few months — a backup nobody has restored
+is a hope, not a backup). Restores the newest dump into a throwaway database *inside the same
+Postgres container*, counts rows, drops it. Production data is untouched:
+```bash
+cd /root/roamhub360 && F=$(ls -t /root/backups/roamhub360/db-*.sql.gz | head -1) && echo "using $F" \
+ && docker compose -f docker-compose.cohost.yml exec -T db psql -U roamhub -d postgres -c 'DROP DATABASE IF EXISTS roamhub360_drill' -c 'CREATE DATABASE roamhub360_drill' \
+ && gunzip -c "$F" | docker compose -f docker-compose.cohost.yml exec -T db psql -U roamhub -d roamhub360_drill -q \
+ && docker compose -f docker-compose.cohost.yml exec -T db psql -U roamhub -d roamhub360_drill -c 'SELECT (SELECT count(*) FROM "Tenant") tenants, (SELECT count(*) FROM "User") users, (SELECT count(*) FROM "Booking") bookings, (SELECT count(*) FROM "AuditLog") audit' \
+ && docker compose -f docker-compose.cohost.yml exec -T db psql -U roamhub -d postgres -c 'DROP DATABASE roamhub360_drill'
+```
+Expected: the counts match what the Tenants page / Users & roles show. Any error = the backup is
+not restorable; fix before relying on it.
+
+**Offsite:** `scripts/offsite-sync.sh` mirrors `/root/backups/roamhub360` to an rclone remote named
+`roamhub-offsite` (DigitalOcean Spaces or the TechHub OneDrive — one-time `rclone config`, steps in
+the script header). Cron after the backup:
+```bash
+0 17 * * * sh /root/roamhub360/scripts/offsite-sync.sh >> /var/log/roamhub360-backup.log 2>&1
+```
 
 ---
 
@@ -374,3 +392,22 @@ separate repo generated with Bubblewrap; see `PROJECT_HANDOVER/21_ANDROID_APP.md
 
 > The web manifest (`/manifest.webmanifest`), the service worker (`/sw.js`) and `/.well-known/*`
 > are public routes (no session) — Android and the browser fetch them anonymously.
+
+---
+
+## 16. Uptime monitoring & alerting
+
+`.github/workflows/uptime.yml` probes `https://app.roamhub360.com/api/health` from GitHub's
+runners every 15 minutes (three attempts, 20 s apart) and checks the TLS certificate has more than
+14 days left. It runs outside the droplet, so it still fires when the droplet is down. A failed run
+sends GitHub's workflow-failure email to whoever last committed the workflow file — keep GitHub
+notifications for this repository enabled on the `support@` account. History: Actions → *Uptime*.
+
+GitHub disables scheduled workflows after 60 days without a commit to the repository; any push
+re-enables them. If you want SMS/phone paging later, point a paid checker (Better Stack, UptimeRobot)
+at the same URL expecting `"status":"ok"`.
+
+**Email deliverability (checked 2026-09-18):** `roamhub360.com` has SPF (`include:spf.protection.outlook.com -all`),
+DKIM delegated to Microsoft (`selector1`), and DMARC `p=quarantine` — correct for mail sent through
+Microsoft Graph from the platform mailbox. If Resend is ever enabled (`RESEND_API_KEY`), add Resend's
+DKIM/SPF records first or its mail will be quarantined.
