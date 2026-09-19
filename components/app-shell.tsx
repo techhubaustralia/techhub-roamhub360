@@ -24,7 +24,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <>
-      <div className="grid h-screen grid-cols-1 md:grid-cols-[244px_1fr]">
+      {/* grid-rows minmax(0,1fr): pin the single row to the screen height. With the default `auto`
+          row the shell grew to its content's height, so `main` (the scroll container) was taller
+          than the viewport and page bottoms were cut off with no way to scroll to them. */}
+      <div className="grid h-dvh grid-cols-1 grid-rows-[minmax(0,1fr)] md:grid-cols-[244px_1fr]">
         <div className="contents no-print">
           <Sidebar />
         </div>

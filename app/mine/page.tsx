@@ -205,16 +205,17 @@ function EditModal({ b, buildingName, onClose, onSaved }: { b: Booking; building
   // Cap the date picker at the site's advance-booking window so out-of-window days are disabled up
   // front rather than rejected on save (validateBooking on the server stays authoritative).
   const [maxDate, setMaxDate] = useState<string | undefined>(undefined);
+  const [hours, setHours] = useState<{ open?: string; close?: string }>({}); // site opening hours → full-day window
   useEffect(() => {
     let alive = true;
     fetchPlan(b.buildingId)
-      .then((p) => { if (alive) { setMaxDate(maxAdvanceDate(p.advanceDays, p.tz)); setToday(todayInTz(p.tz)); } })
+      .then((p) => { if (alive) { setMaxDate(maxAdvanceDate(p.advanceDays, p.tz)); setToday(todayInTz(p.tz)); setHours({ open: p.openTime, close: p.closeTime }); } })
       .catch(() => {});
     return () => { alive = false; };
   }, [b.buildingId]);
 
   async function save() {
-    const { start, end } = deriveTimes({ kind, duration: dur, startDate, endDate: kind === "desk" && dur === "full" ? endDate : undefined, startTime, endTime, half });
+    const { start, end } = deriveTimes({ kind, duration: dur, startDate, endDate: kind === "desk" && dur === "full" ? endDate : undefined, startTime, endTime, half, hours });
     setSaving(true);
     const res = await editBookingApi(b.id, { start, end, durationType: dur });
     setSaving(false);

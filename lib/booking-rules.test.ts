@@ -77,10 +77,25 @@ describe("validateBooking — policy", () => {
 });
 
 describe("deriveTimes", () => {
-  it("derives full-day desk window", () => {
+  it("derives full-day desk window (standard 08:00–17:30 when the site has no hours)", () => {
     const { start, end } = deriveTimes({ kind: "desk", duration: "full", startDate: "2026-06-01" });
     expect(start).toBe("2026-06-01T08:00");
     expect(end).toBe("2026-06-01T17:30");
+  });
+  it("desks and offices follow the SITE's opening hours when set (rooms already did)", () => {
+    const hours = { open: "07:00", close: "19:00" };
+    expect(deriveTimes({ kind: "desk", duration: "full", startDate: "2026-06-01", hours })).toEqual({ start: "2026-06-01T07:00", end: "2026-06-01T19:00" });
+    expect(deriveTimes({ kind: "office", duration: "full", startDate: "2026-06-01", hours })).toEqual({ start: "2026-06-01T07:00", end: "2026-06-01T19:00" });
+    expect(deriveTimes({ kind: "room", duration: "full", startDate: "2026-06-01", hours })).toEqual({ start: "2026-06-01T07:00", end: "2026-06-01T19:00" });
+    // parking stays around the clock
+    expect(deriveTimes({ kind: "parking", duration: "full", startDate: "2026-06-01", hours })).toEqual({ start: "2026-06-01T00:00", end: "2026-06-01T23:59" });
+  });
+  it("validateBooking accepts a desk inside the site's hours and refuses one outside them, naming the window", () => {
+    const policy = { openTime: "07:00", closeTime: "19:00", allowPast: true };
+    expect(validateBooking("desk", "2026-06-01T07:00", "2026-06-01T19:00", policy)).toBeNull();
+    expect(validateBooking("desk", "2026-06-01T06:30", "2026-06-01T08:00", policy, "hourly")).toBe("Outside site hours (07:00–19:00).");
+    // a site without hours keeps the standard window
+    expect(validateBooking("desk", "2026-06-01T07:00", "2026-06-01T17:30", { allowPast: true })).toBe("Outside site hours (08:00–17:30).");
   });
   it("derives am half-day", () => {
     const { start, end } = deriveTimes({ kind: "office", duration: "half", startDate: "2026-06-01", half: "am" });

@@ -1,6 +1,7 @@
 const ITEMS = [
   { c: "#2fb350", b: "#269342", label: "Available" },
   { c: "#dc5b43", b: "#b8462f", label: "Booked" },
+  { c: "#e6b422", b: "#b98f0f", label: "Partly booked — other hours free" },
   { c: "#9aa7ad", b: "#7d8a90", label: "Locked / disabled" },
   { c: "rgba(41,197,238,0.12)", b: "#29C5EE", label: "Selected" },
 ];

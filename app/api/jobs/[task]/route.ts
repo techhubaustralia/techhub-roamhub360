@@ -6,7 +6,7 @@ import { reminderEmail, checkInEmail, checkOutEmail, presenceDigestEmail, emailB
 import { listCustomBuildings, listHiddenBuildings, getStoredPlan } from "@/lib/server/store";
 import { getHiddenPresenceEmails, getPresenceDigestEmails } from "@/lib/server/users";
 import { getDirectoryMap } from "@/lib/server/directory";
-import { ACTIVE_STATUSES, DEFAULT_TZ, AUTO_RELEASE_DEFAULT, autoReleaseTimeFor } from "@/lib/booking-rules";
+import { ACTIVE_STATUSES, DEFAULT_TZ, AUTO_RELEASE_DEFAULT, TICK_TIME_RE, autoReleaseTimeFor } from "@/lib/booking-rules";
 import { visibleColleagues } from "@/lib/presence-digest";
 import { runLicenseChecks } from "@/lib/server/license-notify";
 import { runMonthlyReport } from "@/lib/server/reports";
@@ -22,13 +22,23 @@ import { claimJob, releaseJob, jobKey, pruneJobLedger } from "@/lib/server/job-l
 // iterate the persisted building list — iterating the old empty OFFICES array did nothing.
 
 type Task = "reminder" | "checkin" | "checkout" | "auto-release" | "auto-checkout" | "digest";
+// Fixed times are :00/:30 so they can match the 30-minute tick. Sites with their own opening hours
+// override `checkin` (fires at the site's opening time when it is a tick slot) and `auto-release`;
+// `checkout` (reminder) and `auto-checkout` are evaluated EVERY tick against each booking's own end
+// time, so a site that closes at 19:00 is handled the same as one that closes at 17:30.
+const EVERY_TICK = "*";
 const TARGET: Record<Task, string> = {
   digest: "07:30", // Team Build-Up D: morning "who's in" digest, before check-in reminders
   reminder: "18:00",
-  checkin: "08:00",
+  checkin: "08:00", // fallback when the site's opening time is not a :00/:30 slot
   "auto-release": AUTO_RELEASE_DEFAULT, // global fallback; each site may override on a :00/:30 slot
-  checkout: "17:00",
-  "auto-checkout": "17:30",
+  checkout: EVERY_TICK, // reminder ≤ 30 min before each booking ends — see runTask
+  "auto-checkout": EVERY_TICK, // idempotent: only bookings that have already ended
+};
+/** Minutes from HH:mm `a` to HH:mm `b` on the same day. */
+const minutesUntil = (a: string, b: string) => {
+  const m = (t: string) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3, 5));
+  return m(b) - m(a);
 };
 
 /** Display name from an email local-part, e.g. "abin.raju@…" -> "Abin Raju". */
@@ -56,13 +66,21 @@ const rootOf = (id: string) => id.split("__")[0];
 
 /** Live (non-hidden) buildings with their IANA timezone (from the saved plan; platform-default
  *  fallback) and their per-site auto-release time (validated tick slot, else the default). */
-async function liveBuildings(): Promise<{ id: string; iana: string; name: string; releaseTime: string }[]> {
+async function liveBuildings(): Promise<{ id: string; iana: string; name: string; releaseTime: string; checkinTime: string }[]> {
   const hidden = new Set(await listHiddenBuildings());
   const buildings = (await listCustomBuildings()).filter((b) => !hidden.has(b.id));
-  const out: { id: string; iana: string; name: string; releaseTime: string }[] = [];
+  const out: { id: string; iana: string; name: string; releaseTime: string; checkinTime: string }[] = [];
   for (const b of buildings) {
     const plan = await getStoredPlan(b.id);
-    out.push({ id: b.id, iana: plan?.tz || DEFAULT_TZ, name: b.name || b.id, releaseTime: autoReleaseTimeFor(plan?.autoReleaseTime) });
+    // The check-in reminder goes out when the site opens (if that is a tick slot), else at 08:00.
+    const open = plan?.openTime;
+    out.push({
+      id: b.id,
+      iana: plan?.tz || DEFAULT_TZ,
+      name: b.name || b.id,
+      releaseTime: autoReleaseTimeFor(plan?.autoReleaseTime),
+      checkinTime: open && TICK_TIME_RE.test(open) ? open : TARGET.checkin,
+    });
   }
   return out;
 }
@@ -94,7 +112,10 @@ async function runTask(task: Task, buildingRoot: string, localDate: string, loca
       if (await sendOnce("checkin", b.id, localDate, b.userEmail, m.subject, m.html)) n++;
     }
   } else if (task === "checkout") {
-    for (const b of mine.filter((b) => b.status === "Checked in" && b.start.slice(0, 10) === localDate)) {
+    // Check-out reminder ≤ 30 minutes before the booking ends (or once it has ended), whatever the
+    // site's hours. sendOnce dedupes per booking per day, so re-ticks never re-send.
+    const nowHm = localNow.slice(11);
+    for (const b of mine.filter((b) => b.status === "Checked in" && b.end.slice(0, 10) === localDate && minutesUntil(nowHm, b.end.slice(11)) <= 30)) {
       const m = checkOutEmail(b, localDate, eb);
       if (await sendOnce("checkout", b.id, localDate, b.userEmail, m.subject, m.html)) n++;
     }
@@ -168,8 +189,8 @@ export async function GET(req: Request, { params }: { params: Promise<{ task: st
       for (const t of Object.keys(TARGET) as Task[]) {
         // auto-release fires at the site's own time (default 09:30); every other task at its global
         // TARGET time. Both are :00/:30, so they can match the 30-minute tick.
-        const due = t === "auto-release" ? o.releaseTime : TARGET[t];
-        if (due === hhmm) results[`${o.id}:${t}`] = await runTask(t, o.id, date, localNow, all, o.name, o.releaseTime);
+        const due = t === "auto-release" ? o.releaseTime : t === "checkin" ? o.checkinTime : TARGET[t];
+        if (due === EVERY_TICK || due === hhmm) results[`${o.id}:${t}`] = await runTask(t, o.id, date, localNow, all, o.name, o.releaseTime);
       }
     }
     // Tenant-level (not per-building): licence-expiry notices. Idempotent — dedupes on the bands

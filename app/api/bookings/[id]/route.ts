@@ -61,7 +61,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       allowPast: plan.allowPast,
       maxHours: roomEl?.maxHours,
       tz: plan.tz,
-      openTime: plan.openTime, // meeting-room window follows office hours
+      openTime: plan.openTime, // desks, offices and rooms follow the site's hours
       closeTime: plan.closeTime,
     }, durationType);
     if (err) return NextResponse.json({ error: err }, { status: 400 });

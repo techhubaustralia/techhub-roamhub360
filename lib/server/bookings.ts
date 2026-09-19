@@ -73,7 +73,7 @@ export async function checkBookingRules(b: BookingRuleInput, user: AppUser, targ
       allowPast: policyPlan.allowPast,
       maxHours: roomEl?.maxHours,
       tz: policyPlan.tz, // office-local "today"/past checks (DST-safe)
-      openTime: policyPlan.openTime, // meeting-room window follows office hours
+      openTime: policyPlan.openTime, // desks, offices and rooms follow the site's hours
       closeTime: policyPlan.closeTime,
     },
     b.durationType, // hourly bookings must start in the future

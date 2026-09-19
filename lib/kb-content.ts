@@ -143,7 +143,7 @@ Any linked calendar event is updated or removed automatically.`,
 ## Check out
 Leaving early? Tap **Check out** to release the space so someone else can use it.
 
-If you don't check out, you'll be checked out automatically at the end of the day (around 17:30 by default).`,
+If you don't check out, you'll be checked out automatically when your booking ends (your site's closing time for a full-day booking).`,
   },
   {
     title: "Checking in with a QR code",

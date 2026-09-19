@@ -36,7 +36,7 @@ export type SpaceKind = "desk" | "room" | "office" | "parking";
 // only the drawing differs. Add new variants here + a glyph in DeskShape + an editor option.
 export type DeskShapeKind = "L" | "round" | "rect" | "double" | "exec";
 // runtime status; everything defaults to "free" (bookable). Admin can set "locked".
-export type SpaceStatus = "free" | "locked" | "booked" | "maintenance";
+export type SpaceStatus = "free" | "locked" | "booked" | "partial" | "maintenance"; // partial = hourly bookings only; still bookable around them
 
 // structural (non-interactive) elements
 export type StructEl =

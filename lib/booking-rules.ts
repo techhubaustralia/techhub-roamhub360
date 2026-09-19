@@ -21,12 +21,11 @@ export const DURATION_LABELS: Record<DurationType, string> = {
 };
 
 export function windowFor(kind: Kind, hours?: { open?: string; close?: string }): { open: string; close: string } {
-  // Parking is bookable around the clock (people arrive/leave at any hour).
-  // Meeting rooms default to the office's configured opening hours (falling back to the
-  // standard office window); desks and offices follow the standard office hours.
+  // Parking is bookable around the clock (people arrive/leave at any hour). Desks, offices and
+  // meeting rooms all follow the SITE's configured opening hours (editor → Opening hours); the
+  // standard 08:00–17:30 window is only the fallback for a site that has none set.
   if (kind === "parking") return { open: ROOM_OPEN, close: ROOM_CLOSE };
-  if (kind === "room") return { open: hours?.open || OFFICE_OPEN, close: hours?.close || OFFICE_CLOSE };
-  return { open: OFFICE_OPEN, close: OFFICE_CLOSE };
+  return { open: hours?.open || OFFICE_OPEN, close: hours?.close || OFFICE_CLOSE };
 }
 
 const iso = (date: string, time: string) => `${date}T${time}`;
@@ -135,7 +134,7 @@ export function deriveTimes(opts: {
   startTime?: string; // hourly
   endTime?: string; // hourly
   half?: "am" | "pm";
-  hours?: { open?: string; close?: string }; // office hours (rooms default to these)
+  hours?: { open?: string; close?: string }; // the site's opening hours (desks, offices and rooms all use them)
 }): { start: string; end: string } {
   const { kind, duration, startDate } = opts;
   const w = windowFor(kind, opts.hours);
@@ -159,8 +158,8 @@ export interface BookingPolicy {
   allowPast?: boolean;
   maxHours?: number; // per-room max booking duration (hours)
   tz?: string; // office IANA timezone, for "today" / past checks
-  openTime?: string; // office opening time — meeting-room booking window start
-  closeTime?: string; // office closing time — meeting-room booking window end
+  openTime?: string; // site opening time — booking window start for desks, offices and rooms
+  closeTime?: string; // site closing time — booking window end
 }
 const minutesOfDay = (iso: string) => {
   const [h, m] = iso.slice(11).split(":").map(Number);
@@ -213,7 +212,7 @@ export function validateBooking(kind: Kind, start: string, end: string, policy?:
   if (startTime < w.open || endTime > w.close) {
     if (kind === "parking") return "Outside parking hours (00:00–23:59).";
     if (kind === "room") return `Outside room hours (${w.open}–${w.close}).`;
-    return "Outside office hours (08:00–17:30).";
+    return `Outside site hours (${w.open}–${w.close}).`;
   }
   return null;
 }

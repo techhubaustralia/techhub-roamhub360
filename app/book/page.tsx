@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
 import { Search, Plus, Minus, Lock, Unlock, ShieldCheck, Upload, Trash2, Monitor, DoorClosed, Users, X } from "lucide-react";
@@ -112,8 +112,8 @@ export default function BookPage() {
   // "From" time defaults "To" to +1h unless the user has already set it.
   function changeStartTime(t: string) {
     setStartTime(t);
-    // Parking is 24h; meeting rooms follow the office close time; desks/offices use 17:30.
-    const cap = selected?.t === "parking" ? "23:59" : selected?.t === "room" ? plan.closeTime || "17:30" : "17:30";
+    // Parking is 24h; desks, offices and rooms end no later than the site's closing time.
+    const cap = selected?.t === "parking" ? "23:59" : plan.closeTime || "17:30";
     if (!endTimeTouched) setEndTime(addHour(t, cap));
   }
   function changeEndTime(t: string) {
@@ -126,6 +126,25 @@ export default function BookPage() {
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [panning, setPanning] = useState(false);
   const panStart = useRef<{ x: number; y: number } | null>(null);
+  // Zoom with Ctrl/⌘ + wheel (and trackpad pinch, which arrives as ctrlKey) ONLY. A plain wheel
+  // must scroll the page: on a large screen the map fills the viewport, and eating every wheel
+  // event for zoom left people unable to scroll at all. Native non-passive listener so we can
+  // preventDefault the browser's own page zoom on Ctrl+wheel.
+  // Callback ref (not a mount effect): the stage only renders once the site has loaded, so a
+  // one-shot effect would find nothing to attach to.
+  const wheelCleanup = useRef<(() => void) | null>(null);
+  const stageRef = useCallback((el: HTMLDivElement | null) => {
+    wheelCleanup.current?.();
+    wheelCleanup.current = null;
+    if (!el) return;
+    const onWheel = (e: WheelEvent) => {
+      if (!(e.ctrlKey || e.metaKey)) return;
+      e.preventDefault();
+      setZoom((z) => Math.min(4, Math.max(1, +(z * (e.deltaY < 0 ? 1.1 : 0.9)).toFixed(2))));
+    };
+    el.addEventListener("wheel", onWheel, { passive: false });
+    wheelCleanup.current = () => el.removeEventListener("wheel", onWheel);
+  }, []);
   const zoomBy = (f: number) => setZoom((z) => Math.min(4, Math.max(1, +(z * f).toFixed(2))));
   useEffect(() => {
     if (zoom === 1) setPan({ x: 0, y: 0 });
@@ -203,8 +222,15 @@ export default function BookPage() {
   }, [officeId, selDate]);
   const attendance = useMemo(() => groupAttendance(presence, officeId), [presence, officeId]);
 
+  // What the map and panel show: a "booked" space whose bookings are all hourly is only PARTLY
+  // booked (amber) — still bookable around them. Locks and whole-day bookings stay as they are.
+  const statusView = useMemo(() => {
+    const v: Record<string, SpaceStatus> = { ...status };
+    for (const k of Object.keys(v)) if (v[k] === "booked" && slots[k] && !blocksWholeDay(slots[k])) v[k] = "partial";
+    return v;
+  }, [status, slots]);
   const selKey = selected ? spaceKey(selected) : null;
-  const selStatus: SpaceStatus = selKey ? status[selKey] ?? "free" : "free";
+  const selStatus: SpaceStatus = selKey ? statusView[selKey] ?? "free" : "free";
   const locked = selStatus === "locked";
 
   const counts = {
@@ -218,8 +244,7 @@ export default function BookPage() {
     setSelected(el);
     setKind(el.t);
     // A partly-booked space (hourly bookings only) can only take another hourly booking.
-    const k = spaceKey(el);
-    if (status[k] === "booked" && !blocksWholeDay(slots[k] ?? [])) setDuration("hourly");
+    if (statusView[spaceKey(el)] === "partial") setDuration("hourly");
   }
   function switchKind(k: SpaceKind) {
     setKind(k);
@@ -363,7 +388,10 @@ export default function BookPage() {
         }
       />
 
-      <div className="grid min-h-0 flex-1 gap-[15px] lg:grid-cols-[1fr_300px]">
+      {/* On desktop the single grid row is pinned to the container's height (minmax(0,1fr)) — with the
+          default `auto` row the row grew to the plan's intrinsic height, so a large plan ran past the
+          bottom of the viewport instead of fitting the stage. Phones stack the panels and scroll. */}
+      <div className="grid min-h-0 flex-1 gap-[15px] lg:grid-cols-[1fr_300px] lg:grid-rows-[minmax(0,1fr)]">
         {/* stage */}
         <div className="flex min-h-0 flex-col rounded-[14px] border bg-card p-[15px] shadow-sm">
           <div className="mb-3 flex flex-wrap items-center gap-2">
@@ -425,12 +453,12 @@ export default function BookPage() {
             <button onClick={() => zoomBy(0.8)} title="Zoom out" aria-label="Zoom out" className="grid size-11 place-items-center rounded-[9px] border bg-panel-2 text-txt-dim hover:text-foreground md:size-9">
               <Minus className="size-4" />
             </button>
-            <span className="w-10 text-center text-[12px] font-semibold text-txt-mute">{Math.round(zoom * 100)}%</span>
+            <span className="w-10 text-center text-[12px] font-semibold text-txt-mute" title="Hold Ctrl and scroll to zoom; drag to pan when zoomed in">{Math.round(zoom * 100)}%</span>
           </div>
 
           <div
+            ref={stageRef}
             className="relative flex min-h-[360px] w-full flex-1 items-center justify-center overflow-hidden rounded-[11px] border bg-panel-2"
-            onWheel={(e) => { if (plan.els.length) zoomBy(e.deltaY < 0 ? 1.1 : 0.9); }}
             onPointerDown={(e) => { if (zoom > 1) { panStart.current = { x: e.clientX - pan.x, y: e.clientY - pan.y }; setPanning(true); } }}
             onPointerMove={(e) => { if (panStart.current) setPan({ x: e.clientX - panStart.current.x, y: e.clientY - panStart.current.y }); }}
             onPointerUp={() => { panStart.current = null; setPanning(false); }}
@@ -463,7 +491,7 @@ export default function BookPage() {
                   willChange: "transform",
                 }}
                 plan={plan}
-                status={status}
+                status={statusView}
                 selectedKey={selKey}
                 query={query}
                 occupants={occupants}
@@ -479,8 +507,9 @@ export default function BookPage() {
             el={hoverCard.el}
             x={hoverCard.x}
             y={hoverCard.y}
-            status={status[spaceKey(hoverCard.el)] ?? "free"}
+            status={statusView[spaceKey(hoverCard.el)] ?? "free"}
             occupant={occupants[spaceKey(hoverCard.el)]}
+            hours={`${plan.openTime || "08:00"}–${plan.closeTime || "17:30"}`}
           />
         )}
 
@@ -640,8 +669,8 @@ function Detail({
   // "booked" on the map means SOMETHING is booked today. Only a whole-day booking takes the space
   // out; hourly bookings leave gaps, so the space stays bookable (hourly) around them and the
   // server's conflict check remains the authority on overlaps.
-  const isBooked = spaceStatus === "booked" && blocksWholeDay(slots);
-  const partlyBooked = spaceStatus === "booked" && !isBooked;
+  const isBooked = spaceStatus === "booked"; // whole day (the page maps hourly-only days to "partial")
+  const partlyBooked = spaceStatus === "partial";
   // Half-day is retired from the UI (Full Day = office hours, Hourly covers shorter slots).
   // The "half" DurationType is kept in the model so existing/historical bookings still
   // display, validate, reschedule, report and export correctly.
@@ -673,7 +702,7 @@ function Detail({
         <>
           <Kv label="Type" value={el.t === "office" ? "Private office" : "Hot desk"} />
           <Kv label="Max booking" value={el.t === "office" ? "1 day" : "14 days"} />
-          <Kv label="Hours" value="08:00 – 17:30" />
+          <Kv label="Hours" value={`${officeOpen} – ${officeClose}`} />
         </>
       )}
 
@@ -848,9 +877,10 @@ const HOVER_STATUS: Record<SpaceStatus, { label: string; cls: string }> = {
   booked: { label: "Booked", cls: "bg-destructive/15 text-destructive" },
   locked: { label: "Reserved", cls: "bg-[#9aa7ad]/20 text-txt-mute" },
   maintenance: { label: "Maintenance", cls: "bg-amber/15 text-amber" },
+  partial: { label: "Partly booked", cls: "bg-amber/15 text-amber" },
 };
 
-function DeskHoverCard({ el, x, y, status, occupant }: { el: SpaceEl; x: number; y: number; status: SpaceStatus; occupant?: string }) {
+function DeskHoverCard({ el, x, y, status, occupant, hours }: { el: SpaceEl; x: number; y: number; status: SpaceStatus; occupant?: string; hours: string }) {
   const W = 232;
   const vw = typeof window !== "undefined" ? window.innerWidth : 1280;
   const vh = typeof window !== "undefined" ? window.innerHeight : 800;
@@ -878,12 +908,14 @@ function DeskHoverCard({ el, x, y, status, occupant }: { el: SpaceEl; x: number;
         </div>
         <div className="mt-2 border-t pt-2 text-[11.5px] text-txt-mute">
           <div>{typeLabel}</div>
-          {status === "booked" && occupant ? (
+          {status === "partial" ? (
+            <div className="mt-0.5">Booked for part of the day{occupant ? ` by ${occupant}` : ""} — other hours free</div>
+          ) : status === "booked" && occupant ? (
             <div className="mt-0.5">Booked by {occupant}</div>
           ) : status === "locked" ? (
             <div className="mt-0.5">Reserved / disabled by an administrator</div>
           ) : (
-            <div className="mt-0.5">Office hours 08:00–17:30{span}</div>
+            <div className="mt-0.5">Site hours {hours}{span}</div>
           )}
         </div>
       </div>

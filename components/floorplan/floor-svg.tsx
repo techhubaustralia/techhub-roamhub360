@@ -12,14 +12,16 @@ const RED = "#dc5b43";
 const RED_STROKE = "#b8462f";
 const ORANGE = "#e8912e";
 const ORANGE_STROKE = "#c2741c";
+const AMBER = "#e6b422"; // partly booked (hourly bookings only)
+const AMBER_STROKE = "#b98f0f";
 const SEL = "#29C5EE";
 
 function fillFor(status: SpaceStatus) {
-  return status === "locked" ? GREY : status === "booked" ? RED : status === "maintenance" ? ORANGE : GREEN;
+  return status === "locked" ? GREY : status === "booked" ? RED : status === "partial" ? AMBER : status === "maintenance" ? ORANGE : GREEN;
 }
 function strokeFor(status: SpaceStatus, selected: boolean) {
   if (selected) return SEL;
-  return status === "locked" ? GREY_STROKE : status === "booked" ? RED_STROKE : status === "maintenance" ? ORANGE_STROKE : GREEN_STROKE;
+  return status === "locked" ? GREY_STROKE : status === "booked" ? RED_STROKE : status === "partial" ? AMBER_STROKE : status === "maintenance" ? ORANGE_STROKE : GREEN_STROKE;
 }
 
 function Lock({ x, y, scale = 1 }: { x: number; y: number; scale?: number }) {
