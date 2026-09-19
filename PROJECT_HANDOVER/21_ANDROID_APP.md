@@ -53,42 +53,26 @@ per-region host with path-based tenancy, which is a bigger web change.
 
 ## 4. Generating the Android project (Bubblewrap)
 
-Run on the dev machine (needs JDK 17 and the Android SDK — Bubblewrap offers to install both).
-Keep the project in its **own repo** (`techhub-roamhub360-android`) so web CI stays untouched.
+**Scripted (preferred):** `android/build-android.ps1` in this repo does the whole thing — keystore
+(once), `twa-manifest.json` from `android/twa-manifest.json` with the tenant origins and the key's
+fingerprint filled in, `bubblewrap update`, `bubblewrap build` → signed APK + AAB, and it prints the
+SHA-256 the server needs. Passwords come from two environment variables and are never stored.
+See `android/README.md` for the exact commands. The generated project lands in
+`C:\Projects\roamhub360-android` (outside this repo: it holds the keystore and build output; give it
+its own private repo, `techhub-roamhub360-android`, without the keystore).
 
-```
-mkdir C:\Projects\roamhub360-android; cd C:\Projects\roamhub360-android
-npx @bubblewrap/cli init --manifest https://app.roamhub360.com/manifest.webmanifest
-```
+**Test before the Play account exists:** the APK is signed with your upload key, so once
+`ANDROID_ASSETLINKS_SHA256` on the droplet carries that key's fingerprint, `adb install -r
+app-release-signed.apk` on any Android phone gives the real full-screen app. A visible URL bar means
+asset links failed — check `adb shell pm get-app-links com.techhubaustralia.roamhub360` and
+`curl https://<origin>/.well-known/assetlinks.json` on the origin that showed the bar. When Play
+App Signing later issues its own key, append that fingerprint (comma-separated) — both stay listed.
 
-Answer the prompts with:
-
-| Prompt | Value |
-|---|---|
-| Domain / URL path | `app.roamhub360.com` / `/` |
-| Application name / short name | RoamHub360 / RoamHub360 |
-| Application ID | `com.techhubaustralia.roamhub360` |
-| Display mode | `standalone` |
-| Orientation | `portrait` (matches the manifest) |
-| Status bar / splash colours | `#0a1830` (both) |
-| Icon / maskable icon | picked up from the manifest |
-| Signing key | **create a new upload keystore** — store the `.jks` + passwords in the TechHub password vault, never in git |
-| Play Billing / location delegation | no |
-| Include support for Play Billing | no |
-
-Then compare the generated `twa-manifest.json` with **`android/twa-manifest.template.json`** in this
-repo (every known value is pre-filled) and align it; the two things only you can fill are the
-fingerprints and:
-
-```json
-"additionalTrustedOrigins": ["acme.roamhub360.com", "<every-other-tenant>.roamhub360.com"],
-"fallbackType": "customtabs",
-"enableNotifications": true
-```
-
-Build and test on a device with Chrome: `npx @bubblewrap/cli build` → `app-release-signed.apk`
-and `app-release-bundle.aab`. Install the APK; if a URL bar shows, asset links failed — check
-`adb shell pm get-app-links com.techhubaustralia.roamhub360` and the endpoint on that origin.
+**Manual fallback** (if the script cannot run Bubblewrap non-interactively): in the project folder,
+`npx @bubblewrap/cli init --manifest https://app.roamhub360.com/manifest.webmanifest`, answer with
+the values in `android/twa-manifest.json` (package `com.techhubaustralia.roamhub360`, colours
+`#0a1830`, portrait, standalone, create a new keystore), then copy `additionalTrustedOrigins`,
+`shortcuts`, `fallbackType` and `enableNotifications` from that file and run `npx @bubblewrap/cli build`.
 
 ## 5. CI/CD to Play (android-cicd)
 
@@ -134,10 +118,11 @@ A TWA is Android-only. On iPhone the same PWA installs via Safari → *Add to Ho
 iOS 16.4 — no App Store listing. An App Store app would need a native or Capacitor shell plus
 Apple's review, which is a separate project decision after Android ships.
 
-## 9. Not done yet (in order)
+## 9. Not done yet (in order — 1–3 need no Google account)
 
-1. Play developer account + app record + App Signing fingerprints → `.env` on the droplet.
-2. VAPID keys → `.env`.
-3. Bubblewrap project in a new repo; `additionalTrustedOrigins` = current tenant subdomains.
-4. Device test on a real Android phone (full-screen on main host **and** on a tenant subdomain).
-5. `android-cicd` pipeline; internal-testing release; listing + Data safety; production.
+1. `android/build-android.ps1 -Tenants "<slugs>"` on the dev PC → APK + AAB + upload-key fingerprint.
+2. Fingerprint → `ANDROID_ASSETLINKS_SHA256` on the droplet; VAPID keys → `.env`; `up -d`.
+3. Device test: `adb install -r app-release-signed.apk`; full-screen on the main host **and** a tenant subdomain.
+4. Play developer account → app record → Play App Signing → upload the AAB to Internal testing →
+   append the App signing key fingerprint to `ANDROID_ASSETLINKS_SHA256`.
+5. Listing + Data safety (§6–7) → closed/open testing → production. Optional: `android-cicd` for CI releases.
