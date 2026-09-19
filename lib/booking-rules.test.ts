@@ -36,9 +36,9 @@ describe("validateBooking — windows & limits", () => {
     const a = day(nextWeekday(1));
     expect(validateBooking("office", `${a}T08:00`, `${day(nextWeekday(1) + 2)}T17:30`)).toMatch(/cannot exceed 1 day/);
   });
-  it("rejects outside office hours", () => {
+  it("rejects outside the site's hours (standard window when the site has none)", () => {
     const a = day(nextWeekday(1));
-    expect(validateBooking("desk", `${a}T06:00`, `${a}T07:00`)).toMatch(/office hours/i);
+    expect(validateBooking("desk", `${a}T06:00`, `${a}T07:00`)).toBe("Outside site hours (08:00–17:30).");
   });
   it("accepts a valid in-hours single-day desk booking", () => {
     const a = day(nextWeekday(1));
