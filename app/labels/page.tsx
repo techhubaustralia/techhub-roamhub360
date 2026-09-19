@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { headers } from "next/headers";
 import { getUser, canAccessBuilding } from "@/lib/server/auth";
-import { listCustomBuildings } from "@/lib/server/store";
+import { listCustomBuildings, listFloors } from "@/lib/server/store";
 import { listSpaces } from "@/lib/server/availability";
 import { PrintButton } from "@/components/print-button";
 
@@ -26,7 +26,11 @@ export default async function LabelsPage({ searchParams }: { searchParams: Promi
   const host = h.get("host") ?? "";
   const origin = `${proto}://${host}`;
 
-  const spaces = selected ? await listSpaces(selected.id) : [];
+  // One label per space on EVERY floor of the site. Bookings are keyed by floor id, so the QR must
+  // carry the floor id (not the building root) or check-in on an upper floor never finds the booking.
+  const floors = selected ? await listFloors(selected.id) : [];
+  const perFloor = selected ? await Promise.all(floors.map(async (f) => ({ floor: f, spaces: await listSpaces(f.id) }))) : [];
+  const spaces = perFloor.flatMap((g) => g.spaces.map((s) => ({ ...s, floorId: g.floor.id, floorName: floors.length > 1 ? g.floor.name : "" })));
 
   return (
     <div className="mx-auto max-w-5xl">
@@ -69,15 +73,16 @@ export default async function LabelsPage({ searchParams }: { searchParams: Promi
           </p>
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 print:grid-cols-3">
             {spaces.map((s) => {
-              const url = `${origin}/checkin?b=${encodeURIComponent(selected.id)}&s=${encodeURIComponent(s.key)}`;
+              const url = `${origin}/checkin?b=${encodeURIComponent(s.floorId)}&s=${encodeURIComponent(s.key)}`;
               return (
                 <div
-                  key={s.key}
+                  key={`${s.floorId}/${s.key}`}
                   className="flex break-inside-avoid flex-col items-center rounded-[12px] border bg-white p-3 text-center text-[#0a1830]"
                 >
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={`/api/qr?text=${encodeURIComponent(url)}`} alt={`QR for ${s.label}`} width={150} height={150} className="h-auto w-full max-w-[150px]" />
                   <div className="mt-2 text-sm font-semibold">{s.label}</div>
+                  <div className="text-[11px] text-[#52707b]">{selected.name}{s.floorName ? ` · ${s.floorName}` : ""}</div>
                   <div className="text-[11px] uppercase tracking-wide text-[#52707b]">Scan to check in</div>
                 </div>
               );

@@ -10,9 +10,11 @@ import { spaceKey, type SpaceEl, type SpaceKind } from "../types";
 // (only buildings the user may access). Optionally ranks free desks by proximity to a colleague's
 // booking that day — "find me a desk near my team" becomes a real, grounded answer.
 
+// Same wording as the map, My bookings and Permanent desks ("Desk 12", "Bay B3"), so a QR label,
+// the check-in error and the assistant all name a space the way the person sees it in the app.
 function spaceLabel(el: SpaceEl): string {
-  if (el.t === "desk") return el.label || `Desk ${el.id}`;
-  if (el.t === "parking") return el.label || `Bay ${el.id}`;
+  if (el.t === "desk") return `Desk ${el.label || el.id}`;
+  if (el.t === "parking") return `Bay ${el.label || el.id}`;
   if (el.t === "office") return el.name || `Office ${el.id}`;
   return el.name || "Meeting room";
 }

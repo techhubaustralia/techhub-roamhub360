@@ -280,7 +280,8 @@ export default function OfficeBookingPage() {
                 <div className="mb-2 border-b pb-2 text-center">
                   <div className="text-[12px] font-bold">{dow(date)}</div>
                   <div className="text-[11px] text-txt-mute">{dispDate(date)}</div>
-                  <div className="mt-0.5 text-[11px] text-primary">{list.length} in</div>
+                  {/* people, not bookings — someone with a desk and a room that day counts once */}
+                  <div className="mt-0.5 text-[11px] text-primary">{new Set(list.map((r) => (r.userEmail ?? r.name).toLowerCase())).size} in</div>
                 </div>
                 <div className="flex flex-col gap-1.5">
                   {list.map((r, i) => (

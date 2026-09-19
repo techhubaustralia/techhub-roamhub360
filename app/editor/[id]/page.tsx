@@ -305,7 +305,7 @@ export default function EditorPage() {
       return;
     }
     setPlan(saved.plan); // adopt the server's new rev so the next save isn't a false conflict
-    toast.success(published ? "Published" : "Draft saved", { description: `${plan.name} updated` });
+    toast.success(published ? "Saved — live" : "Draft saved", { description: published ? `${plan.name} is published; people see this version now.` : `${plan.name} saved as a draft (not bookable until you publish).` });
   }
   const save = () => persist(plan.published ?? false);
   const publish = () => persist(true);
@@ -359,7 +359,7 @@ export default function EditorPage() {
         {!isNew && (
           <button onClick={reset} className="flex items-center gap-1.5 rounded-[10px] border bg-panel-2 px-3 py-2 text-[13px] font-semibold"><RotateCcw className="size-4" /> Reset</button>
         )}
-        <button onClick={save} className="flex items-center gap-1.5 rounded-[10px] border bg-panel-2 px-3 py-2 text-[13px] font-semibold"><Save className="size-4" /> Save draft</button>
+        <button onClick={save} title={plan.published ? "This plan is live — saving publishes your changes immediately" : "Save without publishing"} className="flex items-center gap-1.5 rounded-[10px] border bg-panel-2 px-3 py-2 text-[13px] font-semibold"><Save className="size-4" /> {plan.published ? "Save" : "Save draft"}</button>
         <button onClick={publish} className="flex items-center gap-1.5 rounded-[10px] bg-primary px-4 py-2 text-[13px] font-semibold text-primary-foreground hover:bg-orange-soft"><Rocket className="size-4" /> Publish</button>
       </div>
 
