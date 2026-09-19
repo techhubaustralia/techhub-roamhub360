@@ -13,7 +13,7 @@ import { audit } from "@/lib/server/db";
 // the requester an acknowledgement. Never fails the request just because email is down.
 export const runtime = "nodejs";
 
-const CATEGORIES = ["Question", "Bug", "Feature request", "Billing", "Other"];
+const CATEGORIES = ["Technical support", "Question", "Bug", "Feature request", "Billing", "Other"]; // keep in step with app/support/page.tsx
 
 function opsInbox(): string | null {
   const list = (process.env.OPS_EMAIL || process.env.BOOTSTRAP_ADMINS || "")

@@ -17,7 +17,7 @@ import {
 // Support Centre — the full experience for everyone (not just admins): raise a request, track its
 // status, and hold a conversation. The Help slide-over is the quick entry point; this is the home
 // for anything you've raised.
-const CATEGORIES = ["Question", "Bug", "Feature request", "Billing", "Other"];
+const CATEGORIES = ["Technical support", "Question", "Bug", "Feature request", "Billing", "Other"]; // keep in step with app/api/support/route.ts
 
 type View = "list" | "new" | "thread";
 
